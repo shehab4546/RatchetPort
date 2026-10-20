@@ -40,6 +40,38 @@ static uint64_t pool_size_bytes(void) {
 #define PAGE UINT64_C(16384)
 #define USER_MIN UINT64_C(0x1000000000)
 #define USER_MAX UINT64_C(0xfc00000000)
+
+/*
+ * Default base for mappings whose guest address hint is NULL.
+ *
+ * Ratchet uses the 0x10xxxxxxxx range heavily for direct/PRT-related
+ * address space. Starting libc flexible memory at USER_MIN placed the
+ * native libc heap at exactly 0x1000000000, where Ratchet later keeps
+ * allocator metadata.
+ *
+ * shadPS4 distinguishes its generic automatic mapping base from the
+ * 0x1000000000 PRT area. Our loader cannot yet use shadPS4's lower
+ * 0x200000000 base because Windows reserves the guest placeholder only
+ * from USER_MIN upward, so use an unused address inside that reservation.
+ */
+#define AUTO_MAP_BASE UINT64_C(0x2000000000)
+
+/*
+ * PS4 PRT aperture range.
+ *
+ * Orbis supports three PRT apertures inside the normal guest user range.
+ * Ratchet configures this during renderer/memory initialization.
+ */
+#define PRT_APERTURE_COUNT 3
+
+typedef struct {
+    uint64_t address;
+    uint64_t size;
+} PrtAperture;
+
+static PrtAperture prt_apertures[PRT_APERTURE_COUNT];
+static size_t prt_set_calls, prt_get_calls;
+
 #define LIMIT 4096
 #define INVALID ((int32_t)UINT32_C(0x80020016))
 #define NO_MEMORY ((int32_t)UINT32_C(0x8002000c))
@@ -88,7 +120,18 @@ typedef void (*GpuRange)(uintptr_t address, uint64_t size);
 static GpuRange hook_map, hook_unmap, hook_invalidate;
 enum { HOOK_MAP, HOOK_UNMAP, HOOK_INVALIDATE };
 typedef struct { int kind; uintptr_t address; uint64_t size; } PendingHook;
-static PendingHook pending[64]; static size_t pending_count;
+
+/*
+ * GPU notifications are accumulated while the guest memory table is locked
+ * and dispatched only after the lock has been released.
+ *
+ * GOW3 normally stays below 64 pending notifications, but Ratchet can perform
+ * sufficiently large/broken-up memory operations that legitimately exceed
+ * that fixed limit. Keep the ordering semantics but grow the queue as needed.
+ */
+static PendingHook *pending;
+static size_t pending_count;
+static size_t pending_capacity;
 static size_t allocations, maps, flexible_maps, protects, queries;
 static uint64_t live_bytes, flexible_bytes;
 
@@ -266,10 +309,43 @@ static void host_discard(uint64_t phys, uint64_t size) {
 }
 #endif
 static void queue_hook(int kind, uintptr_t address, uint64_t size) {
-    GpuRange hook = kind==HOOK_MAP ? hook_map : kind==HOOK_UNMAP ? hook_unmap : hook_invalidate;
-    if (!hook) return;
-    if (pending_count==sizeof(pending)/sizeof(*pending)) { fputs("STOP: GPU hook queue overflow\n",stderr); exit(21); }
-    pending[pending_count++]=(PendingHook){kind,address,size};
+    GpuRange hook =
+        kind==HOOK_MAP ? hook_map :
+        kind==HOOK_UNMAP ? hook_unmap :
+        hook_invalidate;
+
+    if (!hook)
+        return;
+
+    if (pending_count == pending_capacity) {
+        size_t next = pending_capacity ? pending_capacity * 2 : 64;
+
+        if (next < pending_capacity ||
+            next > ((size_t)-1) / sizeof(*pending)) {
+            fputs("STOP: GPU hook queue size overflow\n", stderr);
+            exit(21);
+        }
+
+        PendingHook *grown =
+            realloc(pending, next * sizeof(*pending));
+
+        if (!grown) {
+            fprintf(stderr,
+                    "STOP: cannot grow GPU hook queue to %zu entries\n",
+                    next);
+            exit(21);
+        }
+
+        pending = grown;
+        pending_capacity = next;
+
+        fprintf(stderr,
+                "Runtime: GPU hook queue grew to %zu entries\n",
+                pending_capacity);
+    }
+
+    pending[pending_count++] =
+        (PendingHook){kind,address,size};
 }
 /* Runs queued GPU notifications; callers invoke it after dropping the lock. */
 static void flush_hooks(void) {
@@ -348,7 +424,10 @@ static int overlaps(uintptr_t start, uintptr_t end, int ignore_reserved) {
 }
 /* First-fit search in the PS4 user range, starting from the hint. */
 static uintptr_t find_free(uintptr_t hint, uint64_t size, uint64_t alignment) {
-    uintptr_t at=align_up(hint<USER_MIN ? USER_MIN : hint, alignment);
+    uintptr_t start = hint ? hint : AUTO_MAP_BASE;
+    if (start < USER_MIN)
+        start = USER_MIN;
+    uintptr_t at=align_up(start, alignment);
     for (size_t i=vma_index(at); at+size<=USER_MAX; ++i) {
         if (i==vma_count || vmas[i].start>=at+size) return at;
         at=align_up(vmas[i].end,alignment);
@@ -643,6 +722,80 @@ static ABI int32_t batch_map2(BatchEntry *entries, int count, int *processed, in
 static ABI int32_t batch_map(BatchEntry *entries, int count, int *processed) {
     return batch_map2(entries,count,processed,MAP_FIXED_FLAG);
 }
+
+/*
+ * sceKernelSetPrtAperture
+ *
+ * Reference Orbis behaviour:
+ *   - IDs 0..2
+ *   - aperture must lie in [0x1000000000, 0xfc00000000]
+ *   - address is 4 KiB aligned
+ *
+ * The current port records the aperture. Sparse/PRT GPU residency can be
+ * connected to the GPU backend later if Ratchet actually exercises it.
+ */
+static ABI int32_t set_prt_aperture(int32_t id,
+                                    uint64_t address,
+                                    uint64_t size)
+{
+    if (id < 0 || id >= PRT_APERTURE_COUNT)
+        return INVALID;
+
+    /*
+     * Overflow-safe equivalent of:
+     *
+     * address < USER_MIN ||
+     * address + size > USER_MAX
+     */
+    if (address < USER_MIN || address > USER_MAX)
+        return INVALID;
+
+    if (size > USER_MAX - address)
+        return INVALID;
+
+    if (address & UINT64_C(0xfff))
+        return INVALID;
+
+    prt_apertures[id].address = address;
+    prt_apertures[id].size = size;
+    ++prt_set_calls;
+
+    printf(
+        "Runtime: PRT aperture %d set address=0x%" PRIx64
+        ", size=0x%" PRIx64 "\n",
+        id,
+        address,
+        size
+    );
+
+    return 0;
+}
+
+static ABI int32_t get_prt_aperture(int32_t id,
+                                    uint64_t *address,
+                                    uint64_t *size)
+{
+    if (id < 0 || id >= PRT_APERTURE_COUNT)
+        return INVALID;
+
+    if (!address || !size)
+        return INVALID;
+
+    *address = prt_apertures[id].address;
+    *size = prt_apertures[id].size;
+    ++prt_get_calls;
+
+    printf(
+        "Runtime: PRT aperture %d queried -> address=0x%" PRIx64
+        ", size=0x%" PRIx64 "\n",
+        id,
+        *address,
+        *size
+    );
+
+    return 0;
+}
+
 static const RuntimeExport exports[]={
     {"mmap",posix_mmap}, {"msync",posix_msync},
     {"sceKernelGetDirectMemorySize",direct_size}, {"sceKernelAllocateDirectMemory",direct_allocate},
@@ -661,6 +814,14 @@ uintptr_t runtime_memory_resolve(const char *name) {
     if (!strcmp(name, "L-Q3LEjIbgA#libkernel")) return (uintptr_t)direct_map;
     if (!strcmp(name, "MBuItvba6z8#libkernel")) return (uintptr_t)direct_release;
     if (!strcmp(name, "cQke9UuBQOk#libkernel")) return (uintptr_t)direct_unmap;
+
+    /* PRT memory management. */
+    if (!strcmp(name, "BohYr-F7-is#libkernel"))
+        return (uintptr_t)set_prt_aperture;
+
+    if (!strcmp(name, "L0v2Go5jOuM#libkernel"))
+        return (uintptr_t)get_prt_aperture;
+
     return RUNTIME_LOOKUP(exports,name);
 }
 /* Host-owned memory the guest can see (image, stacks, trampolines) lives in
@@ -827,6 +988,9 @@ int runtime_memory_is_mapped(uintptr_t address, uint64_t size) {
 void runtime_memory_report(void) {
     printf("Runtime: direct memory allocations=%zu, maps=%zu, live=%" PRIu64 ", budget=%" PRIu64 "\n",
            allocations, maps, live_bytes, POOL_SIZE);
+
+    printf("Runtime: PRT set calls=%zu, get calls=%zu\n",
+           prt_set_calls, prt_get_calls);
     printf("Runtime: flexible maps=%zu, in use=%" PRIu64 ", protects=%zu, queries=%zu, regions=%zu\n",
            flexible_maps, flexible_bytes, protects, queries, vma_count);
 }

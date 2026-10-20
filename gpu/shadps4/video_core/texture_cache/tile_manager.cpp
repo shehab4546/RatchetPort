@@ -9,6 +9,7 @@
 #include "video_core/texture_cache/image_info.h"
 #include "video_core/texture_cache/image_view.h"
 #include "video_core/texture_cache/tile_manager.h"
+#include "video_core/texture_cache/tiling_dispatch.h"
 
 #include "video_core/host_shaders/tiling_macro_128_comp.h"
 #include "video_core/host_shaders/tiling_macro_16_comp.h"
@@ -39,6 +40,9 @@ TileManager::TileManager(const Vulkan::Instance& instance_, Vulkan::Scheduler& s
                          Vulkan::Runtime& runtime_, StreamBuffer& stream_buffer_)
     : instance{instance_}, scheduler{scheduler_}, runtime{runtime_}, stream_buffer{stream_buffer_} {
     const auto device = instance.GetDevice();
+    max_dispatch_groups_x =
+        instance.GetPhysicalDevice().getProperties().limits.maxComputeWorkGroupCount[0];
+    ASSERT(max_dispatch_groups_x != 0);
     const std::array<vk::DescriptorSetLayoutBinding, 3> bindings = {{
         {
             .binding = 0,
@@ -72,11 +76,16 @@ TileManager::TileManager(const Vulkan::Instance& instance_, Vulkan::Scheduler& s
     desc_layout = std::move(desc_layout_result.value);
 
     const vk::DescriptorSetLayout set_layout = *desc_layout;
+    const vk::PushConstantRange dispatch_offset{
+        .stageFlags = vk::ShaderStageFlagBits::eCompute,
+        .offset = 0,
+        .size = sizeof(u32),
+    };
     const vk::PipelineLayoutCreateInfo layout_info = {
         .setLayoutCount = 1U,
         .pSetLayouts = &set_layout,
-        .pushConstantRangeCount = 0U,
-        .pPushConstantRanges = nullptr,
+        .pushConstantRangeCount = 1U,
+        .pPushConstantRanges = &dispatch_offset,
     };
     auto [layout_result, layout] = device.createPipelineLayoutUnique(layout_info);
     ASSERT_MSG(layout_result == vk::Result::eSuccess, "Failed to create pipeline layout: {}",
@@ -197,7 +206,7 @@ void TileManager::RecordTilingDispatch(vk::Pipeline pipeline, const vk::Descript
                                        const vk::DescriptorBufferInfo& linear,
                                        const vk::DescriptorBufferInfo& params, u32 dim_x) {
     scheduler.Record([pipeline, layout = *pl_layout, tiled, linear, params,
-                      dim_x](vk::CommandBuffer cmdbuf) {
+                      dim_x, limit = max_dispatch_groups_x](vk::CommandBuffer cmdbuf) {
         if (Vulkan::Scheduler::FullBarriers()) { // spartanport: SPARTAN_FULL_BARRIERS=1
             Vulkan::Scheduler::RecordFullBarrier(cmdbuf);
         }
@@ -223,7 +232,12 @@ void TileManager::RecordTilingDispatch(vk::Pipeline pipeline, const vk::Descript
             },
         }};
         cmdbuf.pushDescriptorSetKHR(vk::PipelineBindPoint::eCompute, layout, 0, set_writes);
-        cmdbuf.dispatch(dim_x, 1, 1);
+        const bool dispatched = ForEachTilingDispatch(dim_x, limit, [&](u32 base_texel, u32 count) {
+            cmdbuf.pushConstants(layout, vk::ShaderStageFlagBits::eCompute, 0,
+                                 sizeof(base_texel), &base_texel);
+            cmdbuf.dispatch(count, 1, 1);
+        });
+        ASSERT(dispatched);
         if (Vulkan::Scheduler::FullBarriers()) {
             Vulkan::Scheduler::RecordFullBarrier(cmdbuf);
         }

@@ -161,6 +161,23 @@ static ABI int32_t np_state(int32_t user,int32_t *state) {
     (void)user; *state=1; /* SIGNED_OUT */
     return 0;
 }
+
+/*
+ * sceNpHasSignedUp
+ *
+ * This runtime models one local user (id 1) with no PSN/ShadNet account.
+ * The call itself succeeds and reports false through the output byte.
+ */
+static ABI int32_t np_has_signed_up(int32_t user,uint8_t *has_signed_up) {
+    if (!has_signed_up || user!=USER_ID)
+        return NP_INVALID_ARGUMENT;
+
+    *has_signed_up=0;
+
+    printf("Runtime: sceNpHasSignedUp(user=%d) -> false\n",user);
+    return 0;
+}
+
 static ABI int32_t np_signed_out(void) { return NP_SIGNED_OUT; }
 static ABI int32_t np_register(void *cb,void *arg) { (void)cb; (void)arg; return new_id(); }
 static ABI void np_register_void(void *cb,void *arg) { (void)cb; (void)arg; }
@@ -582,7 +599,8 @@ static const RuntimeExport exports[]={
     {"sceHttpSetEpoll",ok_void}, {"sceHttpUnsetEpoll",ok_void}, {"sceHttpWaitRequest",http_wait},
     {"sceHttpGetStatusCode",http_fail}, {"sceHttpGetResponseContentLength",http_fail},
     {"sceHttpReadData",http_fail},
-    {"sceNpGetState",np_state}, {"sceNpGetOnlineId",np_signed_out}, {"sceNpGetNpId",np_signed_out},
+    {"sceNpGetState",np_state}, {"sceNpHasSignedUp",np_has_signed_up},
+    {"sceNpGetOnlineId",np_signed_out}, {"sceNpGetNpId",np_signed_out},
     {"sceNpRegisterStateCallback",np_register}, {"sceNpUnregisterStateCallback",ok_void},
     {"sceNpRegisterGamePresenceCallback",np_register_void}, {"sceNpRegisterPlusEventCallback",np_register},
     {"sceNpUnregisterPlusEventCallback",ok_void}, {"sceNpCheckCallback",ok_void},

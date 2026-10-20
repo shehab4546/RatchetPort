@@ -22,6 +22,7 @@
 #include "video_core/renderer_vulkan/vk_runtime.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "video_core/texture_cache/texture_cache.h"
+#include "video_core/texture_cache/churn_trace.h"
 
 #include <vk_mem_alloc.h>
 
@@ -352,8 +353,10 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBuffer(VAddr device_addr, u32 s
 std::pair<const Buffer*, u64> BufferCache::ObtainBufferForImage(VAddr device_addr, u32 size) {
     texture_cache.ResolveReadbacks(device_addr, size, true, ReadbackSource::BufferForImage);
     if (IsRegionGpuModified(device_addr, size)) {
+        ChurnTrace::Source(size, true);
         return ObtainBuffer(device_addr, size, false);
     }
+    ChurnTrace::Source(size, false);
     const auto staging = staging_pool.Request(size, VideoCore::MemoryType::HostUncached,
                                               instance.StorageMinAlignment());
     if (!SpartanToggle::Disabled(SpartanToggle::DeferredUploads)) {

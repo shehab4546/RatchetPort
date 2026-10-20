@@ -615,6 +615,19 @@ public:
         return storage + offset;
     }
 
+    /*
+     * Storage for deferred command data that is larger than the fixed
+     * 128 KiB recording chunk.
+     *
+     * The allocation belongs to this RecordChunk, so pointers captured by
+     * deferred Vulkan commands remain valid until Execute() has consumed
+     * every command in the chunk.
+     */
+    void* AllocateOverflow(size_t bytes) {
+        overflow.push_back(std::make_unique<std::byte[]>(bytes));
+        return overflow.back().get();
+    }
+
     void Execute(vk::CommandBuffer cmdbuf) {
         for (CommandBase* command = first; command;) {
             CommandBase* const next = command->next;
@@ -624,6 +637,7 @@ public:
         }
         first = last = nullptr;
         used = 0;
+        overflow.clear();
     }
 
     [[nodiscard]] bool Empty() const noexcept {
@@ -661,6 +675,13 @@ private:
     };
 
     alignas(64) std::byte storage[Capacity];
+
+    /*
+     * Large RecordData() payloads which cannot fit in storage[].
+     * Cleared only after Execute(), preserving deferred-command lifetime.
+     */
+    std::vector<std::unique_ptr<std::byte[]>> overflow;
+
     size_t used = 0;
     CommandBase* first{};
     CommandBase* last{};
@@ -769,10 +790,16 @@ public:
     /// Makes room for `bytes` of RecordData() plus the command that uses them in the current
     /// chunk: data and command must share a chunk, which is recycled once executed.
     void ReserveRecordData(size_t bytes) {
-        if (!IsRecordingDeferred()) {
+        /*
+         * Payloads larger than a complete fixed chunk are handled by
+         * RecordData() through AllocateOverflow(). There is nothing useful
+         * to reserve inside storage[] for them.
+         */
+        if (!IsRecordingDeferred() ||
+            bytes + 1024 > RecordChunk::Capacity) {
             return;
         }
-        ASSERT(bytes + 1024 <= RecordChunk::Capacity);
+
         if (RecordChunk::Capacity - record_chunk->Size() < bytes + 1024) {
             full_chunks.push_back(std::move(record_chunk));
             record_chunk = AcquireChunk();
@@ -788,8 +815,23 @@ public:
         }
         // Room for the data and the command that follows it, so both stay in one chunk.
         const size_t bytes = data.size_bytes();
+
+        /*
+         * Ratchet can generate transfer batches far larger than the normal
+         * 128 KiB command-data chunk. Keep the deferred recording model, but
+         * put those payloads in storage owned by the same RecordChunk.
+         */
+        if (bytes + alignof(T) + 1024 > RecordChunk::Capacity) {
+            auto* dst =
+                static_cast<T*>(record_chunk->AllocateOverflow(bytes));
+            std::memcpy(dst, data.data(), bytes);
+            return {dst, data.size()};
+        }
+
         ReserveRecordData(bytes + alignof(T));
-        auto* dst = static_cast<T*>(record_chunk->Allocate(bytes, alignof(T)));
+        auto* dst =
+            static_cast<T*>(record_chunk->Allocate(bytes, alignof(T)));
+        ASSERT(dst != nullptr);
         std::memcpy(dst, data.data(), bytes);
         return {dst, data.size()};
     }

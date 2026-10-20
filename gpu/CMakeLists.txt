@@ -131,6 +131,31 @@ foreach(BPP IN ITEMS 8 16 32 64 96 128)
 endforeach()
 add_custom_target(host_shaders DEPENDS ${SHADER_HEADERS})
 
+# Exercise dispatch batching with the generated production shader on Vulkan.
+add_executable(tiling-dispatch-test EXCLUDE_FROM_ALL ../tests/test_tiling_dispatch_gpu.cpp)
+add_dependencies(tiling-dispatch-test host_shaders)
+target_include_directories(tiling-dispatch-test PRIVATE shadps4 ${SHADER_INCLUDE})
+target_compile_options(tiling-dispatch-test PRIVATE -UNDEBUG -Wall -Wextra -Werror
+    -Wno-missing-field-initializers)
+target_link_libraries(tiling-dispatch-test PRIVATE Vulkan::Vulkan)
+
+add_executable(scissor-test EXCLUDE_FROM_ALL ../tests/test_scissor.cpp)
+target_include_directories(scissor-test PRIVATE shadps4)
+target_compile_options(scissor-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+
+add_executable(churn-trace-test EXCLUDE_FROM_ALL ../tests/test_texture_churn_trace.cpp
+    shadps4/video_core/texture_cache/churn_trace.cpp)
+target_include_directories(churn-trace-test PRIVATE shadps4)
+target_compile_options(churn-trace-test PRIVATE -UNDEBUG -Wall -Wextra -Werror
+    -Wno-missing-field-initializers)
+
+add_executable(ratchet-opt11-test EXCLUDE_FROM_ALL ../tests/test_ratchet_opt11.cpp)
+target_include_directories(ratchet-opt11-test PRIVATE shadps4)
+target_compile_options(ratchet-opt11-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+add_executable(zero-clear-gpu-test EXCLUDE_FROM_ALL ../tests/test_zero_clear_gpu.cpp)
+target_compile_options(zero-clear-gpu-test PRIVATE -Wall -Wextra -Werror -Wno-missing-field-initializers)
+target_link_libraries(zero-clear-gpu-test PRIVATE Vulkan::Vulkan)
+
 file(GLOB_RECURSE VIDEO_CORE CONFIGURE_DEPENDS shadps4/video_core/*.cpp)
 file(GLOB_RECURSE RECOMPILER CONFIGURE_DEPENDS shadps4/shader_recompiler/*.cpp)
 list(FILTER VIDEO_CORE EXCLUDE REGEX "renderdoc\\.cpp$")
@@ -206,6 +231,10 @@ if (WIN32)
     # The PS4 range (64 GiB - 1 TiB) must stay free: no high-entropy ASLR for heaps and stacks.
     # The guest main thread runs on the process stack: 16 MiB, committed (no stack probes).
     target_link_options(spartanport-probe PRIVATE -Wl,--disable-high-entropy-va "SHELL:-Xlinker --stack -Xlinker 16777216,16777216")
+    add_executable(crash-unwind-test EXCLUDE_FROM_ALL ../tests/test_crash_unwind_win.c)
+    set_target_properties(crash-unwind-test PROPERTIES C_STANDARD 11 C_EXTENSIONS OFF)
+    target_include_directories(crash-unwind-test PRIVATE ../src)
+    target_compile_options(crash-unwind-test PRIVATE -Wall -Wextra -Werror)
     # spartanport: runtime unit tests (ninja -C out/gpu mp3-test videodec-test services-test).
     add_executable(mp3-test EXCLUDE_FROM_ALL ../tests/test_mp3.c ../src/runtime_mp3.c ../src/compat_win.c)
     add_executable(videodec-test EXCLUDE_FROM_ALL ../tests/test_videodec.c ../src/compat_win.c)

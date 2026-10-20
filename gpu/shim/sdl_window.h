@@ -45,9 +45,11 @@ private:
     std::mutex text_mutex;
     bool text_requested{}, text_active{};
     int display_mode = -1; ///< applied SpartanSettings display mode (window thread)
+    int applied_output_res = -1; ///< applied SpartanSettings output resolution (window thread)
     bool mouse_locked = false; ///< relative mouse mode on (window thread)
     bool cursor_shown = false; ///< the system cursor is visible (window thread)
     void ApplyDisplayMode(int mode);
+    void ApplyOutputResolution(bool force = false);
     int text_state{};
     std::string text, text_prompt, base_title;
     void UpdateTextTitle();

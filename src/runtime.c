@@ -76,7 +76,9 @@ void runtime_report(void) {
     runtime_mutex_report();
     runtime_rwlock_report();
     runtime_sema_report();
+    runtime_event_report();
     runtime_content_report();
+    runtime_netctl_report();
     runtime_memory_report();
     runtime_ajm_report();
     runtime_audio_report();
@@ -231,6 +233,8 @@ uintptr_t runtime_resolve(const char *name, int is_data) {
     if (timer) return timer;
     uintptr_t sema = runtime_sema_resolve(name);
     if (sema) return sema;
+    uintptr_t event = runtime_event_resolve(name);
+    if (event) return event;
     uintptr_t rwlock = runtime_rwlock_resolve(name);
     if (rwlock) return rwlock;
     uintptr_t memory = runtime_memory_resolve(name);
@@ -239,6 +243,8 @@ uintptr_t runtime_resolve(const char *name, int is_data) {
     if (kernel) return kernel;
     uintptr_t services = runtime_services_resolve(name);
     if (services) return services;
+    uintptr_t netctl = runtime_netctl_resolve(name);
+    if (netctl) return netctl;
     uintptr_t ajm = runtime_ajm_resolve(name);
     if (ajm) return ajm;
     uintptr_t videodec = runtime_videodec_resolve(name);

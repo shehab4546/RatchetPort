@@ -14,6 +14,7 @@
 #include "core/signals.h"
 #include "video_core/page_manager.h"
 #include "video_core/page_state.h"
+#include "video_core/texture_cache/churn_trace.h"
 #include "video_core/renderer_vulkan/vk_rasterizer.h"
 
 #ifndef _WIN64
@@ -115,6 +116,7 @@ struct PageManager::Impl {
         const u64 aligned_addr = page << PM_PAGE_BITS;
         const u64 aligned_end = page_end << PM_PAGE_BITS;
         if (!rasterizer->IsMapped(aligned_addr, aligned_end - aligned_addr)) {
+            ChurnTrace::PageGap(aligned_addr, aligned_end - aligned_addr, track, is_read);
             LOG_WARNING(Render,
                         "Tracking memory region {:#x} - {:#x} which is not fully GPU mapped.",
                         aligned_addr, aligned_end);

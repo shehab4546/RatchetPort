@@ -57,6 +57,30 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugUtilsCallback(
                 callback_data->pMessageIdName ? callback_data->pMessageIdName : "<null>",
                 callback_data->pMessage ? callback_data->pMessage : "<null>");
 
+#ifdef _WIN32
+    // Identify the exact host dispatch path without changing the submitted work.
+    if (callback_data->pMessageIdName &&
+        std::strcmp(callback_data->pMessageIdName,
+                    "VUID-vkCmdDispatch-groupCountX-00386") == 0) {
+        void* frames[24];
+        const unsigned count = CaptureStackBackTrace(0, 24, frames, nullptr);
+        const auto self = reinterpret_cast<uintptr_t>(GetModuleHandleA(nullptr));
+        std::fprintf(stderr, "RATCHET VKDIAG: oversized dispatch host frames");
+        for (unsigned i = 0; i < count; ++i) {
+            HMODULE module = nullptr;
+            if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                                      GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                                  reinterpret_cast<LPCSTR>(frames[i]), &module) &&
+                reinterpret_cast<uintptr_t>(module) == self) {
+                std::fprintf(stderr, " +0x%llx",
+                             static_cast<unsigned long long>(
+                                 reinterpret_cast<uintptr_t>(frames[i]) - self));
+            }
+        }
+        std::fputc('\n', stderr);
+    }
+#endif
+
     return VK_FALSE;
 }
 

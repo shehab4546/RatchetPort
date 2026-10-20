@@ -22,10 +22,10 @@ enum Preset : int { NativeAA = 0, Quality, Balanced, Performance, UltraPerforman
 enum DebugView : int { DebugNone = 0, DebugReactive = 1, DebugMotion = 2, DebugViewCount };
 
 /// Live output resolutions: the upscaler's output and the UI host targets.
-inline constexpr int OutputWidths[] = {1280, 1920, 2560, 3840};
-inline constexpr int OutputHeights[] = {720, 1080, 1440, 2160};
-inline constexpr int OutputCount = 4;
-inline constexpr int OutputDefault = 1; ///< 1920x1080, the game's own size
+inline constexpr int OutputWidths[] = {960, 1280, 1600, 1920, 2560, 3840};
+inline constexpr int OutputHeights[] = {540, 720, 900, 1080, 1440, 2160};
+inline constexpr int OutputCount = 6;
+inline constexpr int OutputDefault = 3; ///< 1920x1080, the game's own size
 
 struct Values {
     std::atomic<int> upscaler{UpscalerFsr3};

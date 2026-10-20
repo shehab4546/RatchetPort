@@ -403,9 +403,31 @@ void ImageTab() {
     if (BeginRows("##display")) {
         ChoiceRow("Display mode", s.display_mode, G::DisplayModeNames.data(), nullptr, G::DisplayModeCount,
                   "Windowed, borderless window or exclusive fullscreen.");
+        static const char* const output_labels[] = {
+            "540p · 960 × 540", "720p · 1280 × 720", "900p · 1600 × 900",
+            "1080p · 1920 × 1080", "1440p · 2560 × 1440", "2160p · 3840 × 2160"};
+        static_assert(std::size(output_labels) == Gow3Settings::OutputCount);
+        ChoiceRow("Output / window resolution", s.output_res, output_labels, nullptr,
+                  Gow3Settings::OutputCount,
+                  "Host output size. In Windowed mode the physical window follows this choice; "
+                  "it does not change the guest VideoOut size.");
         CheckRow("VSync", s.vsync, "Waits for the monitor: no tearing, a little more input delay.");
         ImGui::EndTable();
     }
+    ImGui::SeparatorText("Internal render quality");
+    if (BeginRows("##render_quality")) {
+        static const char* const preset_labels[] = {
+            "Native · 100%", "Quality · ~67%", "Balanced · ~59%",
+            "Performance · 50%", "Ultra Performance · ~33%"};
+        static_assert(std::size(preset_labels) == Gow3Settings::PresetCount);
+        ImGui::BeginDisabled(s.upscaler == Gow3Settings::UpscalerTaa);
+        ChoiceRow("Scene quality", s.preset, preset_labels, nullptr, Gow3Settings::PresetCount,
+                  "Independent from the window size. Example at 720p output: Native = 1280×720, "
+                  "Quality ≈ 854×480, Performance = 640×360.");
+        ImGui::EndDisabled();
+        ImGui::EndTable();
+    }
+
     const int iw = s.image_width, ih = s.image_height, ww = s.window_width, wh = s.window_height;
     const bool downscaling = iw > ww || ih > wh;
     const bool rcas_blocked = s.rcas && !s.rcas_applied;

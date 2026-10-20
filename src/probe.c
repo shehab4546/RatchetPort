@@ -20,6 +20,7 @@
 #endif
 #ifdef _WIN32
 #include <windows.h>
+#include <tlhelp32.h>
 #else
 #include <sys/mman.h>
 #include <malloc.h>
@@ -130,6 +131,308 @@ static void describe_address(char *out, size_t size, uintptr_t address) {
     }
     snprintf(out,size,"%p",(void *)address);
 }
+
+/*
+ * Ratchet hang diagnostic.
+ *
+ * F10 is handled by a dedicated host thread, independent from the guest,
+ * VideoOut and the overlay. It snapshots every thread so a stalled
+ * main/render/video thread can be identified without changing execution.
+ */
+static void ratchet_dump_thread(DWORD tid) {
+    if (tid == GetCurrentThreadId())
+        return;
+
+    HANDLE thread = OpenThread(
+        THREAD_SUSPEND_RESUME |
+        THREAD_GET_CONTEXT |
+        THREAD_QUERY_INFORMATION,
+        FALSE,
+        tid);
+
+    if (!thread)
+        return;
+
+    if (SuspendThread(thread) == (DWORD)-1) {
+        CloseHandle(thread);
+        return;
+    }
+
+    CONTEXT c;
+    memset(&c, 0, sizeof(c));
+    c.ContextFlags = CONTEXT_FULL;
+
+    uintptr_t frames[16];
+    unsigned frame_count = 0;
+
+    BOOL ok = GetThreadContext(thread, &c);
+
+    if (ok) {
+        uintptr_t rbp = (uintptr_t)c.Rbp;
+
+        while (rbp && frame_count < 16) {
+            uintptr_t frame[2];
+            SIZE_T got = 0;
+
+            if (!ReadProcessMemory(GetCurrentProcess(),
+                                   (void *)rbp,
+                                   frame,
+                                   sizeof(frame),
+                                   &got) ||
+                got != sizeof(frame))
+                break;
+
+            if (frame[0] <= rbp ||
+                frame[0] - rbp > 64 * 1024 * 1024)
+                break;
+
+            frames[frame_count++] = frame[1];
+            rbp = frame[0];
+        }
+    }
+
+    ResumeThread(thread);
+
+    if (ok) {
+        char where[MAX_PATH + 96];
+
+        describe_address(where, sizeof(where), (uintptr_t)c.Rip);
+
+        fprintf(stderr,
+                "\\n[RATCHET HANG] tid=%lu\\n"
+                "  RIP: %s\\n"
+                "  rsp=%016llx rbp=%016llx\\n"
+                "  rax=%016llx rbx=%016llx "
+                "rcx=%016llx rdx=%016llx\\n"
+                "  rsi=%016llx rdi=%016llx "
+                "r8 =%016llx r9 =%016llx\\n",
+                tid,
+                where,
+                c.Rsp, c.Rbp,
+                c.Rax, c.Rbx, c.Rcx, c.Rdx,
+                c.Rsi, c.Rdi, c.R8, c.R9);
+
+        for (unsigned i = 0; i < frame_count; ++i) {
+            describe_address(where, sizeof(where), frames[i]);
+            fprintf(stderr, "    #%u %s\\n", i, where);
+        }
+    }
+
+    CloseHandle(thread);
+}
+
+static void ratchet_dump_all_threads(void) {
+    DWORD pid = GetCurrentProcessId();
+
+    HANDLE snap =
+        CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+
+    if (snap == INVALID_HANDLE_VALUE) {
+        fprintf(stderr,
+                "RATCHET HANG: CreateToolhelp32Snapshot failed (%lu)\\n",
+                GetLastError());
+        return;
+    }
+
+    THREADENTRY32 entry;
+    memset(&entry, 0, sizeof(entry));
+    entry.dwSize = sizeof(entry);
+
+    fprintf(stderr,
+            "\\n"
+            "============================================================\\n"
+            "RATCHET HANG SNAPSHOT BEGIN pid=%lu\\n"
+            "============================================================\\n",
+            pid);
+
+    if (Thread32First(snap, &entry)) {
+        do {
+            if (entry.th32OwnerProcessID == pid)
+                ratchet_dump_thread(entry.th32ThreadID);
+
+            entry.dwSize = sizeof(entry);
+        } while (Thread32Next(snap, &entry));
+    }
+
+    CloseHandle(snap);
+
+    fprintf(stderr,
+            "============================================================\\n"
+            "RATCHET HANG SNAPSHOT END\\n"
+            "============================================================\\n");
+
+    fflush(NULL);
+}
+
+static DWORD WINAPI ratchet_hang_hotkey_thread(void *unused) {
+    (void)unused;
+
+    fprintf(stderr,
+            "Ratchet diagnostic: press F10 during a black-screen hang "
+            "to dump all thread states.\\n");
+
+    for (;;) {
+        if (GetAsyncKeyState(VK_F10) & 1)
+            ratchet_dump_all_threads();
+
+        Sleep(25);
+    }
+
+    return 0;
+}
+
+static void ratchet_start_hang_hotkey(void) {
+    HANDLE thread =
+        CreateThread(NULL,
+                     0,
+                     ratchet_hang_hotkey_thread,
+                     NULL,
+                     0,
+                     NULL);
+
+    if (!thread) {
+        fprintf(stderr,
+                "RATCHET HANG: diagnostic thread creation failed (%lu)\\n",
+                GetLastError());
+        return;
+    }
+
+    CloseHandle(thread);
+}
+
+/* DIAG02: bounded crash evidence only; never dereference guest pointers directly. */
+static int ratchet_diag02_read(uintptr_t address, void *out, SIZE_T size) {
+    SIZE_T got = 0;
+    return address && size && address <= UINTPTR_MAX - (size - 1) &&
+           ReadProcessMemory(GetCurrentProcess(), (const void *)address,
+                             out, size, &got) && got == size;
+}
+
+static void ratchet_diag02_region(const char *label, uintptr_t address) {
+    MEMORY_BASIC_INFORMATION mbi;
+    char description[MAX_PATH + 64];
+    describe_address(description, sizeof(description), address);
+    fprintf(stderr, "DIAG02 %s: address=0x%016" PRIxPTR " (%s)",
+            label, address, description);
+    if (VirtualQuery((const void *)address, &mbi, sizeof(mbi)) == sizeof(mbi)) {
+        fprintf(stderr, " allocation=%p region=%p size=0x%zx state=0x%lx protect=0x%lx type=0x%lx",
+                mbi.AllocationBase, mbi.BaseAddress, (size_t)mbi.RegionSize,
+                (unsigned long)mbi.State, (unsigned long)mbi.Protect,
+                (unsigned long)mbi.Type);
+    } else {
+        fprintf(stderr, " region=unavailable");
+    }
+    fputc('\n', stderr);
+}
+
+static int ratchet_diag02_executable(uintptr_t address) {
+    MEMORY_BASIC_INFORMATION mbi;
+    if (!address || VirtualQuery((const void *)address, &mbi, sizeof(mbi)) != sizeof(mbi) ||
+        mbi.State != MEM_COMMIT || (mbi.Protect & (PAGE_GUARD | PAGE_NOACCESS)))
+        return 0;
+    const DWORD access = mbi.Protect & 0xff;
+    return access == PAGE_EXECUTE || access == PAGE_EXECUTE_READ ||
+           access == PAGE_EXECUTE_READWRITE || access == PAGE_EXECUTE_WRITECOPY;
+}
+
+static void ratchet_diag02_code(uintptr_t candidate) {
+    /* Raw bytes, not a disassembly. A stack value is not a confirmed return address. */
+    const uintptr_t start = candidate >= 32 ? candidate - 32 : 0;
+    fprintf(stderr, "DIAG02 code-before-candidate: start=0x%016" PRIxPTR " bytes=", start);
+    for (uintptr_t address = start; address < candidate; ++address) {
+        unsigned char byte = 0;
+        if (ratchet_diag02_read(address, &byte, sizeof(byte)))
+            fprintf(stderr, "%02x", (unsigned)byte);
+        else
+            fputs("??", stderr);
+    }
+    fputc('\n', stderr);
+}
+
+static void ratchet_diag02_dump_fault(const CONTEXT *c) {
+    fprintf(stderr, "RATCHET DIAG02: crash evidence; stack values are NOT an unwound backtrace\n");
+    fprintf(stderr, "DIAG02 guest_image_base=%p host_exe_base=%p\n",
+            (void *)image, (void *)GetModuleHandleA(NULL));
+    ratchet_diag02_region("RIP", (uintptr_t)c->Rip);
+    ratchet_diag02_region("RSP", (uintptr_t)c->Rsp);
+    uintptr_t seen[6];
+    unsigned count = 0;
+    for (unsigned i = 0; i < 32; ++i) {
+        const uintptr_t delta = (uintptr_t)i * sizeof(uintptr_t);
+        if ((uintptr_t)c->Rsp > UINTPTR_MAX - delta)
+            break;
+        const uintptr_t slot = (uintptr_t)c->Rsp + delta;
+        uintptr_t value = 0;
+        if (!ratchet_diag02_read(slot, &value, sizeof(value))) {
+            fprintf(stderr, "DIAG02 stack+0x%03" PRIxPTR " unreadable\n", delta);
+            continue;
+        }
+        fprintf(stderr, "DIAG02 stack+0x%03" PRIxPTR " = 0x%016" PRIxPTR "\n", delta, value);
+        if (!value || count == 6 || !ratchet_diag02_executable(value - 1))
+            continue;
+        unsigned duplicate = 0;
+        for (unsigned j = 0; j < count; ++j)
+            duplicate |= seen[j] == value;
+        if (duplicate)
+            continue;
+        seen[count++] = value;
+        ratchet_diag02_region("return-candidate", value);
+        ratchet_diag02_code(value);
+    }
+    /* Small object/vtable snapshots to interpret indirect calls from the code bytes. */
+    const uintptr_t values[] = {
+        (uintptr_t)c->Rax, (uintptr_t)c->Rbx, (uintptr_t)c->Rcx,
+        (uintptr_t)c->Rdx, (uintptr_t)c->Rsi, (uintptr_t)c->Rdi,
+        (uintptr_t)c->R12, (uintptr_t)c->R13, (uintptr_t)c->R15
+    };
+    const char *names[] = {"RAX", "RBX", "RCX", "RDX", "RSI", "RDI", "R12", "R13", "R15"};
+    for (unsigned i = 0; i < sizeof(values) / sizeof(values[0]); ++i) {
+        ratchet_diag02_region(names[i], values[i]);
+        fprintf(stderr, "DIAG02 object-at-%s:", names[i]);
+        for (unsigned j = 0; j < 8; ++j) {
+            const uintptr_t delta = (uintptr_t)j * sizeof(uintptr_t);
+            uintptr_t value = 0;
+            if (!values[i] || values[i] > UINTPTR_MAX - delta ||
+                !ratchet_diag02_read(values[i] + delta, &value, sizeof(value))) {
+                fputs(" unreadable", stderr);
+                break;
+            }
+            fprintf(stderr, " %016" PRIxPTR, value);
+        }
+        fputc('\n', stderr);
+    }
+    fputs("RATCHET DIAG02: end crash evidence\n", stderr);
+    fflush(stderr);
+}
+
+#include "crash_unwind_win.h"
+
+static void ratchet_diag03_dump_fault(const CONTEXT *c) {
+    fprintf(stderr, "RATCHET DIAG03: saved-context Windows x64 unwind\n");
+    fprintf(stderr, "DIAG03 instruction: pc=0x%016" PRIxPTR " bytes=", (uintptr_t)c->Rip);
+    for (unsigned i = 0; i < 32; ++i) {
+        unsigned char byte = 0;
+        if ((uintptr_t)c->Rip <= UINTPTR_MAX - i &&
+            ratchet_diag02_read((uintptr_t)c->Rip + i, &byte, sizeof(byte)))
+            fprintf(stderr, "%02x", (unsigned)byte);
+        else
+            fputs("??", stderr);
+    }
+    fputc('\n', stderr);
+    Gow3CrashFrame frames[32];
+    const size_t count = gow3_crash_unwind(c, frames, sizeof(frames) / sizeof(frames[0]));
+    for (size_t i = 0; i < count; ++i) {
+        char where[MAX_PATH + 64];
+        describe_address(where, sizeof(where), (uintptr_t)frames[i].pc);
+        fprintf(stderr, "DIAG03 frame %zu: %s sp=0x%016llx unwind=%s image=0x%016llx function=0x%lx-0x%lx\n",
+                i, where, (unsigned long long)frames[i].sp,
+                frames[i].has_unwind ? "pdata" : "leaf-return-slot",
+                (unsigned long long)frames[i].image_base,
+                (unsigned long)frames[i].function_begin, (unsigned long)frames[i].function_end);
+    }
+    fprintf(stderr, "RATCHET DIAG03: end unwind (%zu frames)\n", count);
+}
+
 static int fatal_reported;
 static LONG fatal_exception(EXCEPTION_POINTERS *info) {
     if (__atomic_exchange_n(&fatal_reported,1,__ATOMIC_ACQ_REL)) { Sleep(INFINITE); }
@@ -143,8 +446,165 @@ static LONG fatal_exception(EXCEPTION_POINTERS *info) {
                 (void *)record->ExceptionInformation[1],where,GetCurrentThreadId());
     else
         fprintf(stderr,"Fault: exception 0x%08lx at %s (thread %lu)\n",record->ExceptionCode,where,GetCurrentThreadId());
-    fprintf(stderr,"  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n",
-            c->Rax,c->Rbx,c->Rcx,c->Rdx,c->Rsi,c->Rdi,c->Rbp,c->Rsp);
+    fprintf(stderr,
+            "  rax=%016llx rbx=%016llx rcx=%016llx rdx=%016llx\n"
+            "  rsi=%016llx rdi=%016llx rbp=%016llx rsp=%016llx\n"
+            "  r8 =%016llx r9 =%016llx r10=%016llx r11=%016llx\n"
+            "  r12=%016llx r13=%016llx r14=%016llx r15=%016llx\n",
+            c->Rax,c->Rbx,c->Rcx,c->Rdx,
+            c->Rsi,c->Rdi,c->Rbp,c->Rsp,
+            c->R8,c->R9,c->R10,c->R11,
+            c->R12,c->R13,c->R14,c->R15);
+
+    ratchet_diag02_dump_fault(c);
+    ratchet_diag03_dump_fault(c);
+
+    /*
+     * Ratchet allocator/hash diagnostic.
+     *
+     * e7b640 keeps its allocator object in R14.
+     * Important fields observed statically:
+     *   +0x88  address-space base
+     *   +0x90  index shift
+     *   +0x94  index limit
+     *   +0x104 hash bucket table (64 entries, stride 8)
+     *   +0x388 metadata/node base
+     */
+    if (image &&
+        (uintptr_t)c->Rip - (uintptr_t)image == UINT64_C(0xe7b6d0)) {
+
+        uintptr_t obj = (uintptr_t)c->R14;
+
+        uint64_t range_base = 0;
+        uint64_t node_base = 0;
+        uint32_t index_limit = 0;
+        unsigned char shift = 0;
+        SIZE_T got = 0;
+
+        fprintf(stderr,
+                "RATCHET allocator diagnostic: object=%p\n",
+                (void *)obj);
+
+        if (ReadProcessMemory(GetCurrentProcess(),
+                              (void *)(obj + 0x88),
+                              &range_base,
+                              sizeof(range_base),
+                              &got) &&
+            got == sizeof(range_base)) {
+            fprintf(stderr,
+                    "  object+0x088 range_base = 0x%016llx\n",
+                    (unsigned long long)range_base);
+        }
+
+        got = 0;
+        if (ReadProcessMemory(GetCurrentProcess(),
+                              (void *)(obj + 0x90),
+                              &shift,
+                              sizeof(shift),
+                              &got) &&
+            got == sizeof(shift)) {
+            fprintf(stderr,
+                    "  object+0x090 shift      = %u\n",
+                    (unsigned)shift);
+        }
+
+        got = 0;
+        if (ReadProcessMemory(GetCurrentProcess(),
+                              (void *)(obj + 0x94),
+                              &index_limit,
+                              sizeof(index_limit),
+                              &got) &&
+            got == sizeof(index_limit)) {
+            fprintf(stderr,
+                    "  object+0x094 indexLimit = 0x%08x (%u)\n",
+                    index_limit,
+                    index_limit);
+        }
+
+        got = 0;
+        if (ReadProcessMemory(GetCurrentProcess(),
+                              (void *)(obj + 0x388),
+                              &node_base,
+                              sizeof(node_base),
+                              &got) &&
+            got == sizeof(node_base)) {
+            fprintf(stderr,
+                    "  object+0x388 node_base  = 0x%016llx\n",
+                    (unsigned long long)node_base);
+        }
+
+        /*
+         * Hash table: code accesses dword [object + 0x104 + bucket*8].
+         * Print every non-empty bucket.
+         */
+        fprintf(stderr, "  active hash buckets:\n");
+
+        for (unsigned i = 0; i < 64; ++i) {
+            uint32_t head = UINT32_MAX;
+
+            got = 0;
+            if (ReadProcessMemory(GetCurrentProcess(),
+                                  (void *)(obj + 0x104 + i * 8),
+                                  &head,
+                                  sizeof(head),
+                                  &got) &&
+                got == sizeof(head) &&
+                head != UINT32_MAX) {
+                fprintf(stderr,
+                        "    bucket[%02u] head=0x%08x\n",
+                        i,
+                        head);
+            }
+        }
+
+        /*
+         * The crashing lookup eventually started scanning node_base itself.
+         * Dump its first 0x80 bytes so count(+0x70) and next(+0x74) are visible.
+         */
+        if (node_base) {
+            unsigned char raw[0x80];
+
+            got = 0;
+            if (ReadProcessMemory(GetCurrentProcess(),
+                                  (void *)(uintptr_t)node_base,
+                                  raw,
+                                  sizeof(raw),
+                                  &got) &&
+                got == sizeof(raw)) {
+
+                fprintf(stderr,
+                        "  first node @ 0x%016llx:\n",
+                        (unsigned long long)node_base);
+
+                for (unsigned i = 0; i < sizeof(raw); i += 16) {
+                    fprintf(stderr, "    +%02x:", i);
+
+                    for (unsigned j = 0; j < 16; ++j)
+                        fprintf(stderr, " %02x", raw[i+j]);
+
+                    fputc('\n', stderr);
+                }
+
+                uint32_t count = 0;
+                uint32_t next = 0;
+
+                memcpy(&count, raw + 0x70, sizeof(count));
+                memcpy(&next,  raw + 0x74, sizeof(next));
+
+                fprintf(stderr,
+                        "  node header: count=0x%08x (%u), "
+                        "next=0x%08x\n",
+                        count,
+                        count,
+                        next);
+            } else {
+                fprintf(stderr,
+                        "  could not read first node at "
+                        "0x%016llx\n",
+                        (unsigned long long)node_base);
+            }
+        }
+    }
     if (gpu_enabled) spartanportgpu_dump_guest_writes(info);
     /* rbp chain (guest and host code keep frame pointers). */
     uintptr_t rbp=(uintptr_t)c->Rbp;
@@ -878,6 +1338,7 @@ int main(int argc, char **argv) {
     SYSTEM_INFO system_info; GetSystemInfo(&system_info); page_size = system_info.dwPageSize;
     AddVectoredExceptionHandler(1, vectored_fault);
     SetUnhandledExceptionFilter(unhandled_fault);
+    ratchet_start_hang_hotkey();
     if (getenv("SPARTAN_STRICT_HANDLES")) {
         PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY strict={0};
         strict.RaiseExceptionOnInvalidHandleReference=1;
@@ -1071,13 +1532,13 @@ int main(int argc, char **argv) {
         _exit(missing ? 1 : 0); /* no destructors: GPU threads are running */
     }
     if (patch_file) apply_patches(patch_file, segments, ns, relocs, nr);
-    if (gpu_enabled) install_orb_multiplier(segments, ns, size);
-    if (gpu_enabled) install_cheats(segments, ns, size);
-    if (gpu_enabled) find_engine_fps(segments, ns, size);
-    if (gpu_enabled) install_actor_watch(segments, ns, size);
-    if (gpu_enabled) install_stat_multipliers(segments, ns, size);
-    if (gpu_enabled) install_auto_qte_hooks(segments, ns, size, install_qte_hooks(segments, ns, size));
-    if (gpu_enabled && pause_menu && app0) install_menu_exit(segments, ns, size, pause_menu);
+    if (0 && gpu_enabled) install_orb_multiplier(segments, ns, size);
+    if (0 && gpu_enabled) install_cheats(segments, ns, size);
+    if (0 && gpu_enabled) find_engine_fps(segments, ns, size);
+    if (0 && gpu_enabled) install_actor_watch(segments, ns, size);
+    if (0 && gpu_enabled) install_stat_multipliers(segments, ns, size);
+    if (0 && gpu_enabled) install_auto_qte_hooks(segments, ns, size, install_qte_hooks(segments, ns, size));
+    if (0 && gpu_enabled && pause_menu && app0) install_menu_exit(segments, ns, size, pause_menu);
 #ifdef _WIN32
     printf("Guest TCB loads redirected to the TEB TLS slot: %" PRIu64 "\n", patch_tcb_loads(segments, ns));
 #endif

@@ -12,6 +12,7 @@
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "video_core/texture_cache/blit_helper.h"
 #include "video_core/texture_cache/image.h"
+#include "video_core/texture_cache/churn_trace.h"
 
 #include <vulkan/vulkan_format_traits.hpp>
 
@@ -248,6 +249,21 @@ void Runtime::UploadImage(VideoCore::Image* dst, const VideoCore::Buffer* src,
         cmdbuf.copyBufferToImage(src_handle, image, vk::ImageLayout::eTransferDstOptimal,
                                  regions.size(), regions.data());
     });
+
+    if (VideoCore::ChurnTrace::Enabled()) {
+        u64 payload = 0, span = 0;
+        const auto block = vk::blockExtent(dst->info.pixel_format);
+        const u64 block_bytes = vk::blockSize(dst->info.pixel_format);
+        for (const auto& copy : upload_copies) {
+            const u64 blocks_x = (u64(copy.imageExtent.width) + block[0] - 1) / block[0];
+            const u64 blocks_y = (u64(copy.imageExtent.height) + block[1] - 1) / block[1];
+            payload += blocks_x * blocks_y * copy.imageExtent.depth *
+                       copy.imageSubresource.layerCount * block_bytes;
+            span += BufferImageCopySize(copy, dst->info.pixel_format);
+        }
+        VideoCore::ChurnTrace::RecordImage(*dst, VideoCore::ChurnTrace::Event::Upload,
+                                          payload, span, u32(upload_copies.size()));
+    }
 
     for (const auto& copy : upload_copies) {
         const auto copy_size = BufferImageCopySize(copy, dst->info.pixel_format);

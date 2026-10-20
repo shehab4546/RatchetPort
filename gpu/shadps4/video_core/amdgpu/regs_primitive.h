@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include "common/types.h"
 #include "video_core/amdgpu/spartanport_msaa.h"
 
@@ -151,11 +152,11 @@ struct Scissor {
     }
 
     u32 GetWidth() const {
-        return static_cast<u32>(Clamp(bottom_right_x) - Clamp(top_left_x));
+        return static_cast<u32>(std::max(0, Clamp(bottom_right_x) - Clamp(top_left_x)));
     }
 
     u32 GetHeight() const {
-        return static_cast<u32>(Clamp(bottom_right_y) - Clamp(top_left_y));
+        return static_cast<u32>(std::max(0, Clamp(bottom_right_y) - Clamp(top_left_y)));
     }
 };
 

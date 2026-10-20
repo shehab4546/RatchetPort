@@ -86,7 +86,12 @@ Liverpool::~Liverpool() {
 }
 
 void Liverpool::ProcessCommands() {
-    if (num_commands && rasterizer) {
+    // A command can arrive after an empty load. Return on that snapshot so the
+    // loop cannot observe a later arrival and execute it without draining stage B.
+    if (!num_commands) {
+        return;
+    }
+    if (rasterizer) {
         rasterizer->DrainDrawPipe(Vulkan::DrawPipe::ReasonCommands); // spartanport: commands touch the caches
     }
     // Process incoming commands with high priority

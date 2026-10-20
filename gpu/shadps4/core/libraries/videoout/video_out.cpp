@@ -1,6 +1,12 @@
 // SPDX-FileCopyrightText: Copyright 2024-2026 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstdint>
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
+
 #include "common/assert.h"
 #include "common/elf_info.h"
 #include "common/logging/log.h"
@@ -22,6 +28,39 @@ static std::unique_ptr<VideoOutDriver> driver;
 void PS4_SYSV_ABI sceVideoOutSetBufferAttribute(BufferAttribute* attribute, PixelFormat pixelFormat,
                                                 u32 tilingMode, u32 aspectRatio, u32 width,
                                                 u32 height, u32 pitchInPixel) {
+#if defined(_WIN32)
+    void* caller = __builtin_return_address(0);
+
+    MEMORY_BASIC_INFORMATION mbi{};
+    const SIZE_T vq = VirtualQuery(caller, &mbi, sizeof(mbi));
+
+    const auto caller_u =
+        reinterpret_cast<std::uintptr_t>(caller);
+
+    const auto base_u =
+        vq ? reinterpret_cast<std::uintptr_t>(mbi.AllocationBase) : 0;
+
+    const auto delta =
+        (base_u != 0 && caller_u >= base_u)
+            ? caller_u - base_u
+            : 0;
+
+    std::printf(
+        "\nRATCHET VOUT CALLER: caller=%p allocation_base=%p delta=0x%llx "
+        "width=%u height=%u pitch=%u\n",
+        caller,
+        vq ? mbi.AllocationBase : nullptr,
+        static_cast<unsigned long long>(delta),
+        width,
+        height,
+        pitchInPixel);
+
+    std::fflush(stdout);
+#endif
+    std::printf("RATCHET GUEST VIDEOOUT: %ux%u pitch=%u tiling=%u aspect=%u\\n",
+                width, height, pitchInPixel, tilingMode, aspectRatio);
+    std::fflush(stdout);
+
     LOG_INFO(Lib_VideoOut,
              "pixelFormat = {}, tilingMode = {}, aspectRatio = {}, width = {}, height = {}, "
              "pitchInPixel = {}",

@@ -167,7 +167,199 @@ unsigned runtime_sema_waiters(uint32_t id) {
     pthread_mutex_unlock(&lock);
     return n;
 }
+
+/* Ratchet & Clank CUSA01047: POSIX semaphore ABI.
+ * libScePosix imports are canonicalized to #libkernel by runtime.c.
+ */
+typedef struct {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    int32_t value;
+    unsigned waiters;
+} RatchetPosixSem;
+
+typedef struct {
+    int64_t sec;
+    int64_t nsec;
+} RatchetTimespec;
+
+static int ratchet_posix_error(int value) {
+    *runtime_errno() = value;
+    return -1;
+}
+
+static ABI int32_t ratchet_posix_sem_init(
+    RatchetPosixSem **slot, int32_t pshared, uint32_t value)
+{
+    (void)pshared;
+
+    if (value > INT32_MAX)
+        return ratchet_posix_error(22);
+
+    /* Matches libkernel behaviour: a NULL output pointer is tolerated. */
+    if (!slot)
+        return 0;
+
+    RatchetPosixSem *s = calloc(1, sizeof(*s));
+    if (!s)
+        return ratchet_posix_error(12);
+
+    int e = pthread_mutex_init(&s->mutex, NULL);
+    if (e) {
+        free(s);
+        return ratchet_posix_error(runtime_guest_errno(e));
+    }
+
+    e = pthread_cond_init(&s->cond, NULL);
+    if (e) {
+        pthread_mutex_destroy(&s->mutex);
+        free(s);
+        return ratchet_posix_error(runtime_guest_errno(e));
+    }
+
+    s->value = (int32_t)value;
+    *slot = s;
+    return 0;
+}
+
+static ABI int32_t ratchet_posix_sem_destroy(RatchetPosixSem **slot)
+{
+    if (!slot || !*slot)
+        return ratchet_posix_error(22);
+
+    RatchetPosixSem *s = *slot;
+
+    pthread_mutex_lock(&s->mutex);
+
+    /* Destroying a semaphore with active waiters is unsafe. */
+    if (s->waiters) {
+        pthread_mutex_unlock(&s->mutex);
+        return ratchet_posix_error(16);
+    }
+
+    pthread_mutex_unlock(&s->mutex);
+
+    pthread_cond_destroy(&s->cond);
+    pthread_mutex_destroy(&s->mutex);
+
+    free(s);
+    *slot = NULL;
+    return 0;
+}
+
+static int32_t ratchet_posix_sem_wait_common(
+    RatchetPosixSem **slot,
+    const RatchetTimespec *absolute)
+{
+    if (!slot || !*slot)
+        return ratchet_posix_error(22);
+
+    RatchetPosixSem *s = *slot;
+
+    pthread_mutex_lock(&s->mutex);
+
+    /* PS4 checks the token before validating the timeout. */
+    if (s->value > 0) {
+        --s->value;
+        pthread_mutex_unlock(&s->mutex);
+        return 0;
+    }
+
+    if (absolute &&
+        (absolute->nsec < 0 || absolute->nsec >= 1000000000LL)) {
+        pthread_mutex_unlock(&s->mutex);
+        return ratchet_posix_error(22);
+    }
+
+    ++s->waiters;
+
+    int result = 0;
+
+    while (s->value == 0) {
+        int e;
+
+        if (!absolute) {
+            e = pthread_cond_wait(&s->cond, &s->mutex);
+        } else {
+            struct timespec end;
+            end.tv_sec = (time_t)absolute->sec;
+            end.tv_nsec = (long)absolute->nsec;
+
+            e = pthread_cond_timedwait(
+                &s->cond, &s->mutex, &end);
+        }
+
+        if (e == ETIMEDOUT) {
+            result = ratchet_posix_error(60);
+            break;
+        }
+
+        if (e) {
+            result = ratchet_posix_error(
+                runtime_guest_errno(e));
+            break;
+        }
+    }
+
+    if (!result && s->value > 0)
+        --s->value;
+
+    --s->waiters;
+
+    pthread_mutex_unlock(&s->mutex);
+    return result;
+}
+
+static ABI int32_t ratchet_posix_sem_wait(
+    RatchetPosixSem **slot)
+{
+    return ratchet_posix_sem_wait_common(slot, NULL);
+}
+
+static ABI int32_t ratchet_posix_sem_timedwait(
+    RatchetPosixSem **slot,
+    const RatchetTimespec *absolute)
+{
+    return ratchet_posix_sem_wait_common(slot, absolute);
+}
+
+static ABI int32_t ratchet_posix_sem_post(
+    RatchetPosixSem **slot)
+{
+    if (!slot || !*slot)
+        return ratchet_posix_error(22);
+
+    RatchetPosixSem *s = *slot;
+
+    pthread_mutex_lock(&s->mutex);
+
+    if (s->value == INT32_MAX) {
+        pthread_mutex_unlock(&s->mutex);
+        return ratchet_posix_error(84); /* EOVERFLOW */
+    }
+
+    ++s->value;
+
+    /* libkernel wakes all contenders; one consumes the token. */
+    pthread_cond_broadcast(&s->cond);
+
+    pthread_mutex_unlock(&s->mutex);
+    return 0;
+}
+
+
 uintptr_t runtime_sema_resolve(const char *name) {
+    /* Ratchet & Clank CUSA01047 POSIX semaphores */
+    if (!strcmp(name,"pDuPEf3m4fI#libkernel"))
+        return (uintptr_t)ratchet_posix_sem_init;
+    if (!strcmp(name,"cDW233RAwWo#libkernel"))
+        return (uintptr_t)ratchet_posix_sem_destroy;
+    if (!strcmp(name,"w5IHyvahg-o#libkernel"))
+        return (uintptr_t)ratchet_posix_sem_timedwait;
+    if (!strcmp(name,"YCV5dGGBcCo#libkernel"))
+        return (uintptr_t)ratchet_posix_sem_wait;
+    if (!strcmp(name,"IKP8typ0QUk#libkernel"))
+        return (uintptr_t)ratchet_posix_sem_post;
     if (!strcmp(name,"188x57JYp0g#libkernel")) return (uintptr_t)sem_create;
     if (!strcmp(name,"Zxa0VhQVTsk#libkernel")) return (uintptr_t)sem_wait;
     if (!strcmp(name,"4czppHBiriw#libkernel")) return (uintptr_t)sem_signal;

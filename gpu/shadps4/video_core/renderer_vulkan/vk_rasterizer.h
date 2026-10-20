@@ -255,7 +255,8 @@ private:
                       bool on_helper = false);
     bool BindResources(const Pipeline* pipeline);
     void BindSamplers(const Shader::Info& stage, const PreparedStage* prepared,
-                      Shader::Backend::Bindings& binding, u32& write_index);
+                      Shader::Backend::Bindings& binding, u32& write_index,
+                      u32 first_bound_image);
     /// spartanport: a stage's resolved textures remembered by its prepared T# hashes
     /// (TextureSetMemo): a hit only redoes the per-draw effects (binding flags, transitions).
     struct TextureSetEntry {

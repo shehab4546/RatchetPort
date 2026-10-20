@@ -474,10 +474,14 @@ void Scheduler::SubmitExecution(SubmitInfo& info) {
     const vk::Semaphore timeline = work_semaphore.Handle();
     info.AddSignal(timeline, signal_value);
 
-    static constexpr std::array<vk::PipelineStageFlags, 2> wait_stage_masks = {
-        vk::PipelineStageFlagBits::eAllCommands,
-        vk::PipelineStageFlagBits::eColorAttachmentOutput,
-    };
+    // Waits also protect transfer/compute consumers (Presenter blits the ready frame).
+    // COLOR_ATTACHMENT_OUTPUT for wait #1 allowed those earlier stages to read it first.
+    static constexpr auto wait_stage_masks = [] {
+        std::array<vk::PipelineStageFlags,
+                   std::tuple_size_v<decltype(SubmitInfo::wait_semas)>> masks{};
+        masks.fill(vk::PipelineStageFlagBits::eAllCommands);
+        return masks;
+    }();
 
     const vk::TimelineSemaphoreSubmitInfo timeline_si = {
         .waitSemaphoreValueCount = info.num_wait_semas,

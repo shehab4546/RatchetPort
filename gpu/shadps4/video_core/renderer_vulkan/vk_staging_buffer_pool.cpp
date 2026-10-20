@@ -6,6 +6,10 @@
 #include <bit>
 #include <cstdlib>
 #include <cstring>
+#include <chrono>
+#include <cstdio>
+#include <unordered_set>
+#include "video_core/renderer_vulkan/staging_budget.h"
 
 #include "common/alignment.h"
 #include "common/assert.h"
@@ -167,7 +171,61 @@ void StagingBufferPool::TickFrame() {
     for (auto& cache : large_caches) {
         TrimLarge(cache);
     }
+    TrimToBudget();
     PublishStats();
+}
+
+void StagingBufferPool::TrimToBudget() {
+    static const u64 budget = [] {
+        const char* env = std::getenv("RATCHET_STAGING_CACHE_MB");
+        if (!env) return u64{0};
+        const u64 mb = std::strtoull(env, nullptr, 10);
+        return (mb >= 64 && mb <= 512 ? mb : 0) * 1_MB;
+    }();
+    if (!budget) return;
+    std::vector<StagingBudgetEntry> entries;
+    std::vector<const VideoCore::Buffer*> buffers;
+    u64 before = 0;
+    for (const auto& ring : rings) {
+        for (const auto& b : ring.blocks) {
+            entries.push_back({b.buffer->SizeBytes(), b.last_used_frame,
+                               scheduler.IsFree(b.buffer->LastTick()), false});
+            buffers.push_back(b.buffer.get());
+            before += b.buffer->SizeBytes();
+        }
+    }
+    for (const auto& cache : large_caches) {
+        for (const auto& b : cache) {
+            entries.push_back({b.buffer->SizeBytes(), b.last_used_frame,
+                               scheduler.IsFree(b.tick), b.held});
+            buffers.push_back(b.buffer.get());
+            before += b.buffer->SizeBytes();
+        }
+    }
+    std::unordered_set<const VideoCore::Buffer*> remove;
+    u64 freed = 0;
+    for (const auto index : PlanStagingTrim(entries, budget, frame)) {
+        remove.insert(buffers[index]);
+        freed += entries[index].bytes;
+    }
+    for (auto& ring : rings) {
+        if (std::erase_if(ring.blocks, [&](const Block& b) { return remove.contains(b.buffer.get()); }))
+            ring.current = 0;
+    }
+    for (auto& cache : large_caches)
+        std::erase_if(cache, [&](const LargeBuffer& b) { return remove.contains(b.buffer.get()); });
+    static u64 released = 0, peak = 0;
+    static auto last = std::chrono::steady_clock::now();
+    released += freed;
+    peak = std::max(peak, before);
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last >= std::chrono::seconds(5)) {
+        std::fprintf(stderr, "RATCHET STAGING budget_bytes=%llu retained_bytes=%llu "
+                     "peak_before_trim_bytes=%llu released_bytes=%llu allocations=%zu\n",
+                     budget, before - freed, peak, released, entries.size() - remove.size());
+        peak = released = 0;
+        last = now;
+    }
 }
 
 void StagingBufferPool::TrimRing(Ring& ring) {

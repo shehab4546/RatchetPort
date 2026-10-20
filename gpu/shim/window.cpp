@@ -90,6 +90,8 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
         SpartanSettings::Get().display_mode = SpartanGraphics::Borderless;
     }
     ApplyDisplayMode(SpartanSettings::Get().display_mode);
+    ApplyOutputResolution(true);
+
     // spartanport: the game has no mouse; the in-game menu draws its own cursor (SpartanOverlay::SetOpen).
     SDL_HideCursor();
     int w = 0, h = 0;
@@ -115,6 +117,48 @@ void WindowSDL::ApplyDisplayMode(int mode) {
     }
     SDL_SyncWindow(window);
     std::printf("Window: %s\n", SpartanGraphics::DisplayModeNames[mode]);
+}
+
+// Ratchet/port: output_res controls the real host window in Windowed mode.
+// Keep this separate from the guest VideoOut size and from the internal render preset.
+void WindowSDL::ApplyOutputResolution(bool force) {
+    int index = SpartanSettings::Get().output_res.load();
+    if (index < 0 || index >= SpartanSettings::OutputCount) {
+        index = SpartanSettings::OutputDefault;
+    }
+    if (!force && index == applied_output_res) {
+        return;
+    }
+    applied_output_res = index;
+
+    // Borderless/fullscreen always follow the desktop. Remember the chosen output
+    // so it can be restored when Windowed mode is selected again.
+    if (display_mode != SpartanGraphics::Windowed) {
+        return;
+    }
+
+    const int target_w = SpartanSettings::OutputWidths[index];
+    const int target_h = SpartanSettings::OutputHeights[index];
+
+    // A Windows window can remain maximized after leaving borderless/fullscreen.
+    SDL_RestoreWindow(window);
+    SDL_SetWindowSize(window, target_w, target_h);
+    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_SyncWindow(window);
+
+    int logical_w = 0, logical_h = 0;
+    int pixel_w = 0, pixel_h = 0;
+    SDL_GetWindowSize(window, &logical_w, &logical_h);
+    SDL_GetWindowSizeInPixels(window, &pixel_w, &pixel_h);
+    width = pixel_w;
+    height = pixel_h;
+
+    const SDL_WindowFlags flags = SDL_GetWindowFlags(window);
+    std::printf(
+        "RATCHET WINDOW FINAL: requested=%dx%d logical=%dx%d pixels=%dx%d maximized=%d\n",
+        target_w, target_h, logical_w, logical_h, pixel_w, pixel_h,
+        (flags & SDL_WINDOW_MAXIMIZED) != 0);
+    std::fflush(stdout);
 }
 
 WindowSDL::~WindowSDL() {
@@ -157,6 +201,9 @@ bool WindowSDL::PollEvents() {
     }
     if (const int mode = SpartanSettings::Get().display_mode; mode != display_mode) {
         ApplyDisplayMode(mode);
+        ApplyOutputResolution(true);
+    } else {
+        ApplyOutputResolution(false);
     }
     SDL_Event event;
     while (SDL_PollEvent(&event)) {

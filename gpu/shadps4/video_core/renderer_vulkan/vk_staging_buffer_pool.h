@@ -75,6 +75,7 @@ private:
 
     void TrimRing(Ring& ring);
     void TrimLarge(std::vector<LargeBuffer>& cache);
+    void TrimToBudget();
 
     void PublishStats() const;
 

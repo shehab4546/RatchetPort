@@ -22,6 +22,8 @@
 #include "video_core/texture_cache/aliasing.h"
 #include "video_core/texture_cache/host_compatibility.h"
 #include "video_core/texture_cache/texture_cache.h"
+#include "video_core/texture_cache/churn_trace.h"
+#include "video_core/texture_cache/ratchet_zero_clear.h"
 #include <vulkan/vulkan_format_traits.hpp>
 #include "video_core/texture_cache/tile_manager.h"
 
@@ -36,7 +38,7 @@ TextureCache::TextureCache(const Vulkan::Instance& instance_, Vulkan::Scheduler&
     : instance{instance_}, scheduler{scheduler_}, runtime{runtime_}, liverpool{liverpool_},
       buffer_cache{buffer_cache_}, tracker{tracker_}, blit_helper{instance, scheduler},
       tile_manager{instance, scheduler, runtime, buffer_cache.GetStreamBuffer()},
-      readback_linear_images{EmulatorSettings.IsReadbackLinearImagesEnabled()} {
+      readback_linear_images{true} {
 
     std::printf("GPU: deferred image readback %s (64 copies, 64 MiB pending limit)%s\n",
                 deferred_readbacks ? "enabled" : "disabled",
@@ -68,6 +70,16 @@ TextureCache::TextureCache(const Vulkan::Instance& instance_, Vulkan::Scheduler&
         std::max<u64>(std::min(device_local_memory - min_vacancy_critical, min_spacing_critical),
                       DEFAULT_CRITICAL_GC_MEMORY));
     trigger_gc_memory = static_cast<u64>((device_local_memory - mem_threshold) / 2);
+
+    // Ratchet low-spec diagnostic profile:
+    // keep a much larger safety margin on integrated GPUs.
+    pressure_gc_memory = std::min<u64>(pressure_gc_memory, 2500_MB);
+    critical_gc_memory = std::min<u64>(critical_gc_memory, 3200_MB);
+
+    LOG_INFO(Render,
+             "Ratchet low-memory GC: pressure={} MiB, critical={} MiB",
+             pressure_gc_memory / 1_MB,
+             critical_gc_memory / 1_MB);
 }
 
 TextureCache::~TextureCache() {
@@ -524,6 +536,7 @@ bool TextureCache::CommitAliasWriter(AliasState& state) {
 
 void TextureCache::CopyAlias(ImageId src_id, ImageId dst_id, const Extent3D& extent) {
     Image& dst = slot_images[dst_id];
+    ChurnTrace::RecordImage(dst, ChurnTrace::Event::AliasCopy);
     runtime.CopyAliasImage(&slot_images[src_id], &dst, {extent.width, extent.height, extent.depth});
     dst.flags |= ImageFlagBits::GpuModified;
     dst.flags &= ~ImageFlagBits::Dirty;
@@ -568,6 +581,7 @@ void TextureCache::InvalidateAlias(Image& image) {
 }
 
 void TextureCache::MarkAsMaybeDirty(ImageId image_id, Image& image) {
+    ChurnTrace::RecordImage(image, ChurnTrace::Event::MaybeWrite);
     if (image.hash == 0) {
         // Initialize hash
         const u8* addr = std::bit_cast<u8*>(image.info.guest_address);
@@ -589,6 +603,7 @@ void TextureCache::InvalidateMemory(VAddr addr, size_t size) {
             // Untrack the image, so that the range is unprotected and the guest can write freely.
             InvalidateAlias(image);
             image.flags |= ImageFlagBits::CpuDirty;
+            ChurnTrace::RecordImage(image, ChurnTrace::Event::CpuWrite);
             UntrackImage(image_id);
         } else if (pages_end < image_end) {
             // This page access may or may not modify the image.
@@ -635,6 +650,7 @@ void TextureCache::ApplyBackingWrites() {
                 return;
             }
             image.flags |= ImageFlagBits::CpuDirty;
+            ChurnTrace::RecordImage(image, ChurnTrace::Event::BackingWrite);
             UntrackImage(image_id);
         });
     }
@@ -653,7 +669,37 @@ void TextureCache::InvalidateMemoryFromGPU(VAddr address, size_t max_size) {
         // Ensure image is reuploaded when accessed again.
         InvalidateAlias(image);
         image.flags |= ImageFlagBits::GpuDirty;
+        ChurnTrace::RecordImage(image, ChurnTrace::Event::GpuWrite);
     });
+}
+
+bool TextureCache::MirrorRatchetZeroBuffer(VAddr address, u64 bytes) {
+    std::scoped_lock lock{mutex};
+    ApplyBackingWrites();
+    ImageId only{};
+    u32 overlaps = 0;
+    ForEachImageInRegion(address, bytes, [&](ImageId id, Image&) { only = id; ++overlaps; });
+    if (overlaps != 1) return false;
+    auto& image = slot_images[only];
+    const auto& i = image.info;
+    const RatchetZeroImage candidate{
+        i.guest_address, i.guest_size, u32(i.pixel_format), i.num_bits, i.size.depth,
+        i.resources.levels, i.resources.layers, i.num_samples, i.guest_samples,
+        image.backing->num_samples, i.IsTiled(), bool(i.props.is_depth), bool(i.props.is_block),
+        True(image.flags & ImageFlagBits::Aliased),
+        True(image.flags & (ImageFlagBits::CpuDirty | ImageFlagBits::MaybeCpuDirty)),
+        True(image.flags & ImageFlagBits::GpuDirty), True(image.flags & ImageFlagBits::Registered)};
+    if (!CanMirrorRatchetZero(candidate, address, bytes, overlaps)) return false;
+    TrackImage(only);
+    TouchImage(image);
+    // Keep the actual guest shader and its buffer write. A typed image clear represents
+    // the same all-zero texels, saving detile + copyBufferToImage on the next image read.
+    const vk::ClearValue zero{.color = {.float32 = std::array<float, 4>{0.f, 0.f, 0.f, 0.f}}};
+    runtime.ClearImage(&image, {.base = {}, .extent = i.resources}, zero);
+    PublishAliasWrite(only);
+    ChurnTrace::RecordImage(image, ChurnTrace::Event::ZeroMirror,
+                           u64(i.size.width) * i.size.height * 4);
+    return true;
 }
 
 void TextureCache::UnmapMemory(VAddr cpu_addr, size_t size) {
@@ -1339,6 +1385,8 @@ void TextureCache::RefreshImage(Image& image) {
     if (False(image.flags & ImageFlagBits::Dirty) || image.info.guest_samples > 1) {
         return;
     }
+    ChurnTrace::RefreshScope churn{
+        ChurnTrace::Enabled() ? ChurnTrace::Describe(image) : ChurnTrace::Meta{}};
     ResolveReadbacks(image.info.guest_address, image.info.guest_size, true,
                      ReadbackSource::ImageRefresh);
     SpartanStats::Timer timer{SpartanStats::t_refresh};
@@ -1361,6 +1409,7 @@ void TextureCache::RefreshImage(Image& image) {
         const u64 hash = XXH3_64bits(addr, size);
         if (image.hash == hash) {
             image.flags &= ~ImageFlagBits::MaybeCpuDirty;
+            ChurnTrace::RecordImage(image, ChurnTrace::Event::HashClean);
             return;
         }
         image.hash = hash;
@@ -1372,6 +1421,7 @@ void TextureCache::RefreshImage(Image& image) {
     const bool is_gpu_dirty = True(image.flags & ImageFlagBits::GpuDirty);
 
     SpartanStats::image_upload_bytes.fetch_add(image.info.guest_size, std::memory_order_relaxed);
+    ChurnTrace::RecordImage(image, ChurnTrace::Event::LegacyCharge, image.info.guest_size);
     boost::container::small_vector<vk::BufferImageCopy, 14> image_copies;
     for (u32 m = 0; m < num_mips; m++) {
         const u32 width = std::max(image.info.size.width >> m, 1u);
@@ -1409,6 +1459,7 @@ void TextureCache::RefreshImage(Image& image) {
 
     if (image_copies.empty()) {
         image.flags &= ~ImageFlagBits::Dirty;
+        ChurnTrace::RecordImage(image, ChurnTrace::Event::EmptyCopies);
         return;
     }
 
@@ -1448,6 +1499,7 @@ void TextureCache::RegisterImage(ImageId image_id) {
     Image& image = slot_images[image_id];
     ASSERT_MSG(False(image.flags & ImageFlagBits::Registered),
                "Trying to register an already registered image");
+    ChurnTrace::RecordImage(image, ChurnTrace::Event::Created);
     image.flags |= ImageFlagBits::Registered;
     ++registry_generation;
     total_used_memory += Common::AlignUp(image.info.guest_size, 1024);
@@ -1613,6 +1665,23 @@ void TextureCache::UntrackImageTail(ImageId image_id) {
 
 void TextureCache::GarbageCollectImages() {
     SpartanStats::Timer gc_timer{SpartanStats::t_gc};
+
+    // Ratchet GC01: opt-in bounded look-ahead. Keep the original path for A/B tests.
+    static const bool ratchet_gc01 = [] {
+        const char* value = std::getenv("RATCHET_GC01");
+        const bool enabled = value && value[0] == '1' && value[1] == '\0';
+        std::printf("RATCHET GC01: %s (scan cap 1024/call, soft 2 ms deadline)\n",
+                    enabled ? "ON" : "OFF - original policy");
+        std::fflush(stdout);
+        return enabled;
+    }();
+    static u64 ratchet_gc_scan_stops = 0;
+    static u64 ratchet_gc_time_stops = 0;
+    static u64 ratchet_gc_guest_bytes_evicted = 0;
+    // Interval counters count attempts, not unique image objects.
+    static u64 ratchet_gc_candidates = 0;
+    static u64 ratchet_gc_tiled_download_blocked = 0;
+    static u64 ratchet_gc_download_unpressured_blocked = 0;
     if (instance.CanReportMemoryUsage()) {
         total_used_memory = instance.GetDeviceMemoryUsage();
         // spartanport: on integrated GPUs (Steam Deck) the usage covers system-memory heaps holding
@@ -1642,6 +1711,10 @@ void TextureCache::GarbageCollectImages() {
     bool aggresive = false;
     u64 ticks_to_destroy = 0;
     size_t num_deletions = 0;
+    // Shared by both passes. A blocked image consumes a scan, not a deletion.
+    size_t scans_left = 1024;
+    const auto scan_start = ratchet_gc01 ? std::chrono::steady_clock::now()
+                                       : std::chrono::steady_clock::time_point{};
 
     const auto configure = [&](bool allow_aggressive) {
         pressured = total_used_memory >= pressure_gc_memory;
@@ -1654,7 +1727,21 @@ void TextureCache::GarbageCollectImages() {
         if (num_deletions == 0) {
             return true;
         }
-        --num_deletions;
+        if (ratchet_gc01) {
+            if (scans_left == 0) {
+                ++ratchet_gc_scan_stops;
+                return true;
+            }
+            // Cooperative limit: an individual readback can exceed this deadline.
+            if (std::chrono::steady_clock::now() - scan_start >= std::chrono::milliseconds(2)) {
+                ++ratchet_gc_time_stops;
+                return true;
+            }
+            --scans_left;
+        } else {
+            --num_deletions;
+        }
+        ++ratchet_gc_candidates;
         auto& image = slot_images[image_id];
         ResolveReadbacks(image.info.guest_address, image.info.guest_size, true,
                          ReadbackSource::CacheCleanup);
@@ -1662,9 +1749,11 @@ void TextureCache::GarbageCollectImages() {
         const bool tiled = image.info.IsTiled();
         if (tiled && download) {
             // This is a workaround for now. We can't handle non-linear image downloads.
+            ++ratchet_gc_tiled_download_blocked;
             return false;
         }
         if (download && !pressured) {
+            ++ratchet_gc_download_unpressured_blocked;
             return false;
         }
         if (download) {
@@ -1674,6 +1763,10 @@ void TextureCache::GarbageCollectImages() {
             DownloadImageMemory(image_id, true);
             ++gc_downloads;
         }
+        if (ratchet_gc01) {
+            --num_deletions;
+        }
+        ratchet_gc_guest_bytes_evicted += image.info.guest_size;
         ++gc_evictions;
         FreeImage(image_id);
         if (total_used_memory < critical_gc_memory) {
@@ -1704,13 +1797,38 @@ void TextureCache::GarbageCollectImages() {
         const auto now = std::chrono::steady_clock::now();
         if (now - gc_report_time >= std::chrono::seconds(5)) {
             std::printf("Texture cache: memory pressure, %llu of %llu MiB (critical %llu): "
-                        "%llu images evicted, %llu written back since the last report\n",
+                        "%llu images evicted, %llu written back; "
+                        "GC candidates=%llu, tiled+download blocked=%llu, "
+                        "download-unpressured blocked=%llu\n",
                         (unsigned long long)(total_used_memory >> 20),
                         (unsigned long long)(pressure_gc_memory >> 20),
                         (unsigned long long)(critical_gc_memory >> 20),
-                        (unsigned long long)gc_evictions, (unsigned long long)gc_downloads);
+                        (unsigned long long)gc_evictions,
+                        (unsigned long long)gc_downloads,
+                        (unsigned long long)ratchet_gc_candidates,
+                        (unsigned long long)ratchet_gc_tiled_download_blocked,
+                        (unsigned long long)ratchet_gc_download_unpressured_blocked);
+
+            // Guest-byte totals are logical evictions, not physical VRAM reclaimed.
+            const u64 heap_now = instance.CanReportMemoryUsage()
+                                     ? instance.GetDeviceMemoryUsage() : 0;
+            std::printf("RATCHET GC01 stats: mode=%s scan_stops=%llu time_stops=%llu "
+                        "guest_evicted_MiB=%llu heap_sample_MiB=%llu heap_sample_valid=%u\n",
+                        ratchet_gc01 ? "ON" : "OFF",
+                        (unsigned long long)ratchet_gc_scan_stops,
+                        (unsigned long long)ratchet_gc_time_stops,
+                        (unsigned long long)(ratchet_gc_guest_bytes_evicted >> 20),
+                        (unsigned long long)(heap_now >> 20),
+                        instance.CanReportMemoryUsage() ? 1u : 0u);
+            std::fflush(stdout);
+            ratchet_gc_scan_stops = 0;
+            ratchet_gc_time_stops = 0;
+            ratchet_gc_guest_bytes_evicted = 0;
             gc_report_time = now;
             gc_evictions = gc_downloads = 0;
+            ratchet_gc_candidates = 0;
+            ratchet_gc_tiled_download_blocked = 0;
+            ratchet_gc_download_unpressured_blocked = 0;
         }
     }
 }

@@ -28,8 +28,91 @@
 #include "video_core/renderer_vulkan/vk_shader_hle.h"
 #include "video_core/texture_cache/image_view.h"
 #include "video_core/texture_cache/texture_cache.h"
+#include "video_core/texture_cache/churn_trace.h"
+#include "video_core/texture_cache/ratchet_zero_clear.h"
 
 namespace Vulkan {
+
+namespace {
+void MirrorRatchetZeroFill(const Shader::Info& info, const AmdGpu::ComputeProgram& cs,
+                          VideoCore::TextureCache& cache) {
+    static const bool enabled = [] {
+        const char* value = std::getenv("RATCHET_ZERO_CLEAR");
+        return value && value[0] == '1';
+    }();
+    if (!enabled || info.pgm_hash != 0x0540709a || info.buffers.size() != 1) return;
+    const auto sharp = info.buffers[0].GetSharp(info);
+    const VideoCore::RatchetZeroDispatch d{
+        info.pgm_hash, sharp.base_address, sharp.GetSize(), {cs.dim_x, cs.dim_y, cs.dim_z},
+        {cs.num_thread_x.full, cs.num_thread_y.full, cs.num_thread_z.full}, sharp.GetStride(),
+        u32(sharp.data_format), u32(sharp.num_format), bool(info.buffers[0].is_written),
+        bool(info.buffers[0].is_formatted), bool(sharp.swizzle_enable), bool(sharp.add_tid_enable),
+        sharp.dst_sel_x == 4 && sharp.dst_sel_y == 5 && sharp.dst_sel_z == 6 && sharp.dst_sel_w == 7,
+        info.images.empty() && info.samplers.empty()};
+    static u64 accepted = 0, rejected = 0;
+    static auto last = std::chrono::steady_clock::now();
+    if (VideoCore::IsFullRatchetZero(d) && cache.MirrorRatchetZeroBuffer(d.address, d.bytes))
+        ++accepted;
+    else ++rejected;
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last >= std::chrono::seconds(5)) {
+        std::fprintf(stderr, "RATCHET ZERO mirror accepted=%llu rejected=%llu original_dispatch=kept\n",
+                     accepted, rejected);
+        last = now;
+    }
+}
+
+void ObserveRatchetZeroFill(const Shader::Info& info, const AmdGpu::ComputeProgram& cs,
+                           VideoCore::TextureCache& cache) {
+    static const bool enabled = [] {
+        const char* value = std::getenv("RATCHET_ZERO_PROBE");
+        return value && value[0] == '1';
+    }();
+    if (!enabled || info.pgm_hash != 0x0540709a || info.buffers.size() != 1) return;
+    const auto sharp = info.buffers[0].GetSharp(info);
+    static std::vector<std::array<u64, 3>> seen;
+    const std::array<u64, 3> key{sharp.base_address, sharp.GetSize(), cs.dim_x};
+    if (std::ranges::find(seen, key) != seen.end() || seen.size() >= 128) return;
+    seen.push_back(key);
+    std::fprintf(stderr, "RATCHET ZERO probe addr=0x%llx bytes=%u groups=%ux%ux%u "
+                 "threads=%ux%ux%u stride=%u format=%u numfmt=%u swizzle=%u tid=%u "
+                 "written=%u formatted=%u\n", u64(sharp.base_address), sharp.GetSize(),
+                 cs.dim_x, cs.dim_y, cs.dim_z, cs.num_thread_x.full, cs.num_thread_y.full,
+                 cs.num_thread_z.full, sharp.GetStride(), u32(sharp.data_format),
+                 u32(sharp.num_format), u32(sharp.swizzle_enable), u32(sharp.add_tid_enable),
+                 u32(info.buffers[0].is_written), u32(info.buffers[0].is_formatted));
+    const auto id = cache.FindImageFromRange(sharp.base_address, sharp.GetSize(), false);
+    if (id) {
+        const auto& image = cache.GetImage(id);
+        const auto& i = image.info;
+        std::fprintf(stderr, "RATCHET ZERO image uid=%llu addr=0x%llx bytes=%u "
+                     "size=%ux%ux%u pitch=%u levels=%u layers=%u samples=%u guest_samples=%u "
+                     "format=%u flags=0x%x tiled=%u depth=%u block=%u backing_samples=%u\n",
+                     image.image_uid, i.guest_address, i.guest_size, i.size.width,
+                     i.size.height, i.size.depth, i.pitch, i.resources.levels, i.resources.layers,
+                     i.num_samples, i.guest_samples, u32(i.pixel_format), u32(image.flags),
+                     u32(i.IsTiled()), u32(i.props.is_depth), u32(i.props.is_block),
+                     image.backing->num_samples);
+    }
+}
+
+// An opt-in visual test. Images and image views retain their complete guest mip chain.
+float RatchetVisualMipBias() {
+    static const float bias = [] {
+        const char* value = std::getenv("RATCHET_VISUAL_MIP_BIAS");
+        if (!value) {
+            return 0.0f;
+        }
+        char* end = nullptr;
+        const float parsed = std::strtof(value, &end);
+        return end != value && *end == '\0' && std::isfinite(parsed)
+                   ? std::clamp(parsed, 0.0f, 2.0f)
+                   : 0.0f;
+    }();
+    return bias;
+}
+std::atomic<u64> ratchet_visual_sampler_binds{0};
+} // namespace
 
 static Shader::PushData MakeUserData(const AmdGpu::Regs& regs) {
     // TODO(roamic): Add support for multiple viewports and geometry shaders when ViewportIndex
@@ -1349,6 +1432,7 @@ void Rasterizer::DispatchRecord(const ComputePipeline* pipeline) {
     const auto& cs_program = CsRegs();
 
     const auto& cs = pipeline->GetStage(Shader::SwStage::Compute);
+    ObserveRatchetZeroFill(cs, cs_program, texture_cache);
     // After the resource binding: its transfers (image uploads, downloads) mark themselves.
     const auto mark = [&] {
         if (auto* profiler = GpuProfiler::Get()) {
@@ -1410,6 +1494,7 @@ void Rasterizer::DispatchRecord(const ComputePipeline* pipeline) {
     }
 
     ResetBindings(true);
+    MirrorRatchetZeroFill(cs, cs_program, texture_cache);
     scheduler.KickRecording();
 }
 
@@ -1629,6 +1714,22 @@ bool Rasterizer::BindResources(const Pipeline* pipeline) {
         if (sampler_lod_bias != reported) {
             reported = sampler_lod_bias;
             std::printf("Upscaler: scene texture LOD bias %.2f\n", sampler_lod_bias);
+        }
+    }
+
+    // Ratchet's material G-buffer: three MRTs. This only selects texture mips;
+    // it neither enables SceneTargets reduction nor changes any image allocation.
+    if (RatchetVisualMipBias() > 0.0f && !pipeline->IsCompute() &&
+        (static_cast<const GraphicsPipeline*>(pipeline)->GetGraphicsKey().mrt_mask & 0xff) == 0x7) {
+        sampler_lod_bias = RatchetVisualMipBias();
+        static auto last_report = std::chrono::steady_clock::now();
+        const auto now = std::chrono::steady_clock::now();
+        if (now - last_report >= std::chrono::seconds(5)) {
+            std::printf("RATCHET TEX02: bias=+%.1f, %llu eligible sampler binds since start; "
+                        "sampling only, MRT=0x7, images unchanged\n", sampler_lod_bias,
+                        static_cast<unsigned long long>(ratchet_visual_sampler_binds.load(
+                            std::memory_order_relaxed)));
+            last_report = now;
         }
     }
 
@@ -2230,6 +2331,12 @@ void Rasterizer::BindBuffers(const Shader::Info& stage, const PreparedStage* pre
                 bound_buffers.emplace_back(buffer, offset, size, desc.is_written);
                 if (desc.is_written) {
                     // Raw storage-buffer writes can also make an aliased cached image stale.
+                    const VideoCore::ChurnTrace::ProducerScope producer{{
+                        .kind = VideoCore::ChurnTrace::ProducerKind::ShaderBuffer,
+                        .stage = u32(stage.sw_stage), .slot = buffer_index,
+                        .binding = binding.unified, .flags = u32(desc.is_formatted),
+                        .shader = stage.pgm_hash, .address = vsharp.base_address, .size = size,
+                    }};
                     texture_cache.InvalidateMemoryFromGPU(vsharp.base_address, size);
                 }
                 needs_barrier |= runtime.IsBufferAccessed(buffer, offset, size, desc.is_written);
@@ -2293,6 +2400,7 @@ void Rasterizer::BindTextures(const Shader::Info& stage, const PreparedStage* pr
                               Shader::Backend::Bindings& binding, u32& write_index,
                               bool& barrier, bool on_helper) {
     const u32 first_image_idx = image_infos.size();
+    const u32 first_bound_image = bound_images.size();
     TextureSet* set_slot = nullptr;
     if (!on_helper && BindTexturesFromSet(stage, prepared, first_image_idx, barrier, set_slot)) {
         // Descriptor writes: one per image (no mip arrays in a memoized set).
@@ -2305,7 +2413,7 @@ void Rasterizer::BindTextures(const Shader::Info& stage, const PreparedStage* pr
             set_write.descriptorType = vk::DescriptorType::eSampledImage;
             set_write.pImageInfo = &image_infos[first_image_idx + i];
         }
-        BindSamplers(stage, prepared, binding, write_index);
+        BindSamplers(stage, prepared, binding, write_index, first_bound_image);
         return;
     }
     image_bindings.clear();
@@ -2568,17 +2676,52 @@ void Rasterizer::BindTextures(const Shader::Info& stage, const PreparedStage* pr
         binding.unified += array_size;
     }
 
-    BindSamplers(stage, prepared, binding, write_index);
+    BindSamplers(stage, prepared, binding, write_index, first_bound_image);
 }
 
 void Rasterizer::BindSamplers(const Shader::Info& stage, const PreparedStage* prepared,
-                              Shader::Backend::Bindings& binding, u32& write_index) {
+                              Shader::Backend::Bindings& binding, u32& write_index,
+                              u32 first_bound_image) {
+    const bool visual_test = RatchetVisualMipBias() > 0.0f && sampler_lod_bias > 0.0f;
+    bool material_stage = stage.sw_stage == Shader::SwStage::Fragment;
+    bool has_mips = false;
+    if (visual_test && material_stage) {
+        // A sampler may be shared by several images. Conservatively exclude the
+        // complete stage if any bound image is a target, storage, depth, or VideoOut.
+        for (u32 i = first_bound_image; i < bound_images.size(); ++i) {
+            const auto& image = texture_cache.GetImage(bound_images[i]);
+            if (image.info.props.is_depth || image.binding.is_target ||
+                image.usage.render_target || image.usage.depth_target ||
+                image.usage.vo_surface || image.usage.storage) {
+                material_stage = false;
+                break;
+            }
+            has_mips |= image.info.resources.levels > 1;
+        }
+        material_stage &= has_mips;
+    }
     for (u32 sampler_index = 0; sampler_index < stage.samplers.size(); ++sampler_index) {
         const auto& sampler = stage.samplers[sampler_index];
         auto ssharp =
             prepared ? prepared->sampler_sharps[sampler_index] : sampler.GetSharp(stage);
+        float bias = sampler.is_depth ? 0.0f : sampler_lod_bias;
+        if (visual_test) {
+            if (!material_stage || ssharp.mip_filter == AmdGpu::MipFilter::None ||
+                ssharp.xy_min_filter == AmdGpu::Filter::Point ||
+                ssharp.MaxLod() <= ssharp.MinLod()) {
+                bias = 0.0f;
+            }
+            if (bias > 0.0f) {
+                const u64 previous = ratchet_visual_sampler_binds.fetch_add(
+                    1, std::memory_order_relaxed);
+                if (previous == 0) {
+                    std::printf("RATCHET TEX02: first eligible material sampler bias=+%.1f "
+                                "(texture mip selection only)\n", bias);
+                }
+            }
+        }
         const auto vk_sampler = texture_cache.GetSampler(
-            ssharp, Regs().ta_bc_base, sampler.is_depth, sampler.is_depth ? 0.0f : sampler_lod_bias);
+            ssharp, Regs().ta_bc_base, sampler.is_depth, bias);
         image_infos.emplace_back(vk_sampler, VK_NULL_HANDLE, vk::ImageLayout::eGeneral);
         auto& set_write = set_writes[write_index++];
         set_write.dstSet = VK_NULL_HANDLE;
@@ -2643,6 +2786,10 @@ bool Rasterizer::BindTexturesFromSet(const Shader::Info& stage, const PreparedSt
                        std::equal(set.hashes.begin(), set.hashes.begin() + count,
                                   prepared->image_hashes);
     if (!match) {
+        if (set.key == key && set.stage == &stage && set.count == count &&
+            set.generation != generation) {
+            VideoCore::ChurnTrace::GenerationMiss();
+        }
         ++texture_set_why[set.key != key ? 0 : set.generation != generation ? 1 : 3];
         ++texture_set_misses;
         set.key = key;
@@ -2778,6 +2925,85 @@ RenderState Rasterizer::BeginRenderingFull(const GraphicsPipeline* pipeline) {
     std::pair<vk::ImageView, vk::ImageLayout> original_color{};
     const auto& regs = Regs();
     const auto& key = pipeline->GetGraphicsKey();
+
+    // Ratchet RES04 V3: independent render-pass census.
+    // GOW3_SCENE_DEBUG is tied to the display-buffer boundary and, on Ratchet, only caught
+    // the final display pass.  This diagnostic uses a separate trigger file and captures the
+    // next 320 BeginRenderingFull calls directly. It does not change rendering or scene logic.
+    {
+        static bool ratchet_census_active = false;
+        static u32 ratchet_census_pass = 0;
+        static u32 ratchet_census_poll = 0;
+        static const char* ratchet_census_trigger = std::getenv("RATCHET_PASS_CENSUS");
+
+        if (!ratchet_census_active && ratchet_census_trigger &&
+            ((ratchet_census_poll++ & 0x3f) == 0) &&
+            std::remove(ratchet_census_trigger) == 0) {
+            ratchet_census_active = true;
+            ratchet_census_pass = 0;
+            std::printf("\nRATCHET PASS CENSUS V3 BEGIN\n");
+            std::fflush(stdout);
+        }
+
+        if (ratchet_census_active) {
+            const u32 pass_no = ratchet_census_pass++;
+            const u32 vs_hash = pipeline->GetStage(Shader::SwStage::Vertex).pgm_hash;
+            const u32 ps_hash = key.mrt_mask
+                                    ? pipeline->GetStage(Shader::SwStage::Fragment).pgm_hash
+                                    : 0;
+            std::printf(
+                "RATCHET PASS V3 %03u: vs=%08x ps=%08x mrt=%#x colors=%u samples=%u "
+                "scene_started=%u raster_scaling=%u\n",
+                pass_no, vs_hash, ps_hash, key.mrt_mask,
+                u32(std::popcount(key.mrt_mask)), u32(key.num_samples),
+                u32(scene_started), u32(upscaler->RasterScaling()));
+
+            const u32 num = std::min<u32>(
+                u32(std::bit_width(key.mrt_mask)), u32(cb_descs.size()));
+            for (u32 cb = 0; cb < num; ++cb) {
+                const auto id = cb_descs[cb].first;
+                if (!id) {
+                    std::printf("  C%u: -\n", cb);
+                    continue;
+                }
+                const auto& image = texture_cache.GetImage(id);
+                const auto level = cb_descs[cb].second.view_info.range.base.level;
+                const auto layer = cb_descs[cb].second.view_info.range.base.layer;
+                std::printf(
+                    "  C%u: %ux%u fmt=%s levels=%u layers=%u samples=%u "
+                    "eligible=%u bound=%u rebind=%u level=%u layer=%u addr=%#llx\n",
+                    cb, image.info.size.width, image.info.size.height,
+                    vk::to_string(image.info.pixel_format).c_str(),
+                    image.info.resources.levels, image.info.resources.layers,
+                    u32(key.num_samples), u32(scene_targets->Eligible(image)),
+                    u32(image.binding.is_bound), u32(image.binding.needs_rebind),
+                    level, layer,
+                    static_cast<unsigned long long>(image.info.guest_address));
+            }
+
+            if (db_desc.first) {
+                const auto& depth = texture_cache.GetImage(db_desc.first);
+                std::printf(
+                    "  D : %ux%u fmt=%s levels=%u layers=%u samples=%u "
+                    "eligible=%u eligible_scene=%u addr=%#llx\n",
+                    depth.info.size.width, depth.info.size.height,
+                    vk::to_string(depth.info.pixel_format).c_str(),
+                    depth.info.resources.levels, depth.info.resources.layers,
+                    u32(key.num_samples), u32(scene_targets->Eligible(depth)),
+                    u32(scene_targets->EligibleScene(depth)),
+                    static_cast<unsigned long long>(depth.info.guest_address));
+            } else {
+                std::printf("  D : -\n");
+            }
+
+            if (ratchet_census_pass >= 320) {
+                ratchet_census_active = false;
+                std::printf("RATCHET PASS CENSUS V3 END: captured 320 BeginRenderingFull calls\n");
+            }
+            std::fflush(stdout);
+        }
+    }
+
     if (std::popcount(key.mrt_mask & 0x7f) >= 5 && db_desc.first &&
         scene_targets->EligibleScene(texture_cache.GetImage(db_desc.first))) scene_started = true;
     // A proxy attachment cannot represent MSAA or a feedback loop that reads the
@@ -3185,7 +3411,14 @@ void Rasterizer::CopyBuffer(VAddr dst, VAddr src, u32 num_bytes, bool dst_gds, b
             return;
         }
     }
-    texture_cache.InvalidateMemoryFromGPU(dst, num_bytes);
+    {
+        const VideoCore::ChurnTrace::ProducerScope producer{{
+            .kind = VideoCore::ChurnTrace::ProducerKind::BufferCopy,
+            .flags = u32(dst_gds) | (u32(src_gds) << 1),
+            .address = dst, .size = num_bytes, .source = src,
+        }};
+        texture_cache.InvalidateMemoryFromGPU(dst, num_bytes);
+    }
     const auto* gds_buffer = buffer_cache.GetGdsBuffer();
     const auto [src_buffer, src_offset] = [&] -> std::pair<const VideoCore::Buffer*, u64> {
         if (src_gds) {

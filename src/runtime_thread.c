@@ -41,7 +41,14 @@ typedef struct ThreadAttr {
     struct ThreadAttr *next;
 } ThreadAttr;
 typedef struct GuestThread {
-    /* Guest-visible TCB is allocated separately; this is the ScePthread handle. */
+    /*
+     * Orbis pthread objects begin with a 32-bit thread id.
+     * Guest code can read this field directly from pthread_t immediately
+     * after pthread_create_name_np returns, before the new host thread has
+     * had a chance to build its TCB.
+     */
+    int32_t tid;
+    uint32_t tid_pad;
     uint64_t *tcb;
     unsigned char *tls_block;
     pthread_t host;
@@ -65,6 +72,12 @@ static _Thread_local GuestThread *current;
 static _Thread_local int32_t guest_errno;
 static const unsigned char *tls_template;
 static uint64_t tls_filesz, tls_memsz, tls_align=16;
+/*
+ * FreeBSD/Orbis pthread tid values are positive and non-zero.
+ * Keep 1 reserved for the terminated-thread sentinel; the first allocated
+ * guest tid is therefore 2.
+ */
+static uint32_t next_tid = 1;
 static size_t created, joined_count, exited;
 
 void runtime_set_main_tls(const void *data,uint64_t filesz,uint64_t memsz,uint64_t align) {
@@ -113,6 +126,14 @@ static void attach(GuestThread *t) {
 static GuestThread *new_thread(void) {
     GuestThread *t=calloc(1,sizeof(*t));
     if (!t) return NULL;
+
+    /*
+     * Publish a valid Orbis-visible tid before pthread_create can return.
+     * Do not derive this from the TCB: attach() runs asynchronously in the
+     * child thread and the guest may inspect pthread_t immediately.
+     */
+    t->tid=(int32_t)__atomic_add_fetch(&next_tid,1,__ATOMIC_RELAXED);
+
     t->attr=(ThreadAttr){.magic=ATTR_MAGIC,.policy=1,.prio=DEFAULT_PRIO,.stack=DEFAULT_STACK,.affinity=0x7f};
     return t;
 }
@@ -383,6 +404,38 @@ static ABI int32_t thread_rename(GuestThread *t,const char *name) {
 }
 static ABI int32_t thread_equal(GuestThread *a,GuestThread *b) { return a==b; }
 
+/*
+ * PS4 scheduling state.
+ *
+ * The port records guest scheduling policy/priority in ThreadAttr.
+ * Host threads intentionally remain under the host scheduler; these APIs
+ * expose/update the guest-visible values only.
+ */
+static ABI int32_t thread_get_sched(GuestThread *t, int *policy, int *param) {
+    GuestThread *thread = find_thread(t);
+    if (!thread)
+        return ERR(3);   /* ESRCH */
+    if (!policy || !param)
+        return ERR(22);  /* EINVAL */
+
+    *policy = thread->attr.policy;
+    *param  = thread->attr.prio;
+    return 0;
+}
+
+static ABI int32_t thread_set_sched(GuestThread *t, int policy,
+                                    const int *param) {
+    GuestThread *thread = find_thread(t);
+    if (!thread)
+        return ERR(3);   /* ESRCH */
+    if (!param)
+        return ERR(22);  /* EINVAL */
+
+    thread->attr.policy = policy;
+    thread->attr.prio   = *param;
+    return 0;
+}
+
 /* POSIX (libScePosix) variants return positive errno values. */
 static int32_t posix(int32_t r) { return r ? (int32_t)((uint32_t)r&0xffff) : 0; }
 static ABI int32_t posix_attr_init(ThreadAttr **a) { return posix(attr_init(a)); }
@@ -394,8 +447,36 @@ static ABI int32_t posix_create(GuestThread **t,ThreadAttr **a,GuestEntry e,void
 static ABI int32_t posix_create_name(GuestThread **t,ThreadAttr **a,GuestEntry e,void *arg,const char *name) { return posix(create(t,a,e,arg,name)); }
 static ABI int32_t posix_join(GuestThread *t,void **r) { return posix(thread_join(t,r)); }
 
+/* Ratchet & Clank CUSA01047 POSIX pthread aliases. */
+static ABI void ratchet_posix_yield(void) {
+    sched_yield();
+}
+
+static ABI int32_t ratchet_posix_attr_set_inherit(ThreadAttr **a,int inherit) {
+    return posix(attr_set_inherit(a,inherit));
+}
+
+static ABI int32_t ratchet_posix_set_prio(GuestThread *t,int prio) {
+    return posix(thread_set_prio(t,prio));
+}
+
+static ABI int32_t ratchet_posix_setschedparam(GuestThread *t,int policy,const int *param) {
+    GuestThread *thread=find_thread(t);
+    if (!thread || !param || policy<1 || policy>3)
+        return 22; /* POSIX EINVAL */
+
+    thread->attr.policy=policy;
+    thread->attr.prio=*param;
+    return 0;
+}
+
 uintptr_t runtime_thread_resolve(const char *name) {
     static const struct { const char *nid; void *fn; } table[]={
+        /* Ratchet & Clank CUSA01047 */
+        {"B5GmVDKwpn0#libkernel",ratchet_posix_yield},
+        {"7ZlAakEf0Qg#libkernel",ratchet_posix_attr_set_inherit},
+        {"a2P9wYGeZvc#libkernel",ratchet_posix_set_prio},
+        {"Xs9hdiD7sAA#libkernel",ratchet_posix_setschedparam},
         {"aI+OeCz8xrQ#libkernel",thread_self}, {"EotR8a3ASf4#libkernel",thread_self},
         {"9BcDykPmo1I#libkernel",guest_error},
         {"nsYoNRywwNg#libkernel",attr_init}, {"62KCwEMmzcM#libkernel",attr_destroy},
@@ -415,6 +496,8 @@ uintptr_t runtime_thread_resolve(const char *name) {
         {"euKRgm0Vn2M#libkernel",posix_attr_set_param}, {"OxhIB8LB-PQ#libkernel",posix_create},
         {"Jmi+9w9u0E4#libkernel",posix_create_name}, {"h9CcP3J0oVM#libkernel",posix_join},
         {"FJrT5LuUBAU#libkernel",thread_exit},
+        {"P41kTWUS3EI#libkernel",thread_get_sched},
+        {"oIRFTjoILbg#libkernel",thread_set_sched},
     };
     for (size_t i=0;i<sizeof(table)/sizeof(*table);++i)
         if (!strcmp(name,table[i].nid)) return (uintptr_t)table[i].fn;
