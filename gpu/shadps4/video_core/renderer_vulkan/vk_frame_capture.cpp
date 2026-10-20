@@ -93,12 +93,12 @@ void SetResult(std::string text) {
     result = std::move(text);
 }
 
-// SPARTAN_CAPTURE_DIR, else <user>/captures (SPARTAN_GPU_USER_DIR, the saves folder).
+// RATCHET_CAPTURE_DIR, else <user>/captures (RATCHET_GPU_USER_DIR, the saves folder).
 std::filesystem::path CaptureDir() {
-    if (const char* dir = std::getenv("SPARTAN_CAPTURE_DIR"); dir && dir[0]) {
+    if (const char* dir = std::getenv("RATCHET_CAPTURE_DIR"); dir && dir[0]) {
         return dir;
     }
-    const char* user = std::getenv("SPARTAN_GPU_USER_DIR");
+    const char* user = std::getenv("RATCHET_GPU_USER_DIR");
     return std::filesystem::path(user && user[0] ? user : "user") / "captures";
 }
 
@@ -159,7 +159,7 @@ void Write(VAddr presented) {
 void FrameCapture::OnFlip(VAddr presented_address) {
     last_presented.store(presented_address, std::memory_order_relaxed);
     flips.fetch_add(1, std::memory_order_release);
-    static const char* trigger = std::getenv("SPARTAN_CAPTURE_TRIGGER");
+    static const char* trigger = std::getenv("RATCHET_CAPTURE_TRIGGER");
     if (state.load(std::memory_order_relaxed) != Idle) {
         return;
     }

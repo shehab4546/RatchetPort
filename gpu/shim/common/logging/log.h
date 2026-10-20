@@ -1,5 +1,5 @@
 // spartanport: replaces shadPS4's spdlog-based logger with a small fmt sink.
-// Level from SPARTAN_GPU_LOG (trace|debug|info|warning|error; default warning).
+// Level from RATCHET_GPU_LOG (trace|debug|info|warning|error; default warning).
 #pragma once
 #include <algorithm>
 #include <array>

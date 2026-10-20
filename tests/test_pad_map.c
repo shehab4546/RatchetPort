@@ -1,4 +1,4 @@
-/* SPARTAN_PAD_MAP / SPARTAN_KEY_MAP parsing (src/runtime_pad.c). */
+/* RATCHET_PAD_MAP / RATCHET_KEY_MAP parsing (src/runtime_pad.c). */
 #define _GNU_SOURCE
 #include <assert.h>
 #include "../src/runtime_pad.c"
@@ -215,7 +215,7 @@ int main(void) {
     apply_dodge(&p);
     assert(p.right_x==128 && p.right_y==128);
     /* Keyboard rotation minigame: a prompt is up while the update hook counts frames. */
-    _putenv("SPARTAN_STICK_PROMPTS=keyboard");
+    _putenv("RATCHET_STICK_PROMPTS=keyboard");
     _putenv("SPARTAN_QTE_SEQUENCES=360ccw=Q>E, up180cw = D > S > A ,bogus=W,down180cw=D>Mouse Left");
     static uint8_t prompt[0x20];
     spartanport_qte.block=(uint64_t)(uintptr_t)prompt;

@@ -44,17 +44,17 @@ if [[ -z ${CC:-} ]]; then echo 'Install GCC/Clang or set CC.' >&2; exit 1; fi
 # Dependencies come from pkg-config (Vulkan loader/headers, SDL3). On NixOS the
 # environment is provided by shell.nix; re-enter it automatically if needed.
 if ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3 && command -v cmake >/dev/null && command -v ninja >/dev/null; }; then
-    if [[ -z ${SPARTAN_IN_NIX_SHELL:-} ]] && command -v nix-shell >/dev/null; then
-        exec env SPARTAN_IN_NIX_SHELL=1 nix-shell shell.nix --run "bash build.sh $*"
+    if [[ -z ${RATCHET_IN_NIX_SHELL:-} ]] && command -v nix-shell >/dev/null; then
+        exec env RATCHET_IN_NIX_SHELL=1 nix-shell shell.nix --run "bash build.sh $*"
     fi
     echo 'Need pkg-config with vulkan and sdl3, cmake and ninja (see shell.nix).' >&2; exit 1
 fi
 read -r -a includes <<< "$(pkg-config --cflags vulkan sdl3 libavcodec libavutil libswscale)"
 read -r -a libraries <<< "$(pkg-config --libs vulkan sdl3 libavcodec libavutil libswscale)"
 # GPU library (shadPS4 video core + drivers), built by CMake into out/gpu/libratchetgpu.so.
-# SPARTAN_PGO: generate (instrumented build that writes pgo/ while the game runs), use, off.
+# RATCHET_PGO: generate (instrumented build that writes pgo/ while the game runs), use, off.
 # Default: use the profile in pgo/ when there is one. RATCHET_LTO=OFF disables link-time optimization.
-pgo=${SPARTAN_PGO:-}
+pgo=${RATCHET_PGO:-}
 if [[ -z $pgo ]]; then
     if [[ -n $(find pgo -name '*.gcda' -print -quit 2>/dev/null) ]]; then pgo=use; else pgo=off; fi
 fi

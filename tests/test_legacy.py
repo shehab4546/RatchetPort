@@ -101,16 +101,16 @@ class LegacyTest(unittest.TestCase):
 
     def test_environment_is_forwarded_without_overriding(self):
         env = {f'{legacy.LEGACY_ENV}GAME_DIR': 'E:/game', f'{legacy.LEGACY_ENV}FPS_LIMIT': '60',
-               'SPARTAN_FPS_LIMIT': '120'}
+               'RATCHET_FPS_LIMIT': '120'}
         legacy.forward_environment(env)
-        self.assertEqual(env['SPARTAN_GAME_DIR'], 'E:/game')
-        self.assertEqual(env['SPARTAN_FPS_LIMIT'], '120')
+        self.assertEqual(env['RATCHET_GAME_DIR'], 'E:/game')
+        self.assertEqual(env['RATCHET_FPS_LIMIT'], '120')
 
     def test_custom_data_folder_wins_over_the_appimage_default(self):
         default = str(Path(os.environ.get('XDG_DATA_HOME') or Path.home() / '.local' / 'share') / 'spartanport')
-        env = {f'{legacy.LEGACY_ENV}DATA_DIR': '/mnt/games/data', 'SPARTAN_DATA_DIR': default}
+        env = {f'{legacy.LEGACY_ENV}DATA_DIR': '/mnt/games/data', 'RATCHET_DATA_DIR': default}
         legacy.forward_environment(env)
-        self.assertEqual(env['SPARTAN_DATA_DIR'], '/mnt/games/data')
+        self.assertEqual(env['RATCHET_DATA_DIR'], '/mnt/games/data')
 
     def test_leftover_binaries_go_only_when_the_new_ones_exist(self):
         port = self.root / 'install'

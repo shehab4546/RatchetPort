@@ -22,7 +22,7 @@ SceneTargets::SceneTargets(const Instance& i, Scheduler& s, Runtime& r,
 SceneTargets::SceneTargets(const Instance& i, Scheduler& s, Runtime& r, Lookup get)
     : instance{i}, scheduler{s}, runtime{r}, lookup{std::move(get)} {
     runtime.scene_targets = this;
-    const char* force = std::getenv("SPARTAN_SCENE_STENCIL_BITS");
+    const char* force = std::getenv("RATCHET_SCENE_STENCIL_BITS");
     force_stencil_bits = force && force[0] == '1';
     CreateResampleResources();
 }
@@ -62,7 +62,7 @@ bool SceneTargets::ShaderResampled(const VideoCore::Image& image) const {
     const auto required = vk::FormatFeatureFlagBits::eSampledImage |
                           vk::FormatFeatureFlagBits::eDepthStencilAttachment;
     // Without shader stencil export (e.g. Pascal) depth/stencil stays native: the eight-draw
-    // stencil resampler costs too much on such GPUs. SPARTAN_SCENE_STENCIL_BITS=1 forces it (tests).
+    // stencil resampler costs too much on such GPUs. RATCHET_SCENE_STENCIL_BITS=1 forces it (tests).
     return (features & required) == required &&
            (!(image.aspect_mask & vk::ImageAspectFlagBits::eStencil) ||
             instance.IsShaderStencilExportSupported() || force_stencil_bits);

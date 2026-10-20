@@ -22,7 +22,7 @@ int ratchetgpu_init(const RatchetGpuConfig *config);
 uintptr_t ratchetgpu_resolve(const char *scoped_nid);
 /* Called first by the loader's SIGSEGV handler: 1 when a GPU page-tracking fault was handled. */
 int ratchetgpu_handle_fault(void *ucontext, void *address);
-/* SPARTAN_WRITE_LOG=1: prints the logged GPU-side writes to guest memory near the fault. */
+/* RATCHET_WRITE_LOG=1: prints the logged GPU-side writes to guest memory near the fault. */
 void ratchetgpu_dump_guest_writes(void *ucontext);
 /* Keyboard text entry through the game window (IME dialog). begin returns 0 when
  * no window exists; poll returns 0 typing, 1 confirmed, 2 cancelled (UTF-8 text). */

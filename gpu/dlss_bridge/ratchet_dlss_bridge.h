@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-#define SPARTAN_DLSS_BRIDGE_ABI 1
+#define RATCHET_DLSS_BRIDGE_ABI 1
 
 typedef void (*SpartanDlssLogFn)(int warning, const char* message);
 

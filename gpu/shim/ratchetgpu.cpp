@@ -199,10 +199,10 @@ u32 SpartanDisplayRefreshHz() {
     return hz;
 }
 
-#ifdef SPARTAN_PGO_GENERATE
+#ifdef RATCHET_PGO_GENERATE
 extern "C" void __gcov_dump(void);
 extern "C" void __gcov_reset(void);
-// Instrumented build (SPARTAN_PGO=generate): the game often ends through _exit (watchdog, guest
+// Instrumented build (RATCHET_PGO=generate): the game often ends through _exit (watchdog, guest
 // exit), which skips the profile write at exit. Write every 30 s and reset: the files sum the
 // intervals.
 static void StartProfileWriter() {
@@ -220,14 +220,14 @@ static void StartProfileWriter() {
 
 extern "C" int ratchetgpu_init(const RatchetGpuConfig* config) {
     RatchetSettings::Load();
-#ifdef SPARTAN_PGO_GENERATE
+#ifdef RATCHET_PGO_GENERATE
     StartProfileWriter();
 #endif
     g_sdk_version = config->sdk_version;
 #ifdef _WIN32
-    if (config->user_dir && !std::getenv("SPARTAN_GPU_USER_DIR")) _putenv_s("SPARTAN_GPU_USER_DIR", config->user_dir);
+    if (config->user_dir && !std::getenv("RATCHET_GPU_USER_DIR")) _putenv_s("RATCHET_GPU_USER_DIR", config->user_dir);
 #else
-    if (config->user_dir) setenv("SPARTAN_GPU_USER_DIR", config->user_dir, 0);
+    if (config->user_dir) setenv("RATCHET_GPU_USER_DIR", config->user_dir, 0);
 #endif
     Core::Emulator::FillElfInfo(*config);
     // The window carries the project name; the dump's own title stays in ElfInfo (above).

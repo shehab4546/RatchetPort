@@ -29,8 +29,8 @@ std::mutex Scheduler::submit_mutex;
 
 Scheduler::Scheduler(const Instance& instance, bool threaded_recording)
     : instance{instance}, work_semaphore{instance}, command_pool{instance, &work_semaphore} {
-    // spartanport: SPARTAN_VK_RECORD_THREAD=0 records on the calling thread.
-    const char* env = std::getenv("SPARTAN_VK_RECORD_THREAD");
+    // spartanport: RATCHET_VK_RECORD_THREAD=0 records on the calling thread.
+    const char* env = std::getenv("RATCHET_VK_RECORD_THREAD");
     if (threaded_recording && !(env && env[0] == '0')) {
         record_chunk = AcquireChunk();
         recorder_thread = std::jthread(std::bind_front(&Scheduler::RecorderThread, this));
@@ -58,11 +58,11 @@ Scheduler::~Scheduler() {
 
 bool Scheduler::FullBarriers() {
     static const bool enabled = [] {
-        const char* env = std::getenv("SPARTAN_FULL_BARRIERS");
+        const char* env = std::getenv("RATCHET_FULL_BARRIERS");
         const bool on = env && env[0] == '1';
         if (on) {
             // In last_run.log whatever the GPU log level, so a tester's log shows the mode.
-            std::printf("GPU: full barriers on (SPARTAN_FULL_BARRIERS=1)\n");
+            std::printf("GPU: full barriers on (RATCHET_FULL_BARRIERS=1)\n");
         }
         return on;
     }();
@@ -173,7 +173,7 @@ void Scheduler::EndRendering() {
 
 void Scheduler::TraceDirectRecording(void* caller) {
     static const bool enabled = [] {
-        const char* env = std::getenv("SPARTAN_RECORDER_TRACE");
+        const char* env = std::getenv("RATCHET_RECORDER_TRACE");
         return env && env[0] == '1';
     }();
     if (!enabled) {

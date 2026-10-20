@@ -55,7 +55,7 @@ ObjectMotion::ObjectMotion(const Instance& instance_, Scheduler& scheduler_)
     // animated draws. A setting or environment override can still disable the path.
     if (!RatchetSettings::Get().object_motion ||
         RatchetSettings::Get().upscaler == RatchetSettings::UpscalerOff) {
-        std::puts("Object motion: off (enable in menu or SPARTAN_OBJECT_MOTION=1)");
+        std::puts("Object motion: off (enable in menu or RATCHET_OBJECT_MOTION=1)");
         return;
     }
     const auto& features = instance.GetPhysicalDevice().getFeatures();

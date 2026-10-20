@@ -1,4 +1,4 @@
-"""packaging/windows/smoke-test.ps1 against a built package (SPARTAN_WINDOWS_ZIP=path\\to\\spartanport-windows.zip):
+"""packaging/windows/smoke-test.ps1 against a built package (RATCHET_WINDOWS_ZIP=path\\to\\spartanport-windows.zip):
 it passes on the package as built and fails when a DLL, a frozen module or a shipped file is wrong."""
 from paths import ROOT
 import os
@@ -11,10 +11,10 @@ import unittest
 import zipfile
 
 SCRIPT = ROOT / 'packaging' / 'windows' / 'smoke-test.ps1'
-PACKAGE = os.environ.get('SPARTAN_WINDOWS_ZIP')
+PACKAGE = os.environ.get('RATCHET_WINDOWS_ZIP')
 
 
-@unittest.skipUnless(sys.platform == 'win32' and PACKAGE, 'needs Windows and SPARTAN_WINDOWS_ZIP')
+@unittest.skipUnless(sys.platform == 'win32' and PACKAGE, 'needs Windows and RATCHET_WINDOWS_ZIP')
 class WindowsSmokeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

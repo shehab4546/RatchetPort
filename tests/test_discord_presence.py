@@ -115,8 +115,8 @@ class PresenceLifecycle(unittest.TestCase):
     def setUp(self):
         self.env = mock.patch.dict(os.environ, {}, clear=False)
         self.env.start()
-        os.environ.pop('SPARTAN_DISCORD', None)
-        os.environ.pop('SPARTAN_DISCORD_ID', None)
+        os.environ.pop('RATCHET_DISCORD', None)
+        os.environ.pop('RATCHET_DISCORD_ID', None)
 
     def tearDown(self):
         self.env.stop()
@@ -129,7 +129,7 @@ class PresenceLifecycle(unittest.TestCase):
         self.assertIsNone(presence.thread)
 
     def test_disabled_by_switch(self):
-        os.environ['SPARTAN_DISCORD'] = '0'
+        os.environ['RATCHET_DISCORD'] = '0'
         with mock.patch.object(dp, 'open_transport') as opened:
             presence = dp.Presence(client_id='123')
             presence.close()
@@ -250,8 +250,8 @@ class GameProcessPresence(unittest.TestCase):
         self.presence = mock.Mock()
         self.factory = self.enterContext(mock.patch.object(dp, 'Presence', return_value=self.presence))
         self.enterContext(mock.patch.dict(os.environ, {
-            'SPARTAN_GAME_DIR': str(game), 'SPARTAN_DATA_DIR': str(folder),
-            'SPARTAN_CONFIG': str(folder / 'spartanport.ini'), 'SPARTAN_DISCORD': '1',
+            'RATCHET_GAME_DIR': str(game), 'RATCHET_DATA_DIR': str(folder),
+            'RATCHET_CONFIG': str(folder / 'spartanport.ini'), 'RATCHET_DISCORD': '1',
         }, clear=True))
         self.enterContext(mock.patch.object(run, 'PORT', folder))
         self.enterContext(mock.patch.object(run, 'find_executable', return_value=probe))
@@ -318,7 +318,7 @@ class SocketIntegration(unittest.TestCase):
                 return transport
 
             with ThreadPoolExecutor(max_workers=1) as executor, \
-                    mock.patch.dict(os.environ, {'SPARTAN_DISCORD': '1'}), \
+                    mock.patch.dict(os.environ, {'RATCHET_DISCORD': '1'}), \
                     mock.patch.object(dp, 'open_transport', side_effect=connect), \
                     mock.patch.object(dp, 'RETRY_SECONDS', 0.01):
                 server = executor.submit(serve)
@@ -370,7 +370,7 @@ class WindowsPipeTransport(unittest.TestCase):
         self.assertLess(time.monotonic() - started, 1)
 
     def test_close_stops_worker_waiting_for_a_native_pipe_handshake(self):
-        with mock.patch.dict(os.environ, {'SPARTAN_DISCORD': '1'}), \
+        with mock.patch.dict(os.environ, {'RATCHET_DISCORD': '1'}), \
                 mock.patch.object(dp, 'open_transport', return_value=self.transport) as opened:
             presence = dp.Presence(client_id='123')
             try:
@@ -405,10 +405,10 @@ class LauncherSwitch(unittest.TestCase):
 
     def test_off_by_default(self):
         self.assertFalse(self.launcher.APP_DEFAULTS['discord_rpc'])
-        self.assertEqual(self.environment()['SPARTAN_DISCORD'], '0')
+        self.assertEqual(self.environment()['RATCHET_DISCORD'], '0')
 
     def test_checked_enables_it(self):
-        self.assertEqual(self.environment(discord_rpc=True)['SPARTAN_DISCORD'], '1')
+        self.assertEqual(self.environment(discord_rpc=True)['RATCHET_DISCORD'], '1')
 
     def test_label_is_translated(self):
         import spartanport_lang

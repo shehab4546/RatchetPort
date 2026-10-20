@@ -74,7 +74,7 @@ VideoOutDriver::VideoOutDriver(u32 width, u32 height) {
     main_port.resolution.full_height = height;
     main_port.resolution.pane_width = width;
     main_port.resolution.pane_height = height;
-    const char* separate = std::getenv("SPARTAN_PRESENT_THREAD");
+    const char* separate = std::getenv("RATCHET_PRESENT_THREAD");
     separate_swap = !(separate && separate[0] == '0');
     if (separate_swap) {
         swap_thread = std::jthread([&](std::stop_token token) { SwapThread(token); });
@@ -311,8 +311,8 @@ void VideoOutDriver::Flip(const Request& req) {
     Vulkan::FrameCapture::OnFlip(req.index >= 0 ? req.port->buffer_slots[req.index].address_left
                                                 : 0);
 
-    // spartanport: SPARTAN_FRAME_STATS=1 prints flip rate and frame time spread every 5 seconds.
-    static const bool frame_stats = EmulatorSettingsImpl::Flag("SPARTAN_FRAME_STATS", false);
+    // spartanport: RATCHET_FRAME_STATS=1 prints flip rate and frame time spread every 5 seconds.
+    static const bool frame_stats = EmulatorSettingsImpl::Flag("RATCHET_FRAME_STATS", false);
     if (frame_stats) {
         using Clock = std::chrono::steady_clock;
         static Clock::time_point window_start = Clock::now(), last = window_start;
@@ -336,9 +336,9 @@ void VideoOutDriver::Flip(const Request& req) {
         static u64 last_proc_flt, last_copy_ns, last_copy_bytes, last_rf, last_trf, last_twf;
         const u64 rf = RatchetStats::read_faults.load(), trf = RatchetStats::t_read_faults.load(),
                   twf = RatchetStats::t_write_faults.load();
-        // spartanport: every frame over 40 ms (SPARTAN_STALL_MS) after the first, at most 10 per 5 s window.
+        // spartanport: every frame over 40 ms (RATCHET_STALL_MS) after the first, at most 10 per 5 s window.
         static const double stall_ms = [] {
-            const char* value = std::getenv("SPARTAN_STALL_MS");
+            const char* value = std::getenv("RATCHET_STALL_MS");
             return value ? std::atof(value) : 40.0;
         }();
         static bool primed = false;
@@ -665,8 +665,8 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     // until its slot; slots advance by one period (no drift) but never lag behind by more.
     // spartanport: the in-game menu changes the limit and the engine rate live (RatchetSettings::fps_limit,
     // engine_fps); the uncapped presets keep their fixed limit, still capped by the engine rate.
-    // SPARTAN_FPS_LIMIT (measurements) is used as given.
-    const bool measured_limit = std::getenv("SPARTAN_FPS_LIMIT") != nullptr;
+    // RATCHET_FPS_LIMIT (measurements) is used as given.
+    const bool measured_limit = std::getenv("RATCHET_FPS_LIMIT") != nullptr;
     const int vblank_hz = int(EmulatorSettings.GetVblankFrequency());
     const auto current_limit = [&] {
         if (measured_limit) {

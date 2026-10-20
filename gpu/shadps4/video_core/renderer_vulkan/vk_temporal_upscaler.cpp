@@ -50,12 +50,12 @@ FfxVkPortableImage Describe(vk::Image image, vk::Format format, u32 width, u32 h
     return out;
 }
 
-/// spartanport: SPARTAN_DUMP_TRIGGER=<file> SPARTAN_DUMP_DIR=<dir> (default out/dump): creating the file dumps
-/// the upscaler's images of the next SPARTAN_DUMP_FRAMES (8) frames as raw files
+/// spartanport: RATCHET_DUMP_TRIGGER=<file> RATCHET_DUMP_DIR=<dir> (default out/dump): creating the file dumps
+/// the upscaler's images of the next RATCHET_DUMP_FRAMES (8) frames as raw files
 /// <dir>/fNNN_<name>_<w>x<h>_<format>.raw, for checking temporal stability offline.
 /// Returns the frame number to dump, or -1.
 int DumpFrame() {
-    static const char* trigger = std::getenv("SPARTAN_DUMP_TRIGGER");
+    static const char* trigger = std::getenv("RATCHET_DUMP_TRIGGER");
     static int remaining = 0, index = 0, polls = 0;
     if (!trigger) {
         return -1;
@@ -64,7 +64,7 @@ int DumpFrame() {
         if (++polls % 30 != 0 || std::remove(trigger) != 0) {
             return -1;
         }
-        const char* frames = std::getenv("SPARTAN_DUMP_FRAMES");
+        const char* frames = std::getenv("RATCHET_DUMP_FRAMES");
         remaining = frames ? std::max(1, std::atoi(frames)) : 8;
         index = 0;
     }
@@ -85,7 +85,7 @@ struct DumpImage {
 void DumpImages(const Instance& instance, Scheduler& scheduler, vk::CommandBuffer cmdbuf,
                 int frame, std::initializer_list<DumpImage> images) {
     static const std::string dir = [] {
-        const char* env = std::getenv("SPARTAN_DUMP_DIR");
+        const char* env = std::getenv("RATCHET_DUMP_DIR");
         return std::string{env && env[0] ? env : "out/dump"};
     }();
     const vk::MemoryBarrier2 before{
@@ -172,16 +172,16 @@ TemporalUpscaler::TemporalUpscaler(const Instance& instance_, Scheduler& schedul
                         : dlss->Problem();
         RatchetSettings::ConfigureDlssSupport(dlss && dlss->Available(), problem.c_str());
     }
-    // Available unless SPARTAN_UPSCALER=none; on/off and the parameters are the menu's settings.
-    const char* env = std::getenv("SPARTAN_UPSCALER");
+    // Available unless RATCHET_UPSCALER=none; on/off and the parameters are the menu's settings.
+    const char* env = std::getenv("RATCHET_UPSCALER");
     enabled = !(env && std::strcmp(env, "none") == 0);
-    if (const char* hash = std::getenv("SPARTAN_UPSCALE_BEFORE_CS")) {
+    if (const char* hash = std::getenv("RATCHET_UPSCALE_BEFORE_CS")) {
         trigger_hash = std::strtoull(hash, nullptr, 16);
     }
-    if (const char* hash = std::getenv("SPARTAN_UI_TRIGGER_VS")) {
+    if (const char* hash = std::getenv("RATCHET_UI_TRIGGER_VS")) {
         ui_trigger_vs = std::strtoull(hash, nullptr, 16);
     }
-    if (const char* res = std::getenv("SPARTAN_OUTPUT_RES")) {
+    if (const char* res = std::getenv("RATCHET_OUTPUT_RES")) {
         u32 w = 0, h = 0;
         if (std::sscanf(res, "%ux%u", &w, &h) == 2 && w && h) {
             target_width = w;
@@ -190,10 +190,10 @@ TemporalUpscaler::TemporalUpscaler(const Instance& instance_, Scheduler& schedul
     }
     // Explicit resolution overrides retain the old compatibility path. Normal presets
     // keep guest allocations/UI native and change only host raster targets at frame boundaries.
-    scaled_session = std::getenv("SPARTAN_RENDER_RES") && std::getenv("SPARTAN_RENDER_RES")[0];
+    scaled_session = std::getenv("RATCHET_RENDER_RES") && std::getenv("RATCHET_RENDER_RES")[0];
     render_width = 1920;
     render_height = 1080;
-    if (const char* res = std::getenv("SPARTAN_RENDER_RES")) {
+    if (const char* res = std::getenv("RATCHET_RENDER_RES")) {
         u32 w = 0, h = 0;
         if (std::sscanf(res, "%ux%u", &w, &h) == 2 && w && h) {
             render_width = w;
@@ -266,9 +266,9 @@ bool TemporalUpscaler::RasterScaling() const {
 }
 
 bool TemporalUpscaler::OnFrameStart() {
-    // spartanport: SPARTAN_PRESET_FILE=<file> holding a preset number, read about once a second: switches
+    // spartanport: RATCHET_PRESET_FILE=<file> holding a preset number, read about once a second: switches
     // the preset like the menu does (scripted tests of live preset changes).
-    static const char* preset_file = std::getenv("SPARTAN_PRESET_FILE");
+    static const char* preset_file = std::getenv("RATCHET_PRESET_FILE");
     if (preset_file && ++preset_file_frames % 64 == 0) {
         if (FILE* f = std::fopen(preset_file, "r")) {
             int value = 0;
@@ -374,7 +374,7 @@ bool TemporalUpscaler::EnsureResources(u32 w, u32 h, u32 ow, u32 oh, bool hdr) {
     const bool use_fsr4 = UseFsr4() || UseDlss();
     const bool use_taa = RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa;
     if (use_taa && (w != ow || h != oh)) {
-        std::printf("TAA: remove SPARTAN_RENDER_RES to use native-resolution TAA\n");
+        std::printf("TAA: remove RATCHET_RENDER_RES to use native-resolution TAA\n");
         return false;
     }
     if (resources_ready && w == width && h == height && ow == out_width && oh == out_height &&
@@ -678,10 +678,10 @@ void TemporalUpscaler::RecordTaa(vk::CommandBuffer cmdbuf, vk::ImageView color,
         std::array<float, 2> jitter;
         u32 reset, pad;
         std::array<std::array<float, 4>, 3> depth;
-    } params{jitter, reset ? 1u : 0u, std::getenv("SPARTAN_TAA_DIAGNOSTICS") ?
-                 u32(std::clamp(std::atoi(std::getenv("SPARTAN_TAA_DIAGNOSTICS")),1,3)) : 0u,
+    } params{jitter, reset ? 1u : 0u, std::getenv("RATCHET_TAA_DIAGNOSTICS") ?
+                 u32(std::clamp(std::atoi(std::getenv("RATCHET_TAA_DIAGNOSTICS")),1,3)) : 0u,
              camera_motion.TaaDepthParameters()};
-    // Optional techniques for A/B in one run (SPARTAN_TOGGLE_FILE bits 51-54): tonemapped blending,
+    // Optional techniques for A/B in one run (RATCHET_TOGGLE_FILE bits 51-54): tonemapped blending,
     // YCoCg clipping, variance clipping, 3x3 reconstruction. Measured in game on 2026-10-02
     // (static and panning camera, interleaved captures): none improved stability beyond run
     // noise; YCoCg clipping and the reconstruction made it worse. Default: all off.
@@ -819,7 +819,7 @@ void TemporalUpscaler::ExtraSharpen(vk::CommandBuffer cmdbuf, vk::Image target, 
 }
 
 void TemporalUpscaler::OnBlendedSceneDraw() {
-    // The mask is opt-in (menu, SPARTAN_REACTIVE=1): on thin mist it traded trails for
+    // The mask is opt-in (menu, RATCHET_REACTIVE=1): on thin mist it traded trails for
     // jitter shimmer, which looked worse. Toggle 1 << 27 switches it off.
     if (snapshot_taken || !scene_color || !Active() || !ReactiveOn()) {
         return;
@@ -1137,7 +1137,7 @@ void TemporalUpscaler::Run() {
         info.cameraFar = 3000.0f;
         info.cameraVerticalFovRadians = camera_motion.VerticalFov();
         info.viewSpaceToMeters = 1.0f;
-        // RCAS strength 0..1 (menu, SPARTAN_FSR_SHARPNESS); jitter at 1:1 softens the image slightly.
+        // RCAS strength 0..1 (menu, RATCHET_FSR_SHARPNESS); jitter at 1:1 softens the image slightly.
         // AMD's RCAS ends at 1; ExtraSharpen adds the rest of the menu's 0..2.
         info.sharpness = std::min(RatchetSettings::Get().sharpness.load(), 1.0f);
         info.enableSharpening = RatchetSettings::Get().sharpen ? VK_TRUE : VK_FALSE;
@@ -1269,7 +1269,7 @@ namespace Vulkan {
 
 std::array<u32, 2> TemporalUpscaler::SceneSize(u32 w, u32 h) const {
     if (!scaled_session) return {render_width, render_height};
-    // The game's own render size (scene constants); SPARTAN_RENDER_RES until the first camera.
+    // The game's own render size (scene constants); RATCHET_RENDER_RES until the first camera.
     auto size = camera_motion.RenderSize();
     if (size[0] == 0 || size[1] == 0) {
         size = {render_width, render_height};
@@ -1670,7 +1670,7 @@ void TemporalUpscaler::RunScaled() {
                            {{depth_image, source_width, source_height, 4, "depth", "f32",
                              vk::ImageAspectFlagBits::eDepth}});
                 if (RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa &&
-                    std::getenv("SPARTAN_TAA_DIAGNOSTICS")) {
+                    std::getenv("RATCHET_TAA_DIAGNOSTICS")) {
                     DumpImages(instance, scheduler, cmdbuf, dump,
                                {{vk::Image(taa_history[taa_next]),ow,oh,16,
                                  "previous_history","rgba32f"},
@@ -1897,10 +1897,10 @@ bool TemporalUpscaler::DisplayOverride(VAddr address, Display& display) {
     }
     display = {vk::Image(it->second.image), it->second.format, it->second.width, it->second.height};
     // Diagnostic capture of the actual completed display buffer, including native UI.
-    // SPARTAN_PRESENT_DUMP_COUNT=N: the trigger dumps N consecutive frames (temporal stability).
-    static const char* dump = std::getenv("SPARTAN_PRESENT_DUMP_TRIGGER");
+    // RATCHET_PRESENT_DUMP_COUNT=N: the trigger dumps N consecutive frames (temporal stability).
+    static const char* dump = std::getenv("RATCHET_PRESENT_DUMP_TRIGGER");
     static const int dump_count = [] {
-        const char* env = std::getenv("SPARTAN_PRESENT_DUMP_COUNT");
+        const char* env = std::getenv("RATCHET_PRESENT_DUMP_COUNT");
         return env ? std::max(1, std::atoi(env)) : 1;
     }();
     static int dump_index = 0;

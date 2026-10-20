@@ -33,10 +33,10 @@ inline constexpr std::array<std::string_view, 23> Resolutions = {
     "1280x960", "1440x1080", "1920x1440", "2048x1536", "2560x1920",
     "5120x2160", "8K"};
 /// The resolutions to choose from: the built-in ones, then those of the enabled mods' patch files
-/// (SPARTAN_EXTRA_RESOLUTIONS, ";"-separated sizes such as "3440x1440"; run.py sets it at every start).
+/// (RATCHET_EXTRA_RESOLUTIONS, ";"-separated sizes such as "3440x1440"; run.py sets it at every start).
 inline std::vector<std::string> ResolutionNames() {
     std::vector<std::string> names(Resolutions.begin(), Resolutions.end());
-    const char* extra = std::getenv("SPARTAN_EXTRA_RESOLUTIONS");
+    const char* extra = std::getenv("RATCHET_EXTRA_RESOLUTIONS");
     for (std::string_view rest = extra ? extra : ""; !rest.empty();) {
         const std::size_t end = rest.find(';');
         const std::string_view name = rest.substr(0, end);

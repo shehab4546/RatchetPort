@@ -54,7 +54,7 @@ int main(void) {
     int fd=mkstemp(path);
     assert(fd>=0);
     close(fd);
-    setenv("SPARTAN_PAD_FILE",path,1);
+    setenv("RATCHET_PAD_FILE",path,1);
     setenv("SDL_VIDEODRIVER","dummy",1);
     /* Only the virtual test controller is a gamepad, whatever is plugged in. */
     SDL_SetHint(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT,"0x1d50/0x6189");

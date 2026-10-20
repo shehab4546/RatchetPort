@@ -18,7 +18,7 @@ class PolishLanguageTest(unittest.TestCase):
 
     def test_choosing_polish_starts_the_game_with_id_16(self):
         env = launcher.game_environment({**launcher.APP_DEFAULTS, 'language': '16'})
-        self.assertEqual(env['SPARTAN_LANGUAGE'], '16')
+        self.assertEqual(env['RATCHET_LANGUAGE'], '16')
 
     def test_polish_label_is_translated_across_ui_languages(self):
         expected_translations = {
@@ -52,8 +52,8 @@ class PolishLanguageTest(unittest.TestCase):
         services_src = (ROOT / 'src' / 'runtime_services.c').read_text(encoding='utf-8')
         # SystemService system_param: case 1 returns language()
         self.assertRegex(services_src, r'case\s+1:\s*\*value\s*=\s*language\(\);')
-        # language() parses getenv("SPARTAN_LANGUAGE")
-        self.assertRegex(services_src, r'getenv\("SPARTAN_LANGUAGE"\)')
+        # language() parses getenv("RATCHET_LANGUAGE")
+        self.assertRegex(services_src, r'getenv\("RATCHET_LANGUAGE"\)')
 
 
 if __name__ == '__main__':

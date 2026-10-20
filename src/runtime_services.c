@@ -71,7 +71,7 @@ static ABI int32_t user_event(int32_t *event) {
 }
 
 /* ---- SystemService ---- */
-static int language(void) { const char *v=getenv("SPARTAN_LANGUAGE"); return v ? atoi(v) : 1; }
+static int language(void) { const char *v=getenv("RATCHET_LANGUAGE"); return v ? atoi(v) : 1; }
 static ABI int32_t system_param(int32_t id,int32_t *value) {
     if (!value) return SYSTEM_PARAMETER;
     switch (id) {
@@ -421,7 +421,7 @@ static ABI int32_t ime_init(const ImeParam *param, const void *extended) {
     char initial[512], prompt[256];
     utf16_to_utf8(param->buffer,param->max_length,initial,sizeof(initial));
     utf16_to_utf8(param->title,128,prompt,sizeof(prompt));
-    const char *preset=getenv("SPARTAN_IME_TEXT");
+    const char *preset=getenv("RATCHET_IME_TEXT");
     if (preset) { ime_complete(0,preset); return 0; }
     /* An empty field starts with the user name: a controller alone can accept it (the port
      * has no on-screen keyboard). */

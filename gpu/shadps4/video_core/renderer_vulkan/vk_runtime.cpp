@@ -548,7 +548,7 @@ void Runtime::CopyMip(VideoCore::Image* src, VideoCore::Image* dst, u32 mip, u32
 }
 
 void Runtime::CopyColorAndDepth(VideoCore::Image* src, VideoCore::Image* dst) {
-    // spartanport: with SPARTAN_NO_MSAA a guest multisampled depth target is single-sampled on the host; a
+    // spartanport: with RATCHET_NO_MSAA a guest multisampled depth target is single-sampled on the host; a
     // colour image aliasing it still holds the samples as channels, so sample 0 is channel 0.
     const bool guest_ms_depth = dst->info.props.is_depth && dst->info.guest_samples > 1;
     if (src->info.num_samples == 1 && dst->info.num_samples == 1 && !guest_ms_depth) {

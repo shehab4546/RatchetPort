@@ -22,7 +22,7 @@ namespace Vulkan {
 namespace {
 
 std::string AssetDir() {
-    const char* dir = std::getenv("SPARTAN_FSR4_DIR");
+    const char* dir = std::getenv("RATCHET_FSR4_DIR");
     return dir && dir[0] ? dir : "fsr4_shaders";
 }
 
@@ -121,8 +121,8 @@ struct Fsr4Upscaler::Impl {
         std::array<std::vector<u8>, FFX_FSR4_VK_PASS_COUNT> code;
         std::vector<u8> initializer, weights;
         // spartanport: tools/fsr4_optimize.sh puts fixed or faster passes into opt/ (post through
-        // shared memory, pass 11 without out-of-bounds writes); SPARTAN_FSR4_OPT=0 keeps the originals.
-        const char* opt_env = std::getenv("SPARTAN_FSR4_OPT");
+        // shared memory, pass 11 without out-of-bounds writes); RATCHET_FSR4_OPT=0 keeps the originals.
+        const char* opt_env = std::getenv("RATCHET_FSR4_OPT");
         const bool use_opt = !(opt_env && opt_env[0] == '0');
         u32 optimized = 0;
         const auto load = [&](const char* name, std::vector<u8>& data) {
@@ -237,7 +237,7 @@ struct Fsr4Upscaler::Impl {
             return false;
         }
         if (!fsr411) {
-            const char* env = std::getenv("SPARTAN_FSR411_DIR");
+            const char* env = std::getenv("RATCHET_FSR411_DIR");
             fsr411 = std::make_unique<Fsr411::Upscaler>(instance.GetPhysicalDevice(), instance.GetDevice(),
                                                         env && env[0] ? env : "fsr4_411");
         }

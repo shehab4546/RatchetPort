@@ -1,12 +1,12 @@
 /* libScePad on SDL3 gamepads, with a keyboard fallback. SDL events are pumped
  * by the window thread (gpu/shim/window.cpp); here state is only sampled.
  *
- * Default keyboard layout (SPARTAN_KEY_MAP changes the buttons, see apply_button_map):
+ * Default keyboard layout (RATCHET_KEY_MAP changes the buttons, see apply_button_map):
  *   WASD left stick, arrow keys right stick, Space Cross, LShift Circle,
  *   E Square, Q Triangle, 1 L1, 3 R1, R L2, F R2, Z L3, C R3,
  *   Enter Options, Tab left touchpad (photo mode), Backspace right touchpad (pause menu),
  *   IJKL d-pad (I up, K down, J left, L right).
- * SPARTAN_KEY_MAP also takes the mouse: Mouse Left, Mouse Right, Mouse Middle, Mouse Back,
+ * RATCHET_KEY_MAP also takes the mouse: Mouse Left, Mouse Right, Mouse Middle, Mouse Back,
  * Mouse Forward, Wheel Up and Wheel Down (see mouse_names). */
 #define _GNU_SOURCE
 #include "runtime.h"
@@ -127,8 +127,8 @@ static SDL_Gamepad *current_gamepad(void) {
     return gamepad;
 }
 /* Button sources: a host button or key and the PS4 button it presses. The defaults below can be
- * changed per PS4 button with SPARTAN_PAD_MAP (gamepad) and SPARTAN_KEY_MAP (keyboard), e.g.
- * SPARTAN_KEY_MAP="cross=Q,square=Left Shift" or SPARTAN_PAD_MAP="cross=b,circle=a": comma-separated
+ * changed per PS4 button with RATCHET_PAD_MAP (gamepad) and RATCHET_KEY_MAP (keyboard), e.g.
+ * RATCHET_KEY_MAP="cross=Q,square=Left Shift" or RATCHET_PAD_MAP="cross=b,circle=a": comma-separated
  * <ps4 button>=<SDL key or gamepad button name>. A mapped PS4 button loses its default sources;
  * <ps4 button>=None leaves it without any.
  * touchpad_left (alias touchpad) and touchpad_right are the two sides of the touchpad click:
@@ -240,14 +240,14 @@ static bool source_down(int source, const bool *keys, SDL_MouseButtonFlags mouse
 }
 
 /* Scancode of a key name: SDL's names, plus Comma and Equals for the two keys whose own names
- * (',' and '=') are separators of SPARTAN_KEY_MAP. */
+ * (',' and '=') are separators of RATCHET_KEY_MAP. */
 static int key_source(const char *name) {
     if (!SDL_strcasecmp(name,"Comma")) return SDL_SCANCODE_COMMA;
     if (!SDL_strcasecmp(name,"Equals")) return SDL_SCANCODE_EQUALS;
     return (int)SDL_GetScancodeFromName(name);
 }
 
-/* Applies a SPARTAN_PAD_MAP/SPARTAN_KEY_MAP value; returns how many entries were used. Bad entries are
+/* Applies a RATCHET_PAD_MAP/RATCHET_KEY_MAP value; returns how many entries were used. Bad entries are
  * logged and skipped, so their PS4 button keeps its default. */
 static int apply_button_map(ButtonMap *map, const char *spec, bool keyboard) {
     if (!spec || !*spec) return 0;
@@ -296,15 +296,15 @@ static void load_button_maps(void) {
     static bool loaded;
     if (loaded) return;
     loaded=true;
-    const int pad=apply_button_map(&pad_map,getenv("SPARTAN_PAD_MAP"),false);
-    const int keys=apply_button_map(&key_map,getenv("SPARTAN_KEY_MAP"),true);
+    const int pad=apply_button_map(&pad_map,getenv("RATCHET_PAD_MAP"),false);
+    const int keys=apply_button_map(&key_map,getenv("RATCHET_KEY_MAP"),true);
     if (pad || keys) printf("Runtime: pad map: %d gamepad and %d keyboard buttons remapped\n",pad,keys);
 }
 
 static void key_axis(uint8_t *axis, bool negative, bool positive) {
     if (negative || positive) *axis=(uint8_t)(128-(negative ? 128 : 0)+(positive ? 127 : 0));
 }
-/* Stick prompts (SPARTAN_STICK_PROMPTS; the launcher sets it with Native Translation). keyboard: while
+/* Stick prompts (RATCHET_STICK_PROMPTS; the launcher sets it with Native Translation). keyboard: while
  * the game shows a stick-rotation prompt (src/qte_hook.h), W/A/S/D stop moving the left stick and
  * the player types the prompt's keys instead; a finished sequence makes the game's own rotation
  * check pass. A key of the sequence pressed out of turn starts it again; the prompt's timer still
@@ -350,7 +350,7 @@ static unsigned qte_parse_sequence(const char *text, int *keys) {
 static void qte_load(void) {
     if (qte.loaded) return;
     qte.loaded=1;
-    const char *mode=getenv("SPARTAN_STICK_PROMPTS");
+    const char *mode=getenv("RATCHET_STICK_PROMPTS");
     qte.mode=!mode ? STICK_PROMPTS_OFF : !strcmp(mode,"keyboard") ? STICK_PROMPTS_KEYBOARD
              : !strcmp(mode,"mouse") ? STICK_PROMPTS_MOUSE : STICK_PROMPTS_OFF;
     for (unsigned i=0;i<QTE_ROTATIONS;++i) qte_sequences[i].length=qte_parse_sequence(qte_defaults[i],qte_sequences[i].keys);
@@ -503,17 +503,17 @@ static void sample_host(PadData *d) {
     key_axis(&d->right_y,k[SDL_SCANCODE_UP],k[SDL_SCANCODE_DOWN]);
 }
 
-/* SPARTAN_PAD_FILE=<file>: scripted input for automated runs. The file holds whitespace-separated
+/* RATCHET_PAD_FILE=<file>: scripted input for automated runs. The file holds whitespace-separated
  * tokens, re-read when it changes: button names (cross circle square triangle l1 r1 l2 r2 l3 r3
  * options touchpad touchpad_left touchpad_right up down left right) are held while listed;
  * touchpad is the left side; lx= ly= rx= ry= (0..255) override the sticks. An empty file
  * releases everything. */
 static struct { uint32_t buttons; int stick[4]; } injected={0,{-1,-1,-1,-1}};
-static int replay_armed;      /* 1 while a SPARTAN_PAD_REPLAY recording plays, 2 once it ended */
+static int replay_armed;      /* 1 while a RATCHET_PAD_REPLAY recording plays, 2 once it ended */
 static uint64_t replay_start; /* 0: (re)start at the next sample */
 static void read_inject(void) {
     static const char *path; static int checked; static uint64_t last_check; static struct timespec mtime;
-    if (!checked) { path=getenv("SPARTAN_PAD_FILE"); checked=1; }
+    if (!checked) { path=getenv("RATCHET_PAD_FILE"); checked=1; }
     if (!path || !*path) return;
     uint64_t now=now_us();
     if (now-last_check<20000) return;
@@ -535,7 +535,7 @@ static void read_inject(void) {
     for (int i=0;i<4;++i) injected.stick[i]=-1;
     char token[64];
     while (fscanf(f,"%63s",token)==1) {
-        if (!strcmp(token,"replay") && replay_armed!=1) { replay_armed=1; replay_start=0; } /* SPARTAN_PAD_REPLAY */
+        if (!strcmp(token,"replay") && replay_armed!=1) { replay_armed=1; replay_start=0; } /* RATCHET_PAD_REPLAY */
         for (size_t i=0;i<sizeof(ps_names)/sizeof(*ps_names);++i) if (!strcmp(token,ps_names[i].name)) injected.buttons|=ps_names[i].ps;
         for (int i=0;i<4;++i) if (!strncmp(token,sticks[i],3)) { int v=atoi(token+3); injected.stick[i]=v<0 ? 0 : v>255 ? 255 : v; }
     }
@@ -543,9 +543,9 @@ static void read_inject(void) {
     printf("Runtime: pad file: buttons 0x%x sticks %d %d %d %d\n",injected.buttons,
            injected.stick[0],injected.stick[1],injected.stick[2],injected.stick[3]);
 }
-/* SPARTAN_PAD_RECORD=<file>: F9 starts and stops recording the pad state (gamepad or keyboard) with
- * the time since F9; SPARTAN_PAD_REPLAY=<file> plays such a recording back, started by the token
- * "replay" in SPARTAN_PAD_FILE (scripted tests repeat a route the player ran once). Lines: ms buttons
+/* RATCHET_PAD_RECORD=<file>: F9 starts and stops recording the pad state (gamepad or keyboard) with
+ * the time since F9; RATCHET_PAD_REPLAY=<file> plays such a recording back, started by the token
+ * "replay" in RATCHET_PAD_FILE (scripted tests repeat a route the player ran once). Lines: ms buttons
  * lx ly rx ry l2 r2, written when the state changes. */
 typedef struct { uint32_t ms, buttons; uint8_t axes[4], l2, r2; } PadSample;
 static FILE *record_file;
@@ -553,7 +553,7 @@ static uint64_t record_start;
 static PadSample record_last;
 static void record_sample(const PadData *d) {
     static const char *path; static int checked, f9_was_down;
-    if (!checked) { path=getenv("SPARTAN_PAD_RECORD"); checked=1; }
+    if (!checked) { path=getenv("RATCHET_PAD_RECORD"); checked=1; }
     if (!path || !*path || !sdl_ready) return;
     const bool *k=SDL_GetKeyboardState(NULL);
     const int f9=k && k[SDL_SCANCODE_F9];
@@ -585,7 +585,7 @@ static void replay_sample(PadData *d) {
         static int loaded;
         if (!loaded) {
             loaded=1;
-            const char *path=getenv("SPARTAN_PAD_REPLAY");
+            const char *path=getenv("RATCHET_PAD_REPLAY");
             FILE *f=path ? fopen(path,"r") : NULL;
             PadSample s; unsigned v[8]; size_t cap=0;
             while (f && fscanf(f,"%u %u %u %u %u %u %u %u",&v[0],&v[1],&v[2],&v[3],&v[4],&v[5],&v[6],&v[7])==8) {
@@ -663,7 +663,7 @@ static void note_pause_key(const PadData *d) {
     held=pause;
 }
 
-/* One source for two buttons pressed in the same read (SPARTAN_KEY_MAP "rage=<key>", "grab=<key>"):
+/* One source for two buttons pressed in the same read (RATCHET_KEY_MAP "rage=<key>", "grab=<key>"):
  * L3 + R3 for Rage of Sparta, L1 + Circle for the grab. */
 static void apply_combos(PadData *d) {
     static const struct { uint32_t action, buttons; } combos[]={{RAGE,BTN_L3|BTN_R3},{GRAB,BTN_L1|BTN_CIRCLE}};
@@ -671,7 +671,7 @@ static void apply_combos(PadData *d) {
         if (d->buttons & combos[i].action) d->buttons=(d->buttons & ~combos[i].action) | combos[i].buttons;
 }
 
-/* Dodge (SPARTAN_KEY_MAP "dodge=<key>"): SpartanPort evades toward where the right stick is pushed.
+/* Dodge (RATCHET_KEY_MAP "dodge=<key>"): SpartanPort evades toward where the right stick is pushed.
  * While the dodge source is held the right stick points where the left stick does (WASD), at full
  * tilt, or straight back (toward the camera) when standing still; a tap holds it DODGE_MIN_US so
  * the game sees it. */

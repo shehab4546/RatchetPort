@@ -96,9 +96,9 @@ int main(int argc, char **argv) {
         return 1;
     }
     if (argc > 1 && !strcmp(argv[1], "--list")) {
-        /* The launcher's GPU choice: index (as SPARTAN_GPU_ID), name, type, the game's default for
+        /* The launcher's GPU choice: index (as RATCHET_GPU_ID), name, type, the game's default for
          * its multisampling on that driver ("off" or "on", ratchet_msaa_default.h) and 1 on the GPU
-         * the game picks without SPARTAN_GPU_ID. */
+         * the game picks without RATCHET_GPU_ID. */
         VkPhysicalDevice preferred = devices[0];
         for (uint32_t i = 1; i < count; ++i)
             if (better_device(devices[i], preferred)) preferred = devices[i];
@@ -126,12 +126,12 @@ int main(int argc, char **argv) {
         vkDestroyInstance(instance, NULL);
         return 0;
     }
-    /* Match vk_instance.cpp: its default ranking, or the SPARTAN_GPU_ID index while it exists. */
+    /* Match vk_instance.cpp: its default ranking, or the RATCHET_GPU_ID index while it exists. */
     VkPhysicalDevice selected = devices[0];
-    const char *gpu_id = getenv("SPARTAN_GPU_ID");
+    const char *gpu_id = getenv("RATCHET_GPU_ID");
     const unsigned long index = gpu_id && atoi(gpu_id) >= 0 ? strtoul(gpu_id, NULL, 10) : count;
     if (gpu_id && atoi(gpu_id) >= 0 && index >= count)
-        fputs("GPU: SPARTAN_GPU_ID is outside the device list; choosing automatically\n", stderr);
+        fputs("GPU: RATCHET_GPU_ID is outside the device list; choosing automatically\n", stderr);
     if (index < count) {
         selected = devices[index];
     } else {

@@ -17,7 +17,7 @@ namespace RatchetSettings {
 namespace {
 
 const char* Path() {
-    const char* env = std::getenv("SPARTAN_CONFIG");
+    const char* env = std::getenv("RATCHET_CONFIG");
     return env && env[0] ? env : "spartanport.ini";
 }
 
@@ -188,23 +188,23 @@ void Load() {
         std::printf("Settings: %s\n", Path());
     }
     // Environment overrides (scripts, A/B tests).
-    if (const char* env = std::getenv("SPARTAN_UPSCALER")) {
+    if (const char* env = std::getenv("RATCHET_UPSCALER")) {
         v.upscaler = UpscalerOff;
         for (int u = 0; u < UpscalerCount; ++u) {
             if (std::strcmp(env, UpscalerName(u)) == 0) v.upscaler = u;
         }
     }
     const std::pair<const char*, const char*> env_keys[] = {
-        {"SPARTAN_FSR_SHARPNESS", "sharpness"},        {"SPARTAN_JITTER", "jitter"},
-        {"SPARTAN_REACTIVE", "reactive"},              {"SPARTAN_REACTIVE_SCALE", "reactive_scale"},
-        {"SPARTAN_REACTIVE_THRESHOLD", "reactive_threshold"}, {"SPARTAN_REACTIVE_MAX", "reactive_max"},
-        {"SPARTAN_UPSCALE_PRESET", "preset"},            {"SPARTAN_OBJECT_MOTION", "object_motion"},
-        {"SPARTAN_ASYNC_SHADERS", "async_shaders"},      {"SPARTAN_DEFERRED_READBACK", "deferred_readback"},
-        {"SPARTAN_STALE_READBACK", "stale_readback"},     {"SPARTAN_FSR1", "fsr1"},
-        {"SPARTAN_RCAS", "rcas"},                        {"SPARTAN_FRAMES_AHEAD", "frames_queued"},
-        {"SPARTAN_ANISOTROPY", "anisotropy"},            {"SPARTAN_VIBRATION", "vibration"},
-        {"SPARTAN_MOUSE_PROMPT_DISTANCE", "mouse_prompt_distance"}, {"SPARTAN_MOUSE_LOCK", "mouse_lock"},
-        {"SPARTAN_MOUSE_AIM_STYLE", "mouse_aim_style"}, {"SPARTAN_MOUSE_AIM_SENSITIVITY", "mouse_aim_sensitivity"},
+        {"RATCHET_FSR_SHARPNESS", "sharpness"},        {"RATCHET_JITTER", "jitter"},
+        {"RATCHET_REACTIVE", "reactive"},              {"RATCHET_REACTIVE_SCALE", "reactive_scale"},
+        {"RATCHET_REACTIVE_THRESHOLD", "reactive_threshold"}, {"RATCHET_REACTIVE_MAX", "reactive_max"},
+        {"RATCHET_UPSCALE_PRESET", "preset"},            {"RATCHET_OBJECT_MOTION", "object_motion"},
+        {"RATCHET_ASYNC_SHADERS", "async_shaders"},      {"RATCHET_DEFERRED_READBACK", "deferred_readback"},
+        {"RATCHET_STALE_READBACK", "stale_readback"},     {"RATCHET_FSR1", "fsr1"},
+        {"RATCHET_RCAS", "rcas"},                        {"RATCHET_FRAMES_AHEAD", "frames_queued"},
+        {"RATCHET_ANISOTROPY", "anisotropy"},            {"RATCHET_VIBRATION", "vibration"},
+        {"RATCHET_MOUSE_PROMPT_DISTANCE", "mouse_prompt_distance"}, {"RATCHET_MOUSE_LOCK", "mouse_lock"},
+        {"RATCHET_MOUSE_AIM_STYLE", "mouse_aim_style"}, {"RATCHET_MOUSE_AIM_SENSITIVITY", "mouse_aim_sensitivity"},
         {"SPARTAN_AUTO_QTE", "auto_qte"},
     };
     for (const auto& [env, key] : env_keys) {
@@ -218,7 +218,7 @@ void Load() {
     v.startup_output_res = v.output_res;
     v.startup_live_resolution = v.live_resolution;
     v.startup_render_resolution = v.render_resolution;
-    const char* applied = std::getenv("SPARTAN_ENGINE_FPS");
+    const char* applied = std::getenv("RATCHET_ENGINE_FPS");
     v.applied_engine_fps = applied && applied[0] ? RatchetGraphics::ParseEngineFps(std::atoi(applied))
                                                  : v.engine_fps.load();
     v.startup_deferred_readback = v.deferred_readback;
@@ -296,7 +296,7 @@ void ConfigureDlssSupport(bool available, const char* problem) {
 }
 
 bool FixedRenderSession() {
-    const char* size = std::getenv("SPARTAN_RENDER_RES");
+    const char* size = std::getenv("RATCHET_RENDER_RES");
     return size && size[0];
 }
 

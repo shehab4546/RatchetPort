@@ -265,9 +265,9 @@ class GraphicsOptionsTest(unittest.TestCase):
         self.assertEqual(
             env,
             {
-                'SPARTAN_DEFERRED_READBACK': '1',
-                'SPARTAN_STALE_READBACK': '0',
-                'SPARTAN_ASYNC_SHADERS': '1',
+                'RATCHET_DEFERRED_READBACK': '1',
+                'RATCHET_STALE_READBACK': '0',
+                'RATCHET_ASYNC_SHADERS': '1',
             },
         )
 

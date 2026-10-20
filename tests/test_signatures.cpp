@@ -15,7 +15,7 @@ static uint64_t Find(const std::vector<unsigned char>& image, const SpartanSigna
 }
 
 int main(int argc, char** argv) {
-    int parsed[SPARTAN_SIGNATURE_MAX];
+    int parsed[RATCHET_SIGNATURE_MAX];
     assert(spartanport_signature_parse("c5 ?? 0a", parsed) == 3 && parsed[0] == 0xc5 && parsed[1] == -1 && parsed[2] == 10);
     assert(!spartanport_signature_parse("c5 g0", parsed) && !spartanport_signature_parse("c5 0", parsed));
 

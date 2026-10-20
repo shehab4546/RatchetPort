@@ -170,7 +170,7 @@ void TextureCache::CancelReadbacks(VAddr address, u64 size) {
     });
 }
 
-// spartanport (SPARTAN_PERF_DIAG): a request PartialHeightViews answered with a taller cached image.
+// spartanport (RATCHET_PERF_DIAG): a request PartialHeightViews answered with a taller cached image.
 void TextureCache::NotePartialView(const ImageInfo& request, const ImageInfo& used,
                                    BindingType binding) {
     ++partial_views;
@@ -190,7 +190,7 @@ void TextureCache::NotePartialView(const ImageInfo& request, const ImageInfo& us
     ++slot->count;
 }
 
-// spartanport (SPARTAN_PERF_DIAG): every 5 s, the images FindImage created most often. Takes `mutex`
+// spartanport (RATCHET_PERF_DIAG): every 5 s, the images FindImage created most often. Takes `mutex`
 // (held by FindImage), so it runs before ProcessDownloadImages takes readback_mutex.
 void TextureCache::ReportImageCreates() {
     const auto now = std::chrono::steady_clock::now();
@@ -429,7 +429,7 @@ void TextureCache::DiagDumpImage(ImageId image_id, const char* tag) {
     scheduler.Finish();
     download.Invalidate();
     static int sequence = 0;
-    const char* dir = std::getenv("SPARTAN_DIAG_DIR");
+    const char* dir = std::getenv("RATCHET_DIAG_DIR");
     const char* dir_path = dir && *dir ? dir : "out/diag";
     std::error_code ec;
     std::filesystem::create_directories(dir_path, ec);
@@ -813,9 +813,9 @@ std::tuple<ImageId, int, int> TextureCache::ResolveOverlap(const ImageInfo& imag
             const std::string_view numeric = vk::componentNumericFormat(format, 0);
             return numeric == "UINT" || numeric == "SINT";
         };
-        // Launcher: Performance, "Fast screen effects" (SPARTAN_PARTIAL_HEIGHT_VIEWS=0 turns it off).
+        // Launcher: Performance, "Fast screen effects" (RATCHET_PARTIAL_HEIGHT_VIEWS=0 turns it off).
         static const bool partial_views_enabled = [] {
-            const char* value = std::getenv("SPARTAN_PARTIAL_HEIGHT_VIEWS");
+            const char* value = std::getenv("RATCHET_PARTIAL_HEIGHT_VIEWS");
             return !value || value[0] != '0';
         }();
         if (partial_views_enabled && !SpartanToggle::Disabled(SpartanToggle::PartialHeightViews) &&
@@ -1145,7 +1145,7 @@ ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
         image_id = cache_id;
     }
 
-    // spartanport (SPARTAN_PERF_DIAG): what was cached here, read before overlap resolution may free it.
+    // spartanport (RATCHET_PERF_DIAG): what was cached here, read before overlap resolution may free it.
     const bool diag = Vulkan::WaitDiagnostics::Enabled();
     CreateStat created{info.guest_address, info.size.width, info.size.height, 1, info.pixel_format,
                        desc.type, image_ids.empty() ? "nothing cached" : "overlap unresolved"};
@@ -1689,9 +1689,9 @@ void TextureCache::GarbageCollectImages() {
         // ~1 GB after its 8 GB system reserve: usage stayed above the critical mark, so the
         // collector evicted images used two or three frames ago on every submission and wrote
         // GPU-written ones back. Compare with the driver's current budget instead.
-        // SPARTAN_GC_BUDGET_MB=N: this rule with a fixed budget on any GPU (tests on a desktop).
+        // RATCHET_GC_BUDGET_MB=N: this rule with a fixed budget on any GPU (tests on a desktop).
         static const u64 forced_budget = [] {
-            const char* env = std::getenv("SPARTAN_GC_BUDGET_MB");
+            const char* env = std::getenv("RATCHET_GC_BUDGET_MB");
             return env ? std::strtoull(env, nullptr, 10) << 20 : 0;
         }();
         if (instance.IsIntegrated() || forced_budget) {
@@ -1792,7 +1792,7 @@ void TextureCache::GarbageCollectImages() {
         configure(true);
         lru_cache.ForEachItemBelow(gc_tick - ticks_to_destroy, clean_up);
     }
-    // spartanport: evictions under memory pressure, at most every 5 s (SPARTAN_FRAME_STATS or not).
+    // spartanport: evictions under memory pressure, at most every 5 s (RATCHET_FRAME_STATS or not).
     if (pressured || gc_downloads != 0) {
         const auto now = std::chrono::steady_clock::now();
         if (now - gc_report_time >= std::chrono::seconds(5)) {

@@ -26,13 +26,13 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.saved = (launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG,
-                      os.environ.get('SPARTAN_CONFIG'))
+                      os.environ.get('RATCHET_CONFIG'))
         launcher.CONFIG_DIR = self.tmp / 'config'
         launcher.CONFIG_FILE = launcher.CONFIG_DIR / 'settings.json'
         launcher.DATA_DIR = self.tmp / 'data'
         launcher.DATA_DIR.mkdir()
         launcher.LANG = 'en'
-        os.environ['SPARTAN_CONFIG'] = str(self.tmp / 'spartanport.ini')
+        os.environ['RATCHET_CONFIG'] = str(self.tmp / 'spartanport.ini')
         if self.INI:
             (self.tmp / 'spartanport.ini').write_text(self.INI, encoding='utf-8')
         self.root = tk.Tk()
@@ -48,9 +48,9 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
         self.close_window()
         launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG, config = self.saved
         if config is None:
-            os.environ.pop('SPARTAN_CONFIG', None)
+            os.environ.pop('RATCHET_CONFIG', None)
         else:
-            os.environ['SPARTAN_CONFIG'] = config
+            os.environ['RATCHET_CONFIG'] = config
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def save_state(self):

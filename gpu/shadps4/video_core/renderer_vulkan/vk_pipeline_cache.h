@@ -223,7 +223,7 @@ private:
     std::unique_ptr<AsyncCompiler> compiler, capture_compiler;
     std::vector<vk::UniquePipelineCache> worker_pipeline_caches;
     bool worker_caches_seeded = false;
-    /// spartanport: SPARTAN_PARALLEL_WARMUP: WarmUp builds the cached pipelines on these threads.
+    /// spartanport: RATCHET_PARALLEL_WARMUP: WarmUp builds the cached pipelines on these threads.
     struct WarmupPool;
     WarmupPool* warmup_pool = nullptr;
     std::mutex warmup_results_mutex;

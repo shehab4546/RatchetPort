@@ -260,13 +260,13 @@ public:
         return vk13_features.subgroupSizeControl && vk13_props.maxSubgroupSize >= 64;
     }
 
-    /// spartanport: VK_KHR_pipeline_executable_properties is on (SPARTAN_WAVE_STATS=1, vk_wave_stats.h).
+    /// spartanport: VK_KHR_pipeline_executable_properties is on (RATCHET_WAVE_STATS=1, vk_wave_stats.h).
     bool IsPipelineExecutableInfoEnabled() const {
         return pipeline_executable_properties &&
                pipeline_executable_features.pipelineExecutableInfo;
     }
 
-    /// spartanport: VK_AMD_shader_info is on (statistics and ISA per stage, SPARTAN_WAVE_STATS=1).
+    /// spartanport: VK_AMD_shader_info is on (statistics and ISA per stage, RATCHET_WAVE_STATS=1).
     bool IsAmdShaderInfoEnabled() const {
         return amd_shader_info;
     }
@@ -590,7 +590,7 @@ private:
     bool image_2d_view_of_3d{};
     bool image_view_min_lod{};
     bool shader_clock{};
-    bool pipeline_executable_properties{}; // spartanport: SPARTAN_WAVE_STATS=1 (vk_wave_stats.h)
+    bool pipeline_executable_properties{}; // spartanport: RATCHET_WAVE_STATS=1 (vk_wave_stats.h)
     bool amd_shader_info{};                // spartanport: with it, VK_AMD_shader_info when present
     bool compute_shader_derivatives{};
     bool mixed_float_dot_product{}; // spartanport: VK_VALVE_shader_mixed_float_dot_product (FSR 4.1.1)

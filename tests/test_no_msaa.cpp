@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// SPARTAN_NO_MSAA (video_core/amdgpu/ratchet_msaa.h): guest multisampled images created and sampled
+// RATCHET_NO_MSAA (video_core/amdgpu/ratchet_msaa.h): guest multisampled images created and sampled
 // as single-sampled ones on AMD's and Intel's Windows drivers (ratchet_msaa_default.h), while
 // every size in guest memory keeps the real sample count. No game or Vulkan device required.
 #include <cassert>

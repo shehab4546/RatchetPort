@@ -13,10 +13,10 @@ int main() {
     const int fd = mkstemp(path);
     assert(fd >= 0);
     close(fd);
-    setenv("SPARTAN_CONFIG", path, 1);
-    unsetenv("SPARTAN_UPSCALER");
-    unsetenv("SPARTAN_UPSCALE_PRESET");
-    unsetenv("SPARTAN_RENDER_RES");
+    setenv("RATCHET_CONFIG", path, 1);
+    unsetenv("RATCHET_UPSCALER");
+    unsetenv("RATCHET_UPSCALE_PRESET");
+    unsetenv("RATCHET_RENDER_RES");
     auto& s = Get();
     s.upscaler = UpscalerTaa;
     s.preset = Performance;
@@ -59,7 +59,7 @@ int main() {
     s.upscaler = UpscalerFsr3;
     s.preset = Performance;
     assert(RenderPreset() == Performance && !ResolutionNeedsRestart());
-    setenv("SPARTAN_RENDER_RES", "1706x960", 1);
+    setenv("RATCHET_RENDER_RES", "1706x960", 1);
     assert(RenderPreset() == Quality && ResolutionNeedsRestart());
     s.preset = Quality;
     assert(!ResolutionNeedsRestart());
@@ -74,9 +74,9 @@ int main() {
     s.output_res = (output + 1) % OutputCount;
     assert(ResolutionNeedsRestart());
     s.output_res = output;
-    setenv("SPARTAN_RENDER_RES", "", 1);
+    setenv("RATCHET_RENDER_RES", "", 1);
     assert(!FixedRenderSession() && !ResolutionNeedsRestart());
-    unsetenv("SPARTAN_RENDER_RES");
+    unsetenv("RATCHET_RENDER_RES");
     std::remove(path);
     std::puts("Upscaler support: saved choices and FSR 3.1 fallback PASS");
 }

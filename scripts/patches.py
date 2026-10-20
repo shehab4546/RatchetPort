@@ -392,7 +392,7 @@ def main():
                    help='patch file of an enabled mod (repeat; in load order)')
     p.add_argument('--extra',default='',help='additional patch names, separated by ";"')
     p.add_argument('--out',type=Path,default=Path(__file__).resolve().parent.parent/'out')
-    p.add_argument('--game-dir',type=Path,default=Path(os.environ.get('SPARTAN_GAME_DIR','../CUSA01623')))
+    p.add_argument('--game-dir',type=Path,default=Path(os.environ.get('RATCHET_GAME_DIR','../CUSA01623')))
     a=p.parse_args()
     title=game_title_id(a.game_dir)
     profile=game_profile_for(a.game_dir)
@@ -405,7 +405,7 @@ def main():
         xml=merge_patch_files(xml,a.mod_patches,a.out/'patches-merged.xml')
     sha=eboot_sha256(a.game_dir)
     print(f'Patches: {title} {game_app_version(a.game_dir)}, eboot.bin sha256 {sha}')
-    names=selected_patches(xml,tag,a.extra,os.environ.get('SPARTAN_PATCHES_ONLY')=='1')
+    names=selected_patches(xml,tag,a.extra,os.environ.get('RATCHET_PATCHES_ONLY')=='1')
     elf=(a.out/'eboot.elf').read_bytes()
     segments=eboot_segments(elf)
     skipped={}

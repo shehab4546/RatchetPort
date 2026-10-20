@@ -54,7 +54,7 @@ int main() {
                "overlay_cpu=1\noverlay_ram=0\noverlay_vram=1\noverlay_scale=400\noverlay_corner=2\n"
                "overlay_opacity=-5\noverlay_layout=1\nmenu_tab=3\n";
     }
-    _putenv_s("SPARTAN_CONFIG", path);
+    _putenv_s("RATCHET_CONFIG", path);
     auto& v = RatchetSettings::Get();
     assert(v.overlay_items == P::DefaultItems && v.overlay_scale == 100 && v.overlay_corner == 1);
     RatchetSettings::Load();

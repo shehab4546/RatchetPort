@@ -140,7 +140,7 @@ GraphicsPipeline::GraphicsPipeline(
         sdata.multisampling = {
             .rasterizationSamples = LiverpoolToVK::NumSamples(
                 key.num_samples, instance.GetColorSampleCounts() & instance.GetDepthSampleCounts()),
-            // spartanport: SPARTAN_LIGHTING_TEST=shading keeps sample shading off (vk_lighting_test.h).
+            // spartanport: RATCHET_LIGHTING_TEST=shading keeps sample shading off (vk_lighting_test.h).
             .sampleShadingEnable = !LightingTest::Current().shading &&
                                    (fs_info.addr_flags.persp_sample_ena ||
                                     fs_info.addr_flags.linear_sample_ena),

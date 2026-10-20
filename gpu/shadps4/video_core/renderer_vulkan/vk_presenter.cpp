@@ -321,10 +321,10 @@ Presenter::Presenter(Frontend::WindowSDL& window_, AmdGpu::Liverpool* liverpool_
     pp_pass.Create(device, swapchain.GetSurfaceFormat().format);
     RatchetOverlay::Init(instance, swapchain.GetSurfaceFormat().format, num_images);
 
-    const bool binary_cache = EmulatorSettingsImpl::Flag("SPARTAN_PIPELINE_BINARIES", true) &&
+    const bool binary_cache = EmulatorSettingsImpl::Flag("RATCHET_PIPELINE_BINARIES", true) &&
                               EmulatorSettings.IsPipelineCacheEnabled();
-    const bool capture_only = EmulatorSettingsImpl::Flag("SPARTAN_PIPELINE_BINARY_ISOLATED", false) &&
-                              EmulatorSettingsImpl::Flag("SPARTAN_PIPELINE_CAPTURE_ONLY", false);
+    const bool capture_only = EmulatorSettingsImpl::Flag("RATCHET_PIPELINE_BINARY_ISOLATED", false) &&
+                              EmulatorSettingsImpl::Flag("RATCHET_PIPELINE_CAPTURE_ONLY", false);
     if (UseOnDemandPipelines(binary_cache, instance.GetPipelineBinaryGlobalKey().keySize != 0,
                             capture_only)) {
         rasterizer->GetPipelineCache().StartOnDemand();
@@ -334,7 +334,7 @@ Presenter::Presenter(Frontend::WindowSDL& window_, AmdGpu::Liverpool* liverpool_
     // spartanport: by default the cached pipelines load while the game runs (a corner note shows the
     // progress). Otherwise rebuilding them takes up to minutes before the first game frame:
     // show what is happening instead of a black window.
-    const char* background_warmup = std::getenv("SPARTAN_BACKGROUND_WARMUP");
+    const char* background_warmup = std::getenv("RATCHET_BACKGROUND_WARMUP");
     if ((!background_warmup || *background_warmup != '0') &&
         rasterizer->GetPipelineCache().StartBackgroundWarmUp()) {
         return;
@@ -513,7 +513,7 @@ static vk::Format GetFrameViewFormat(const Libraries::VideoOut::PixelFormat form
     return {};
 }
 
-// spartanport: raw copy of an image for SPARTAN_FRAME_DUMP_TRIGGER, written once the GPU is done.
+// spartanport: raw copy of an image for RATCHET_FRAME_DUMP_TRIGGER, written once the GPU is done.
 static void DumpRaw(const Instance& instance, Scheduler& scheduler, vk::CommandBuffer cmdbuf,
                     vk::Image image, vk::ImageLayout layout, u32 w, u32 h, const char* name,
                     int index) {
@@ -533,7 +533,7 @@ static void DumpRaw(const Instance& instance, Scheduler& scheduler, vk::CommandB
     cmdbuf.copyImageToBuffer(image, layout, buffer,
                              vk::BufferImageCopy{.imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
                                                  .imageExtent = {w, h, 1}});
-    const char* dir = std::getenv("SPARTAN_DUMP_DIR");
+    const char* dir = std::getenv("RATCHET_DUMP_DIR");
     char path[512];
     std::snprintf(path, sizeof(path), "%s/%s_%03d_%ux%u.raw", dir && *dir ? dir : "out/dump", name,
                   index, w, h);
@@ -550,10 +550,10 @@ static void DumpRaw(const Instance& instance, Scheduler& scheduler, vk::CommandB
 
 Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& attribute,
                                VAddr cpu_address) {
-    // spartanport: SPARTAN_FRAME_DUMP_TRIGGER=<file>: when the file exists it is removed and this frame's
-    // guest display buffer and presented image are written to SPARTAN_DUMP_DIR (default out/dump)
+    // spartanport: RATCHET_FRAME_DUMP_TRIGGER=<file>: when the file exists it is removed and this frame's
+    // guest display buffer and presented image are written to RATCHET_DUMP_DIR (default out/dump)
     // as raw 32-bit pixels (menus and movies included; the upscaler dumps scene frames only).
-    static const char* frame_dump_trigger = std::getenv("SPARTAN_FRAME_DUMP_TRIGGER");
+    static const char* frame_dump_trigger = std::getenv("RATCHET_FRAME_DUMP_TRIGGER");
     static int frame_dump_index = 0;
     const bool frame_dump = frame_dump_trigger && std::remove(frame_dump_trigger) == 0;
     // spartanport: scaled upscaler presets: the output-size display buffer drawn by the port.
@@ -685,12 +685,12 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
     SubmitInfo info{};
     draw_scheduler.Flush(info);
 
-    // spartanport: the GPU command thread runs at most SPARTAN_FRAMES_AHEAD (default 1) guest frames
+    // spartanport: the GPU command thread runs at most RATCHET_FRAMES_AHEAD (default 1) guest frames
     // ahead of the GPU: it waits here for the frame that many flips back. When the GPU is the
     // bottleneck it finishes frames at an even rate; without this bound the command thread ran
     // ahead and then blocked wherever a resource ran out, so flips (and the guest's frame
     // timing) came in bursts: 12.5/25 ms alternation at 80 FPS. 0 turns it off.
-    // The in-game menu changes it live (RatchetSettings::frames_queued; SPARTAN_FRAMES_AHEAD at start).
+    // The in-game menu changes it live (RatchetSettings::frames_queued; RATCHET_FRAMES_AHEAD at start).
     const u32 frames_ahead = u32(std::max(0, RatchetSettings::Get().frames_queued.load()));
     if (!frames_ahead) {
         recent_frame_ticks.clear();

@@ -37,7 +37,7 @@ asm(".section .rdata,\"dr\"\n"
     ".balign 16\n"
     ".global spartanport_font_ttf\n"
     "spartanport_font_ttf:\n"
-    ".incbin \"" SPARTAN_FONT_PATH "\"\n"
+    ".incbin \"" RATCHET_FONT_PATH "\"\n"
     ".global spartanport_font_ttf_end\n"
     "spartanport_font_ttf_end:\n"
     ".text\n");
@@ -47,7 +47,7 @@ asm(".section .rodata\n"
     ".hidden spartanport_font_ttf\n"
     ".global spartanport_font_ttf\n"
     "spartanport_font_ttf:\n"
-    ".incbin \"" SPARTAN_FONT_PATH "\"\n"
+    ".incbin \"" RATCHET_FONT_PATH "\"\n"
     ".hidden spartanport_font_ttf_end\n"
     ".global spartanport_font_ttf_end\n"
     "spartanport_font_ttf_end:\n"
@@ -187,10 +187,10 @@ void Choice(const char* label, std::atomic<int>& target, const char* const* labe
     }
 }
 
-// Controller button names in the help text follow SPARTAN_GLYPHS (run.py sets xbox or nintendo when
+// Controller button names in the help text follow RATCHET_GLYPHS (run.py sets xbox or nintendo when
 // the glyph feature is on); unset is PlayStation. Read once: the environment is fixed for a run.
 static const char* PadText(const char* playstation, const char* xbox, const char* nintendo) {
-    static const char* style = std::getenv("SPARTAN_GLYPHS");
+    static const char* style = std::getenv("RATCHET_GLYPHS");
     if (!style) return playstation;
     return !std::strcmp(style, "xbox") ? xbox : !std::strcmp(style, "nintendo") ? nintendo : playstation;
 }
@@ -678,7 +678,7 @@ void Menu() {
         ImGui::TextColored(ImVec4(0.85f, 0.72f, 0.45f, 1.0f), "%d change%s need%s a restart (unsaved progress is lost).",
                            changes, changes == 1 ? "" : "s", changes == 1 ? "s" : "");
         ImGui::SameLine();
-        ImGui::BeginDisabled(!std::getenv("SPARTAN_RESTART_COMMAND"));
+        ImGui::BeginDisabled(!std::getenv("RATCHET_RESTART_COMMAND"));
         if (ImGui::Button("Apply and restart")) {
             // The new launch confirms the options once the game shows; run.py restores the
             // previous ones if it never does (restart_unconfirmed).
@@ -1098,7 +1098,7 @@ bool HandleEvent(const SDL_Event& event) {
     case SDL_EVENT_KEY_UP: {
         const bool down = event.type == SDL_EVENT_KEY_DOWN;
         static const bool capture_key = [] {
-            const char* env = std::getenv("SPARTAN_FRAME_CAPTURE_KEY");
+            const char* env = std::getenv("RATCHET_FRAME_CAPTURE_KEY");
             return env && *env == '1';
         }();
         if (event.key.key == SDLK_F9) {

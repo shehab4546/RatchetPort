@@ -110,7 +110,7 @@ static bool MultiCopy(Rasterizer& rasterizer, const VideoCore::Buffer* src,
     scheduler.Record([src = src->Handle(), dst = dst->Handle(), table = stream.Handle(), src_min,
                       src_size, dst_min, dst_size, table_offset, table_size,
                       count](vk::CommandBuffer cmdbuf) {
-        if (Vulkan::Scheduler::FullBarriers()) { // spartanport: SPARTAN_FULL_BARRIERS=1
+        if (Vulkan::Scheduler::FullBarriers()) { // spartanport: RATCHET_FULL_BARRIERS=1
             Vulkan::Scheduler::RecordFullBarrier(cmdbuf);
         }
         const std::array<vk::DescriptorBufferInfo, 3> infos{{
@@ -177,9 +177,9 @@ static bool ExecuteCopyShaderHLE(const Shader::Info& info, const AmdGpu::Compute
     // spartanport: 64 KiB instead of 64 MiB. The copies are a few KiB spread over up to 57 MiB, and
     // each batch synchronizes (uploads, marks GPU-modified) its whole range: GPU time of the copy
     // shader 1.5 -> 0.6 ms/frame, GPU busy 85% -> 77%, frame rate no lower.
-    // SPARTAN_COPY_MERGE_KB overrides it.
+    // RATCHET_COPY_MERGE_KB overrides it.
     static const vk::DeviceSize MaxDistanceForMerge = [] {
-        const char* env = std::getenv("SPARTAN_COPY_MERGE_KB");
+        const char* env = std::getenv("RATCHET_COPY_MERGE_KB");
         return env ? vk::DeviceSize(std::strtoull(env, nullptr, 10)) * 1024 : vk::DeviceSize(64_KB);
     }();
     u32 batch_start = 0;

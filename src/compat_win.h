@@ -2,8 +2,8 @@
  * runtime uses. Included through runtime.h after the C library headers, so the macros below
  * only replace calls in this project's own sources. Paths are UTF-8: the executable's
  * manifest selects the UTF-8 code page (packaging/windows/ratchet-probe.manifest). */
-#ifndef SPARTAN_COMPAT_WIN_H
-#define SPARTAN_COMPAT_WIN_H
+#ifndef RATCHET_COMPAT_WIN_H
+#define RATCHET_COMPAT_WIN_H
 #ifdef _WIN32
 #include <stdint.h>
 #include <stddef.h>

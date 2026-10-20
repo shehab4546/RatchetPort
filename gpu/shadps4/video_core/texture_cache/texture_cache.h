@@ -240,7 +240,7 @@ public:
         auto& image = slot_images[id];
         return !uid || image.image_uid == uid ? &image : nullptr;
     }
-    /// spartanport diagnostics: writes level 0 of a color image to SPARTAN_DIAG_DIR as raw pixels
+    /// spartanport diagnostics: writes level 0 of a color image to RATCHET_DIAG_DIR as raw pixels
     /// (<seq>_<tag>_<address>_<w>x<h>_p<pitch>_b<bytes per pixel>_f<vk format>.raw). Waits for
     /// the GPU.
     void DiagDumpImage(ImageId image_id, const char* tag);
@@ -464,14 +464,14 @@ private:
     Common::LeastRecentlyUsedCache<u64, u64> sampler_lru_cache;
     const bool readback_linear_images;
     const bool deferred_readbacks = [] {
-        const char* value = std::getenv("SPARTAN_DEFERRED_READBACK");
+        const char* value = std::getenv("RATCHET_DEFERRED_READBACK");
         return value && value[0] == '1';
     }();
-    /// spartanport: SPARTAN_STALE_READBACK=1 (needs deferred readbacks). A pending copy only blocks CPU
+    /// spartanport: RATCHET_STALE_READBACK=1 (needs deferred readbacks). A pending copy only blocks CPU
     /// writes: CPU reads see the version the GPU published last (one frame late) instead of
     /// waiting for the GPU. Writes still wait, so no byte is lost.
     const bool stale_readbacks = deferred_readbacks && [] {
-        const char* value = std::getenv("SPARTAN_STALE_READBACK");
+        const char* value = std::getenv("RATCHET_STALE_READBACK");
         return value && value[0] == '1';
     }();
     template <bool track>
@@ -483,7 +483,7 @@ private:
         u64 Bytes() const { return u64{width} * height * bits / 8; }
     };
     std::array<ReadbackImageStat, 16> readback_images{};
-    /// spartanport (SPARTAN_PERF_DIAG): images FindImage had to create, by request, and the image that was
+    /// spartanport (RATCHET_PERF_DIAG): images FindImage had to create, by request, and the image that was
     /// cached at that memory before (none: nothing overlapped). Printed with the readback report.
     struct CreateStat {
         VAddr address;
@@ -501,7 +501,7 @@ private:
     u64 images_created = 0;
     std::chrono::steady_clock::time_point create_report = std::chrono::steady_clock::now();
     void ReportImageCreates();
-    /// spartanport (SPARTAN_PERF_DIAG): requests answered by SpartanToggle::PartialHeightViews.
+    /// spartanport (RATCHET_PERF_DIAG): requests answered by SpartanToggle::PartialHeightViews.
     struct PartialViewStat {
         VAddr address;
         vk::Format format, used_format;

@@ -238,7 +238,7 @@ struct PageManager::Impl {
 // per-frame buffers and the GPU thread re-protects uploaded pages, every page fault in the
 // process (copy threads included) waits for it. UFFDIO_WRITEPROTECT changes page table bits
 // under the lock for reading. Read protection (readbacks) still uses mprotect: userfaultfd
-// write-protection cannot deny reads. SPARTAN_UFFD=1.
+// write-protection cannot deny reads. RATCHET_UFFD=1.
 struct UffdImpl : public PageManager::Impl {
 private:
     std::jthread ufd_thread;
@@ -394,7 +394,7 @@ struct SignalImpl : public PageManager::Impl {
 
 PageManager::PageManager(Vulkan::Rasterizer* rasterizer_) {
 #ifdef __linux__
-    if (std::getenv("SPARTAN_UFFD") && std::getenv("SPARTAN_UFFD")[0] == '1') {
+    if (std::getenv("RATCHET_UFFD") && std::getenv("RATCHET_UFFD")[0] == '1') {
         try {
             impl = std::make_unique<UffdImpl>(rasterizer_);
             LOG_INFO(Config, "Memory tracking method: userfaultfd");

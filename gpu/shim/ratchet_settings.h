@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // spartanport: user settings changed at run time from the in-game menu (ratchet_overlay.h) and kept
-// in spartanport.ini (SPARTAN_CONFIG overrides the path). Environment variables override the file at
+// in spartanport.ini (RATCHET_CONFIG overrides the path). Environment variables override the file at
 // start. Readers load the atomics every frame; writers are the menu and Load().
 
 #pragma once
@@ -97,7 +97,7 @@ struct Values {
     /// restores the previous startup options when a launch never cleared it.
     std::atomic<bool> restart_unconfirmed{false};
     int startup_render_resolution = 0;
-    /// The engine rate this launch really runs at (run.py's SPARTAN_ENGINE_FPS): 60 when the frame
+    /// The engine rate this launch really runs at (run.py's RATCHET_ENGINE_FPS): 60 when the frame
     /// rate patch does not apply to this game build.
     std::atomic<int> applied_engine_fps{120};
     /// The game's maximum frame rate, read every frame (src/probe.c finds it): as a float and
@@ -120,7 +120,7 @@ struct Values {
     std::atomic<bool> dlss_supported{false};
     std::atomic<const char*> dlss_problem{nullptr};
 
-    /// Startup settings for the explicit SPARTAN_RENDER_RES compatibility patch only.
+    /// Startup settings for the explicit RATCHET_RENDER_RES compatibility patch only.
     int startup_preset = NativeAA;
     int startup_upscaler = UpscalerFsr3;
     bool startup_object_motion = true;

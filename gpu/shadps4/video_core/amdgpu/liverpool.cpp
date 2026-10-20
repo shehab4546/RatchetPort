@@ -267,11 +267,11 @@ void RunEventWriteEop(Vulkan::Rasterizer& rasterizer, const u8* data) {
     const auto eop = *reinterpret_cast<const PM4CmdEventWriteEop*>(data);
     rasterizer.ProcessDownloadImages();
     // Guest memory copies on the copy threads precede the fence the guest sees.
-    // SPARTAN_ASYNC_FENCES=1 writes it once they are done instead of waiting for them; measured
+    // RATCHET_ASYNC_FENCES=1 writes it once they are done instead of waiting for them; measured
     // slower (79 vs 83 FPS): the guest waits on these fences, and later fences stall it more
     // than the wait costs.
     static const bool async_fences = [] {
-        const char* env = std::getenv("SPARTAN_ASYNC_FENCES");
+        const char* env = std::getenv("RATCHET_ASYNC_FENCES");
         return env && env[0] == '1';
     }();
     if (async_fences && !SpartanToggle::Disabled(SpartanToggle::AsyncFences)) {
@@ -607,7 +607,7 @@ void Liverpool::ApplyGraphicsRegisterPacket(Regs& regs, const PM4Header* header,
     checksum = HashRegisterPacket(checksum, reinterpret_cast<const u32*>(header), count + 1);
 }
 
-// spartanport: SPARTAN_DCB_STATS=1 — structure of graphics command buffers (read-only scan, printed every
+// spartanport: RATCHET_DCB_STATS=1 — structure of graphics command buffers (read-only scan, printed every
 // 5 s): how many buffers, draws per buffer, state set before the first draw. Input for
 // processing command buffers on several threads.
 namespace {
@@ -720,7 +720,7 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
     if (draw_prep) {
         draw_prep->BeginSubmission(seq, regs, gfx_reg_checksum);
     }
-    static const bool dcb_stats = EmulatorSettingsImpl::Flag("SPARTAN_DCB_STATS", false);
+    static const bool dcb_stats = EmulatorSettingsImpl::Flag("RATCHET_DCB_STATS", false);
     const int dcb_depth = g_dcb_depth;
     if (dcb_stats) {
         ScanDcb(dcb, dcb_depth);

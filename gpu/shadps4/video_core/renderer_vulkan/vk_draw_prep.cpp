@@ -48,7 +48,7 @@ void ForEachPacket(std::span<const u32> commands, Func&& func) {
 }
 
 u32 DefaultWorkerCount() {
-    if (const char* env = std::getenv("SPARTAN_PREP_WORKERS")) {
+    if (const char* env = std::getenv("RATCHET_PREP_WORKERS")) {
         return static_cast<u32>(std::clamp(std::atoi(env), 0, 16));
     }
     // Workers are SCHED_IDLE and claim whole buffers, so more of them only use more idle
@@ -485,7 +485,7 @@ void DrawPreparation::WorkerLoop(std::stop_token stop, u32 index) {
 
 void DrawPreparation::Count(bool was_used) {
     ++(was_used ? used : unused);
-    static const bool stats = std::getenv("SPARTAN_FRAME_STATS") != nullptr;
+    static const bool stats = std::getenv("RATCHET_FRAME_STATS") != nullptr;
     // The clock is read every 1024 draws: per draw it was 8% of the GPU thread.
     if (!stats || ((used + unused) & 1023) != 0) {
         return;

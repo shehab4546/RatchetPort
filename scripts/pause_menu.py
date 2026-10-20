@@ -72,9 +72,9 @@ LANGUAGE_ALIASES = {
 
 
 def resolve_label(language=None):
-    """(bytes, str) of (label_bytes, lang_key) for the given language (id or code, or SPARTAN_LANGUAGE)."""
+    """(bytes, str) of (label_bytes, lang_key) for the given language (id or code, or RATCHET_LANGUAGE)."""
     if language is None:
-        language = os.environ.get('SPARTAN_LANGUAGE', '1')
+        language = os.environ.get('RATCHET_LANGUAGE', '1')
     if isinstance(language, str):
         language = language.strip().lower()
     key = LANGUAGE_ALIASES.get(language, language)

@@ -61,10 +61,10 @@ def configure(env, manifest_dirs=MANIFEST_DIRS, library_dirs=LIBRARY_DIRS):
     # VK_ICD_FILENAMES. In particular don't replace an explicit Lavapipe setup.
     if env.get("VK_DRIVER_FILES") or env.get("VK_ICD_FILENAMES"):
         return "Vulkan: using explicit driver override"
-    bundled = env.get("SPARTAN_BUNDLED_VK_DRIVER_FILES", "")
+    bundled = env.get("RATCHET_BUNDLED_VK_DRIVER_FILES", "")
     if env.get("VK_ADD_DRIVER_FILES"):
         bundled = env["VK_ADD_DRIVER_FILES"] + (":" + bundled if bundled else "")
-    extra = env.get("SPARTAN_NVIDIA_LIB_DIR")
+    extra = env.get("RATCHET_NVIDIA_LIB_DIR")
     if extra:
         library_dirs = (Path(extra), *library_dirs)
     found = host_nvidia(manifest_dirs, library_dirs)
@@ -77,7 +77,7 @@ def configure(env, manifest_dirs=MANIFEST_DIRS, library_dirs=LIBRARY_DIRS):
     # The driver version/path and mtime give each installed driver its own small
     # cache. exec preserves process/signal behavior; the cache survives launch.
     key = hashlib.sha256(f"{driver}:{driver.stat().st_mtime_ns}".encode()).hexdigest()[:16]
-    data_dir = Path(env.get("SPARTAN_DATA_DIR") or
+    data_dir = Path(env.get("RATCHET_DATA_DIR") or
                     str(Path(env.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))) / "spartanport"))
     cache = data_dir / "vulkan" / "nvidia" / key
     libraries = cache / "lib"
@@ -119,7 +119,7 @@ def main():
         print(f"spartanport: cannot prepare NVIDIA driver: {error}", file=sys.stderr)
         return 1
     if "--vulkan-info" in sys.argv[1:]:
-        tool = os.environ.get("SPARTAN_VULKANINFO", "vulkaninfo")
+        tool = os.environ.get("RATCHET_VULKANINFO", "vulkaninfo")
         os.environ.setdefault("VK_LOADER_DEBUG", "error,warn,driver")
         for key in ("VK_DRIVER_FILES", "VK_ICD_FILENAMES", "LD_LIBRARY_PATH"):
             print(f"{key}={os.environ.get(key, '')}", file=sys.stderr, flush=True)

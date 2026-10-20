@@ -239,7 +239,7 @@ void Shutdown() {
     }
 }
 
-const SpartanDlssApi api{SPARTAN_DLSS_BRIDGE_ABI, Configure,      InstanceExtensions, DeviceExtensions,
+const SpartanDlssApi api{RATCHET_DLSS_BRIDGE_ABI, Configure,      InstanceExtensions, DeviceExtensions,
                     Initialize,             CreateFeature,  Evaluate,           ReleaseFeature,
                     Shutdown};
 

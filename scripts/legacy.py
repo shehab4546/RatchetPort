@@ -36,7 +36,7 @@ def forward_environment(env=None):
     for key, value in list(env.items()):
         if key.startswith(LEGACY_ENV):
             new = NEW_ENV + key[len(LEGACY_ENV):]
-            if new not in env or (new == 'SPARTAN_DATA_DIR' and env[new] == _appimage_data_dir(env)):
+            if new not in env or (new == 'RATCHET_DATA_DIR' and env[new] == _appimage_data_dir(env)):
                 env[new] = value
     return env
 

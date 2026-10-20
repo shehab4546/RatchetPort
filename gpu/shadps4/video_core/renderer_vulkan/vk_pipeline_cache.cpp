@@ -374,9 +374,9 @@ PipelineCache::PipelineCache(const Instance& instance_, Scheduler& scheduler_,
         .supports_shader_subgroup_clock = instance_.IsShaderSubgroupClockSupported(),
         .needs_manual_interpolation = instance.IsFragmentShaderBarycentricSupported() &&
                                       instance.GetDriverID() == vk::DriverId::eNvidiaProprietary,
-        // spartanport: older NVIDIA (Pascal) has no barycentrics; SPARTAN_INTERP_INT_FIX=0/1 overrides.
+        // spartanport: older NVIDIA (Pascal) has no barycentrics; RATCHET_INTERP_INT_FIX=0/1 overrides.
         .needs_integer_interpolation_fix = [&] {
-            if (const char* env = std::getenv("SPARTAN_INTERP_INT_FIX")) {
+            if (const char* env = std::getenv("RATCHET_INTERP_INT_FIX")) {
                 return env[0] == '1';
             }
             return !instance.IsFragmentShaderBarycentricSupported() &&
@@ -396,7 +396,7 @@ PipelineCache::PipelineCache(const Instance& instance_, Scheduler& scheduler_,
                vk::to_string(cache_result));
     pipeline_cache = std::move(cache);
     // spartanport: the compiler threads always exist; the in-game menu switches async compilation live
-    // (RatchetSettings::async_shaders, SPARTAN_ASYNC_SHADERS at start).
+    // (RatchetSettings::async_shaders, RATCHET_ASYNC_SHADERS at start).
     {
         const auto count = std::clamp(SpartanThreads::Available() / 2, 1u, 6u);
         const auto capture_count = std::min(2u, std::max(1u, SpartanThreads::Available() / 4));
@@ -423,7 +423,7 @@ PipelineCache::~PipelineCache() {
     FinishCompilations();
 }
 
-// spartanport: shader/pipeline compile time on the GPU thread, reported by SPARTAN_FRAME_STATS.
+// spartanport: shader/pipeline compile time on the GPU thread, reported by RATCHET_FRAME_STATS.
 std::atomic<u64> g_spartanport_compile_ns;
 std::atomic<u32> g_spartanport_compiles;
 std::atomic<u64> g_spartanport_capture_ns, g_spartanport_async_ns, g_spartanport_compile_wait_ns;
@@ -899,10 +899,10 @@ bool PipelineCache::RefreshGraphicsKey(PipelineSelection& sel) {
                 }
             }
         }
-        // SPARTAN_MOTION_SELECT_LOG=1: each G-buffer vertex shader once, with its buffer sizes
+        // RATCHET_MOTION_SELECT_LOG=1: each G-buffer vertex shader once, with its buffer sizes
         // and the selection, to find animated models that the size rule leaves out.
         static const bool select_log = [] {
-            const char* value = std::getenv("SPARTAN_MOTION_SELECT_LOG");
+            const char* value = std::getenv("RATCHET_MOTION_SELECT_LOG");
             return value && value[0] == '1';
         }();
         if (select_log && vs) {
@@ -923,7 +923,7 @@ bool PipelineCache::RefreshGraphicsKey(PipelineSelection& sel) {
         }
         // Keep the old broad path available for visual A/B tests.
         static const bool all_motion = [] {
-            const char* value = std::getenv("SPARTAN_OBJECT_MOTION_ALL");
+            const char* value = std::getenv("RATCHET_OBJECT_MOTION_ALL");
             return value && value[0] == '1';
         }();
         if (all_motion) {

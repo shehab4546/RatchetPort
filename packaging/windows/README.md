@@ -81,13 +81,13 @@ window) and `spartanport-gpu-capabilities.exe`.
 | Guest thread stacks from `runtime_low_map` | Windows allocates them, fully committed (`pthread_attr_setstacksize`): guest code has no stack probes and would skip the guard page. The main thread stack is 16 MiB committed. |
 | glibc `nanosleep`, monotonic condition variables | High-resolution waitable timers (`compat_sleep_ns`; winpthreads' sleep rounds to 15.6 ms); semaphore deadlines use `CLOCK_REALTIME` (winpthreads rejects monotonic condition variables). |
 | `libspartanportgpu.so` | `libspartanportgpu.a`, linked into `spartanport-probe.exe` by CMake (`gpu/CMakeLists.txt`), with a manifest for UTF-8 paths and long paths. |
-| `execlp bash run.sh` (in-game restart) | `run.py` puts its command line in `SPARTAN_RESTART_COMMAND`; the new launch waits for the old process (`--after PID`). The launcher keeps the game in a job object. |
+| `execlp bash run.sh` (in-game restart) | `run.py` puts its command line in `RATCHET_RESTART_COMMAND`; the new launch waits for the old process (`--after PID`). The launcher keeps the game in a job object. |
 | Mod overlay with symlinks | Symlinks when allowed (Developer Mode), else junctions for folders and hard links for files. On a network share (SMB), which refuses junctions too, folders are mirrored with hard links so the game still reads real files through the view. |
 
-Diagnostics added on the way: `SPARTAN_FRAME_DUMP_TRIGGER=<file>` writes the guest display buffer
-and the presented image of the next frame to `SPARTAN_DUMP_DIR` (raw 32-bit pixels), which also
+Diagnostics added on the way: `RATCHET_FRAME_DUMP_TRIGGER=<file>` writes the guest display buffer
+and the presented image of the next frame to `RATCHET_DUMP_DIR` (raw 32-bit pixels), which also
 works for menus and movies.
 
 Linux-specific features include watchdog/`--timeout` thread dumps (Linux signals), userfaultfd
-tracking (`SPARTAN_UFFD`), MangoHud and PGO (GCC flags). Many Python and C/C++ tests run on Windows;
+tracking (`RATCHET_UFFD`), MangoHud and PGO (GCC flags). Many Python and C/C++ tests run on Windows;
 some tests still require Linux APIs. See the root README and `gpu/CMakeLists.txt` for test commands.

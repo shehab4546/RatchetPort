@@ -224,7 +224,7 @@ std::string Instance::GetDriverVersionName() {
 
 namespace {
 bool PipelineBinaryCacheRequested() {
-    const char* setting = std::getenv("SPARTAN_PIPELINE_BINARIES");
+    const char* setting = std::getenv("RATCHET_PIPELINE_BINARIES");
     return !setting || *setting != '0';
 }
 }
@@ -365,7 +365,7 @@ bool Instance::CreateDevice() {
         LOG_INFO(Render_Vulkan, "- primitiveTopologyPatchListRestart: {}",
                  list_restart_features.primitiveTopologyPatchListRestart);
     }
-    // spartanport: SPARTAN_AMD_PATHS_OFF=shaderext leaves the AMD shader extensions out (vk_amd_paths.h).
+    // spartanport: RATCHET_AMD_PATHS_OFF=shaderext leaves the AMD shader extensions out (vk_amd_paths.h).
     const auto amd_paths_off = AmdPathsOff::Current();
     amd_shader_explicit_vertex_parameter =
         !amd_paths_off.shaderext &&
@@ -385,7 +385,7 @@ bool Instance::CreateDevice() {
     amd_shader_trinary_minmax =
         !amd_paths_off.shaderext && add_extension(VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME);
     nv_framebuffer_mixed_samples = add_extension(VK_NV_FRAMEBUFFER_MIXED_SAMPLES_EXTENSION_NAME);
-    // spartanport: SPARTAN_AMD_PATHS_OFF=mixed forces equal colour and depth samples, as on Intel.
+    // spartanport: RATCHET_AMD_PATHS_OFF=mixed forces equal colour and depth samples, as on Intel.
     amd_mixed_attachment_samples =
         !amd_paths_off.mixed && add_extension(VK_AMD_MIXED_ATTACHMENT_SAMPLES_EXTENSION_NAME);
     shader_atomic_float = add_extension(VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME);
@@ -440,11 +440,11 @@ bool Instance::CreateDevice() {
         LOG_INFO(Render_Vulkan, "- shaderSubgroupClock: {}",
                  shader_clock_features.shaderSubgroupClock);
     }
-    // spartanport: SPARTAN_WAVE_STATS=1 logs the subgroup width the driver compiled each pipeline stage
+    // spartanport: RATCHET_WAVE_STATS=1 logs the subgroup width the driver compiled each pipeline stage
     // at (vk_wave_stats.h). Off by default: the feature may change how the driver caches
     // pipelines.
     pipeline_executable_properties = [&] {
-        const char* env = std::getenv("SPARTAN_WAVE_STATS");
+        const char* env = std::getenv("RATCHET_WAVE_STATS");
         return env && env[0] == '1' &&
                add_extension(VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME);
     }();
@@ -822,13 +822,13 @@ void Instance::CollectDeviceParameters() {
     vendor_name = driver.driverName.data();
 
     // spartanport: see video_core/amdgpu/ratchet_msaa.h; the default per driver is ratchet_msaa_default.h.
-    const char* no_msaa_env = std::getenv("SPARTAN_NO_MSAA");
+    const char* no_msaa_env = std::getenv("RATCHET_NO_MSAA");
     const bool no_msaa = no_msaa_env && *no_msaa_env
                              ? *no_msaa_env == '1'
                              : spartanport_no_msaa_default(static_cast<VkDriverId>(driver_id)) != 0;
     AmdGpu::no_msaa.store(no_msaa, std::memory_order_relaxed);
     std::printf("GPU: guest multisampling %s\n",
-                no_msaa ? "off (single-sampled images; SPARTAN_NO_MSAA=0 keeps it)" : "on");
+                no_msaa ? "off (single-sampled images; RATCHET_NO_MSAA=0 keeps it)" : "on");
 
     const std::string model_name{GetModelName()};
     const std::string driver_version = GetDriverVersionName();

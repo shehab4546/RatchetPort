@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tools/soak.sh <secs>: enters the level, rotates the camera now and then, reports survival.
 cd -- "$(dirname -- "$0")/.."
-unset SPARTAN_GPU_PROFILE SPARTAN_PRESET_FILE SPARTAN_SCENE_DEBUG
+unset RATCHET_GPU_PROFILE RATCHET_PRESET_FILE RATCHET_SCENE_DEBUG
 bash "$(dirname "$0")/restart.sh" > /dev/null
 end=$((SECONDS + $1))
 while ((SECONDS < end)); do

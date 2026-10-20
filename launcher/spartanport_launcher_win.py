@@ -51,7 +51,7 @@ import steam_shortcut  # noqa: E402  (scripts/)
 from patches import game_profile, game_sfo  # noqa: E402  (scripts/)
 from prepare import load_sfo  # noqa: E402  (scripts/)
 legacy.forward_environment()  # before the folders below are read from the environment
-DATA_DIR = Path(os.environ.get('SPARTAN_DATA_DIR', PORT_DIR))
+DATA_DIR = Path(os.environ.get('RATCHET_DATA_DIR', PORT_DIR))
 CONFIG_DIR = DATA_DIR
 CONFIG_FILE = CONFIG_DIR / 'settings.json'
 LEGACY_CONFIG_DIR = (Path(os.environ.get('APPDATA', Path.home())) if WINDOWS else
@@ -160,7 +160,7 @@ def find_tool(name):
 def parse_gpu_list(text):
     """One tuple per line of `spartanport-gpu-capabilities --list`: index, name, type and, from the tools
     that print them, the game's multisampling default on that driver ('off' or 'on') and '1' on
-    the GPU the game picks without SPARTAN_GPU_ID. Other lines are skipped."""
+    the GPU the game picks without RATCHET_GPU_ID. Other lines are skipped."""
     rows = [line.split('\t') for line in text.splitlines()]
     return [tuple(row) for row in rows if len(row) >= 3 and row[0].isdigit()]
 
@@ -408,7 +408,7 @@ FPS_LIMITS = [('30', ('30',)), ('60', ('60',)), ('100', ('100',)), ('120', ('120
 PAGES = ('home', 'graphics', 'performance', 'game', 'controls', 'mods', 'advanced')
 PAGE_REFRESH = {'home': ('refresh_status',), 'game': ('refresh_game_patches',), 'mods': ('refresh_lists',)}
 UI_SCALES = [('auto', ('Auto',)), ('1', ('1x',)), ('2', ('2x',))]
-APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('SPARTAN_GAME_DIR', str(PORT_DIR.parent / 'CUSA01623') if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
+APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('RATCHET_GAME_DIR', str(PORT_DIR.parent / 'CUSA01623') if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
                 'video_backend': 'auto', 'gamemode': False, 'mangohud': False, 'desktop_integration': True, 'user_dir': '',
                 'mods_dir': '', 'mods_enabled': True, 'patches_dir': '', 'language': '1',
                 'hdr': False, 'draw_pipe': '', 'readbacks': '', 'no_msaa': '', 'stream_memory': 'cached',
@@ -487,7 +487,7 @@ GLYPH_STYLES = [('off', ('Original (default)',)), ('auto', ('Match my controller
 
 # Keyboard capture on the Controls page: the Tk keysym of a pressed key and the SDL scancode
 # name the game reads (key_source in runtime_pad.c). Letters, digits and F1-F24 map to themselves.
-# Comma and = are saved as Comma and Equals: their own names separate SPARTAN_KEY_MAP entries. The
+# Comma and = are saved as Comma and Equals: their own names separate RATCHET_KEY_MAP entries. The
 # numpad with Num Lock off reports its other names; SDL sees the same keypad keys.
 TK_TO_SDL_KEYS = {
     'space': 'Space', 'Return': 'Return', 'Tab': 'Tab', 'BackSpace': 'Backspace', 'Delete': 'Delete',
@@ -591,7 +591,7 @@ def default_input(row, kind):
 
 
 def keyboard_map(controls, rage=True):
-    """SPARTAN_KEY_MAP of the keyboard & mouse table: each button on its chosen input, written where
+    """RATCHET_KEY_MAP of the keyboard & mouse table: each button on its chosen input, written where
     that differs from the game's own key. With `rage` (one input for Rage of Sparta) L3 and R3 get
     none and the Rage row is used; otherwise the Rage row is left out."""
     chosen = control_values(controls, 'key')
@@ -631,7 +631,7 @@ def control_values(controls, kind):
 
 
 def control_map(controls, kind):
-    """SPARTAN_PAD_MAP value: 'cross=a,circle=b' for the changed buttons."""
+    """RATCHET_PAD_MAP value: 'cross=a,circle=b' for the changed buttons."""
     chosen = control_values(controls, kind)
     return ','.join(f'{button}={chosen[button].strip()}' for button, _key, _pad in CONTROLS
                     if button in chosen and not set(chosen[button]) & set(',='))
@@ -685,7 +685,7 @@ DRAW_PIPE = [('', ('Auto (8+ threads)', 'Авто (8+ потоков)')), ('1', 
              ('0', ('Off (more stable)', 'Выключен (стабильнее)'))]
 READBACKS = [('', ('Relaxed (default)', 'Relaxed (по умолчанию)')), ('0', ('Off', 'Выключены')),
              ('2', ('Precise',))]
-# SPARTAN_NO_MSAA: '' leaves the game's own default, off on AMD's and Intel's Windows drivers
+# RATCHET_NO_MSAA: '' leaves the game's own default, off on AMD's and Intel's Windows drivers
 # (video_core/amdgpu/spartanport_msaa_default.h); no_msaa_options names the chosen card in Automatic.
 NO_MSAA = [('', ('Automatic',)), ('1', ('Off (fixes black lines)',)), ('0', ('On',))]
 NO_MSAA_HINT = ("The game's 2-sample depth buffer, read as a texture by its lighting. AMD's and Intel's Windows "
@@ -741,7 +741,7 @@ def load_app_settings(config_file=None):
 
 
 def ini_path():
-    return Path(os.environ.get('SPARTAN_CONFIG', DATA_DIR / 'spartanport.ini'))
+    return Path(os.environ.get('RATCHET_CONFIG', DATA_DIR / 'spartanport.ini'))
 
 
 def load_ini():
@@ -1108,69 +1108,69 @@ def game_profile_of(folder):
 
 def game_environment(s):
     env = dict(os.environ)
-    env['SPARTAN_GAME_DIR'] = s['game_dir']
-    env.pop('SPARTAN_PATCH_DIR', None)
+    env['RATCHET_GAME_DIR'] = s['game_dir']
+    env.pop('RATCHET_PATCH_DIR', None)
     # Temporal upscaling is parked (build_graphics): a switch saved on by 2.1.8 has no control left to
     # turn it off, so it is ignored until the upscaler section comes back.
-    env['SPARTAN_EXPERIMENTAL_UPSCALER'] = '0'
+    env['RATCHET_EXPERIMENTAL_UPSCALER'] = '0'
     if s.get('update_dir'):
-        env['SPARTAN_PATCH_DIR'] = s['update_dir']
+        env['RATCHET_PATCH_DIR'] = s['update_dir']
     if not WINDOWS:
         backend = s.get('video_backend', 'auto')
         if backend in ('wayland', 'x11'):
             env['SDL_VIDEO_DRIVER'] = env['SDL_VIDEODRIVER'] = backend
-        env['SPARTAN_GAMEMODE'] = '1' if s.get('gamemode') else '0'
-        env['SPARTAN_MANGOHUD'] = '1' if s.get('mangohud') else '0'
+        env['RATCHET_GAMEMODE'] = '1' if s.get('gamemode') else '0'
+        env['RATCHET_MANGOHUD'] = '1' if s.get('mangohud') else '0'
     # The launcher's patch selection is the whole list (run.py, patches.py).
     title_id, profile = game_profile_of(meta_folder(s['game_dir'], s.get('update_dir')))
     chosen = s.get('game_patches', {}).get(title_id) if title_id else None
     if profile and chosen is not None:
-        env['SPARTAN_PATCHES'] = ';'.join(chosen)
-        env['SPARTAN_PATCHES_ONLY'] = '1'
+        env['RATCHET_PATCHES'] = ';'.join(chosen)
+        env['RATCHET_PATCHES_ONLY'] = '1'
     if s['user_dir']:
-        env['SPARTAN_USER_DIR'] = s['user_dir']
+        env['RATCHET_USER_DIR'] = s['user_dir']
     if not WINDOWS:
-        env['SPARTAN_FSR4_DIR'] = str(fsr4_folder())
-    env['SPARTAN_MODS_DIR'] = s['mods_dir'] or str(DATA_DIR / 'mods')
-    env['SPARTAN_MODS_CONFIG'] = str(DATA_DIR / 'mods.json')
-    env['SPARTAN_MODS_ENABLED'] = '1' if s['mods_enabled'] else '0'
-    env['SPARTAN_PATCHES_DIR'] = s['patches_dir'] or str(DATA_DIR / 'patches')
-    env['SPARTAN_PATCHES_CONFIG'] = str(DATA_DIR / 'patches.json')
-    env['SPARTAN_LANGUAGE'] = s['language']
-    env['SPARTAN_DISCORD'] = '1' if s.get('discord_rpc') else '0'
+        env['RATCHET_FSR4_DIR'] = str(fsr4_folder())
+    env['RATCHET_MODS_DIR'] = s['mods_dir'] or str(DATA_DIR / 'mods')
+    env['RATCHET_MODS_CONFIG'] = str(DATA_DIR / 'mods.json')
+    env['RATCHET_MODS_ENABLED'] = '1' if s['mods_enabled'] else '0'
+    env['RATCHET_PATCHES_DIR'] = s['patches_dir'] or str(DATA_DIR / 'patches')
+    env['RATCHET_PATCHES_CONFIG'] = str(DATA_DIR / 'patches.json')
+    env['RATCHET_LANGUAGE'] = s['language']
+    env['RATCHET_DISCORD'] = '1' if s.get('discord_rpc') else '0'
     if s['hdr']:
-        env['SPARTAN_HDR'] = '1'
-    for key, name in (('draw_pipe', 'SPARTAN_DRAW_PIPE'), ('readbacks', 'SPARTAN_READBACKS'), ('no_msaa', 'SPARTAN_NO_MSAA')):
+        env['RATCHET_HDR'] = '1'
+    for key, name in (('draw_pipe', 'RATCHET_DRAW_PIPE'), ('readbacks', 'RATCHET_READBACKS'), ('no_msaa', 'RATCHET_NO_MSAA')):
         if s.get(key):
             env[name] = s[key]
     # The saved UI choice wins over inherited diagnostic overrides, including when reverting.
     stream_memory = s.get('stream_memory', APP_DEFAULTS['stream_memory'])
-    env['SPARTAN_STREAM_MEMORY'] = stream_memory if stream_memory in ('cached', 'host', 'device') else 'cached'
+    env['RATCHET_STREAM_MEMORY'] = stream_memory if stream_memory in ('cached', 'host', 'device') else 'cached'
     gpu_id = str(s.get('gpu_id', ''))
-    env.pop('SPARTAN_GPU_ID', None)
+    env.pop('RATCHET_GPU_ID', None)
     if gpu_id.isdigit():
-        env['SPARTAN_GPU_ID'] = gpu_id
-    env['SPARTAN_BACKGROUND_WARMUP'] = '1' if s.get('background_warmup', True) else '0'
-    env['SPARTAN_PARALLEL_WARMUP'] = '1' if s.get('parallel_warmup', True) else '0'
-    env['SPARTAN_PIPELINE_BINARIES'] = '1' if s.get('pipeline_binary_cache', True) else '0'
-    env['SPARTAN_PERF_DIAG'] = '1' if s.get('perf_diag', False) else '0'
-    env['SPARTAN_PARTIAL_HEIGHT_VIEWS'] = '1' if s.get('partial_height_views', True) else '0'
-    for key, name in (('frame_stats', 'SPARTAN_FRAME_STATS'), ('gpu_profile', 'SPARTAN_GPU_PROFILE'),
-                      ('vk_validation', 'SPARTAN_VK_VALIDATION'), ('frame_capture_key', 'SPARTAN_FRAME_CAPTURE_KEY')):
+        env['RATCHET_GPU_ID'] = gpu_id
+    env['RATCHET_BACKGROUND_WARMUP'] = '1' if s.get('background_warmup', True) else '0'
+    env['RATCHET_PARALLEL_WARMUP'] = '1' if s.get('parallel_warmup', True) else '0'
+    env['RATCHET_PIPELINE_BINARIES'] = '1' if s.get('pipeline_binary_cache', True) else '0'
+    env['RATCHET_PERF_DIAG'] = '1' if s.get('perf_diag', False) else '0'
+    env['RATCHET_PARTIAL_HEIGHT_VIEWS'] = '1' if s.get('partial_height_views', True) else '0'
+    for key, name in (('frame_stats', 'RATCHET_FRAME_STATS'), ('gpu_profile', 'RATCHET_GPU_PROFILE'),
+                      ('vk_validation', 'RATCHET_VK_VALIDATION'), ('frame_capture_key', 'RATCHET_FRAME_CAPTURE_KEY')):
         if s[key]:
             env[name] = '1'
     controls = s.get('controls', {})
     if value := keyboard_map(controls, bool(s.get('rage_one_input', True))):
-        env['SPARTAN_KEY_MAP'] = value
+        env['RATCHET_KEY_MAP'] = value
     if value := control_map(controls, 'pad'):
-        env['SPARTAN_PAD_MAP'] = value
-    env.pop('SPARTAN_STICK_PROMPTS', None)
+        env['RATCHET_PAD_MAP'] = value
+    env.pop('RATCHET_STICK_PROMPTS', None)
     if s.get('stick_prompts') in dict(STICK_PROMPTS):
-        env['SPARTAN_STICK_PROMPTS'] = s['stick_prompts']
+        env['RATCHET_STICK_PROMPTS'] = s['stick_prompts']
     glyph_style = s.get('glyph_style')
-    env.pop('SPARTAN_GLYPH_STYLE', None)
+    env.pop('RATCHET_GLYPH_STYLE', None)
     if glyph_style in ('auto', 'xbox', 'nintendo', 'keyboard'):
-        env['SPARTAN_GLYPH_STYLE'] = glyph_style
+        env['RATCHET_GLYPH_STYLE'] = glyph_style
     env['PYTHONUNBUFFERED'] = '1'
     env['PYTHONIOENCODING'] = 'utf-8'
     return env
@@ -2064,7 +2064,7 @@ class Launcher:
 
     def build_controls(self):
         """The Controls page: the keyboard & mouse table, button icons and the gamepad remapping of
-        the PS4 buttons (run.py passes SPARTAN_KEY_MAP and SPARTAN_PAD_MAP to the game)."""
+        the PS4 buttons (run.py passes RATCHET_KEY_MAP and RATCHET_PAD_MAP to the game)."""
         tk, ttk = self.tk, self.ttk
         f = self.scrolled_page('controls', _('Controls', 'Управление'),
                                _('Keyboard and mouse, button icons and gamepad mapping.'))

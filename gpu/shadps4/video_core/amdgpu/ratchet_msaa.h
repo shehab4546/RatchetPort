@@ -10,7 +10,7 @@
 // instead: the depth test and the shaders then use the same single-sampled buffer. Guest
 // sizes and addresses still use the real sample count (GuestNumSamples).
 //
-// On with AMD's and Intel's Windows drivers (ratchet_msaa_default.h); SPARTAN_NO_MSAA=0 or 1 decides
+// On with AMD's and Intel's Windows drivers (ratchet_msaa_default.h); RATCHET_NO_MSAA=0 or 1 decides
 // otherwise (vk_instance.cpp).
 
 #pragma once

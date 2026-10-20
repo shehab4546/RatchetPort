@@ -127,9 +127,9 @@ int main(int argc, char** argv) {
                "blue_orb_multiplier=1000\ngold_orb_multiplier=0\n";
     }
 #ifdef _WIN32
-    _putenv_s("SPARTAN_CONFIG", path);
+    _putenv_s("RATCHET_CONFIG", path);
 #else
-    setenv("SPARTAN_CONFIG", path, 1);
+    setenv("RATCHET_CONFIG", path, 1);
 #endif
     auto& v = RatchetSettings::Get();
     RatchetSettings::Load();

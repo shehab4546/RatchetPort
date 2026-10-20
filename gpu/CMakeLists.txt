@@ -12,12 +12,12 @@ endif()
 add_compile_options(-fno-omit-frame-pointer)
 
 # spartanport: link-time optimization (RATCHET_LTO, default on) and profile-guided optimization
-# (SPARTAN_PGO: off, generate = instrumented build writing into SPARTAN_PGO_DIR, use = build with that
+# (RATCHET_PGO: off, generate = instrumented build writing into RATCHET_PGO_DIR, use = build with that
 # profile). Covers ratchetgpu and the static libraries linked into it. No -march: the same build
 # runs on the Steam Deck.
 option(RATCHET_LTO "Link-time optimization of ratchetgpu" ON)
-set(SPARTAN_PGO "off" CACHE STRING "Profile-guided optimization: off, generate, use")
-set(SPARTAN_PGO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../pgo" CACHE PATH "Profile directory")
+set(RATCHET_PGO "off" CACHE STRING "Profile-guided optimization: off, generate, use")
+set(RATCHET_PGO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../pgo" CACHE PATH "Profile directory")
 if (RATCHET_LTO)
     include(CheckIPOSupported)
     check_ipo_supported(RESULT spartanport_ipo_ok OUTPUT spartanport_ipo_error)
@@ -27,16 +27,16 @@ if (RATCHET_LTO)
         message(WARNING "LTO unavailable: ${spartanport_ipo_error}")
     endif()
 endif()
-if (SPARTAN_PGO STREQUAL "generate")
+if (RATCHET_PGO STREQUAL "generate")
     # Atomic counters: the GPU, recording, preparation and copy threads run the same code.
-    add_compile_options(-fprofile-generate=${SPARTAN_PGO_DIR} -fprofile-update=atomic)
-    add_link_options(-fprofile-generate=${SPARTAN_PGO_DIR})
-    add_compile_definitions(SPARTAN_PGO_GENERATE)
-elseif (SPARTAN_PGO STREQUAL "use")
+    add_compile_options(-fprofile-generate=${RATCHET_PGO_DIR} -fprofile-update=atomic)
+    add_link_options(-fprofile-generate=${RATCHET_PGO_DIR})
+    add_compile_definitions(RATCHET_PGO_GENERATE)
+elseif (RATCHET_PGO STREQUAL "use")
     # Partial training keeps unprofiled code optimized normally; counters from concurrent
     # threads can be slightly inconsistent (correction). Functions changed since the profile
     # (or built differently for it, ratchetgpu_init) are compiled without it.
-    add_compile_options(-fprofile-use=${SPARTAN_PGO_DIR} -fprofile-partial-training
+    add_compile_options(-fprofile-use=${RATCHET_PGO_DIR} -fprofile-partial-training
                         -fprofile-correction -Wno-missing-profile -Wno-coverage-mismatch)
 endif()
 
@@ -188,7 +188,7 @@ target_sources(ratchetgpu PRIVATE third_party/imgui/imgui.cpp third_party/imgui/
     third_party/imgui/backends/imgui_impl_vulkan.cpp)
 target_include_directories(ratchetgpu PRIVATE third_party/imgui third_party/imgui/backends)
 target_compile_definitions(ratchetgpu PRIVATE IMGUI_IMPL_VULKAN_NO_PROTOTYPES
-    SPARTAN_FONT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf")
+    RATCHET_FONT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf")
 set_source_files_properties(shim/ratchet_overlay.cpp PROPERTIES
     OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf)
 target_include_directories(ratchetgpu PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/gcn/include third_party/half/include)
@@ -217,8 +217,8 @@ endif()
 if (WIN32)
     enable_language(RC)
     file(GLOB RATCHET_RUNTIME CONFIGURE_DEPENDS ../src/runtime*.c)
-    file(GLOB SPARTAN_ATRAC9 CONFIGURE_DEPENDS ../third_party/LibAtrac9/C/src/*.c)
-    add_library(atrac9 STATIC ${SPARTAN_ATRAC9})
+    file(GLOB RATCHET_ATRAC9 CONFIGURE_DEPENDS ../third_party/LibAtrac9/C/src/*.c)
+    add_library(atrac9 STATIC ${RATCHET_ATRAC9})
     target_compile_options(atrac9 PRIVATE -w)
     set_target_properties(atrac9 PROPERTIES C_STANDARD 99 INTERPROCEDURAL_OPTIMIZATION OFF)
     add_executable(ratchet-probe ../src/probe.c ${RATCHET_RUNTIME} ../src/compat_win.c ../src/cpu_check.c ../src/vulkan_smoke.c

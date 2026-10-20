@@ -15,7 +15,7 @@ class GameLanguageTest(unittest.TestCase):
 
     def test_choosing_brazilian_portuguese_starts_the_game_with_id_17(self):
         env = launcher.game_environment({**launcher.APP_DEFAULTS, 'language': '17'})
-        self.assertEqual(env['SPARTAN_LANGUAGE'], '17')
+        self.assertEqual(env['RATCHET_LANGUAGE'], '17')
 
     def test_brazilian_portuguese_label_is_translated_in_portuguese_and_spanish(self):
         self.assertEqual(spartanport_lang.EXTRA['pt']['Portuguese (Brazil)'], 'Português (Brasil)')

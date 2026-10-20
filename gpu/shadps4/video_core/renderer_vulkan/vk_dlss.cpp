@@ -86,7 +86,7 @@ struct Dlss::Impl {
 
 Dlss* Dlss::Get() {
     static Dlss* const dlss = []() -> Dlss* {
-        const char* setting = std::getenv("SPARTAN_DLSS");
+        const char* setting = std::getenv("RATCHET_DLSS");
         if (setting && setting[0] == '0') {
             return nullptr;
         }
@@ -114,13 +114,13 @@ Dlss::Dlss() : impl{std::make_unique<Impl>()} {
         impl->module ? reinterpret_cast<SpartanDlssGetApiFn>(GetProcAddress(impl->module, "SpartanDlssGetApi"))
                      : nullptr;
     impl->api = get_api ? get_api() : nullptr;
-    if (!impl->api || impl->api->abi != SPARTAN_DLSS_BRIDGE_ABI) {
+    if (!impl->api || impl->api->abi != RATCHET_DLSS_BRIDGE_ABI) {
         impl->Disable("ratchet_dlss.dll is missing or from another version");
         return;
     }
     // NGX writes its logs and model updates here: beside the saves and shader caches.
     std::filesystem::path data = directory / "dlss";
-    if (const char* user = std::getenv("SPARTAN_GPU_USER_DIR"); user && user[0]) {
+    if (const char* user = std::getenv("RATCHET_GPU_USER_DIR"); user && user[0]) {
         data = std::filesystem::path{user} / "dlss";
     }
     std::error_code error;

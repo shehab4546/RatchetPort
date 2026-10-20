@@ -3,7 +3,7 @@
 # its scripts and the launcher, bundled with their Nix closure (nix-appimage: the AppImage mounts
 # its /nix/store with user namespaces, available on SteamOS and most desktops).
 # Running it opens the launcher; `--play` starts the game with the launcher's saved settings.
-# Data (generated files, saves, spartanport.ini): ~/.local/share/spartanport (SPARTAN_DATA_DIR).
+# Data (generated files, saves, spartanport.ini): ~/.local/share/spartanport (RATCHET_DATA_DIR).
 set -euo pipefail
 cd -- "$(dirname -- "$0")/.."
 [[ -f out/spartanport-probe && -f out/gpu/libspartanportgpu.so ]] || { echo 'Build first: bash build.sh' >&2; exit 1; }

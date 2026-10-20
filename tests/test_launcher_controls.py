@@ -75,9 +75,9 @@ class ControlMapTest(unittest.TestCase):
     def test_pipeline_binary_cache_switch(self):
         settings = {**launcher.APP_DEFAULTS}
         self.assertTrue(settings['pipeline_binary_cache'])
-        self.assertEqual(launcher.game_environment(settings)['SPARTAN_PIPELINE_BINARIES'], '1')
+        self.assertEqual(launcher.game_environment(settings)['RATCHET_PIPELINE_BINARIES'], '1')
         settings['pipeline_binary_cache'] = False
-        self.assertEqual(launcher.game_environment(settings)['SPARTAN_PIPELINE_BINARIES'], '0')
+        self.assertEqual(launcher.game_environment(settings)['RATCHET_PIPELINE_BINARIES'], '0')
 
     def test_changed_buttons_in_table_order(self):
         controls = {'key': {'circle': ' Left Shift ', 'cross': 'Q', 'square': ''}, 'pad': {'cross': 'b'}}
@@ -197,18 +197,18 @@ class ControlMapTest(unittest.TestCase):
         self.assertNotIn('rage=', apart)
         self.assertIn('l3=None,r3=None,rage=Mouse Middle', launcher.keyboard_map(controls))
         env = launcher.game_environment({**launcher.APP_DEFAULTS, 'controls': controls})
-        self.assertIn('l3=None,r3=None,rage=Mouse Middle', env['SPARTAN_KEY_MAP'])
+        self.assertIn('l3=None,r3=None,rage=Mouse Middle', env['RATCHET_KEY_MAP'])
         env = launcher.game_environment({**launcher.APP_DEFAULTS, 'controls': controls, 'rage_one_input': False})
-        self.assertIn('r3=X', env['SPARTAN_KEY_MAP'])
+        self.assertIn('r3=X', env['RATCHET_KEY_MAP'])
 
     def test_stick_prompts_reach_the_game(self):
-        with mock.patch.dict(os.environ, {'SPARTAN_STICK_PROMPTS': 'mouse'}):  # left over from a shell
+        with mock.patch.dict(os.environ, {'RATCHET_STICK_PROMPTS': 'mouse'}):  # left over from a shell
             env = launcher.game_environment(dict(launcher.APP_DEFAULTS))
-        self.assertEqual(env['SPARTAN_STICK_PROMPTS'], 'keyboard')
+        self.assertEqual(env['RATCHET_STICK_PROMPTS'], 'keyboard')
         mouse = launcher.game_environment({**launcher.APP_DEFAULTS, 'stick_prompts': 'mouse'})
-        self.assertEqual(mouse['SPARTAN_STICK_PROMPTS'], 'mouse')
+        self.assertEqual(mouse['RATCHET_STICK_PROMPTS'], 'mouse')
         odd = launcher.game_environment({**launcher.APP_DEFAULTS, 'stick_prompts': 'joystick'})
-        self.assertNotIn('SPARTAN_STICK_PROMPTS', odd)
+        self.assertNotIn('RATCHET_STICK_PROMPTS', odd)
 
     def test_saved_keyboard_binds_keep_their_layout(self):
         old = {'controls': {'key': {'cross': 'Q'}, 'pad': {'cross': 'b'}}, 'pad_style': 'xbox'}
@@ -258,51 +258,51 @@ class ControlMapTest(unittest.TestCase):
     def test_environment(self):
         settings = {**launcher.APP_DEFAULTS, 'controls': {'key': {'cross': 'Q'}}}
         env = launcher.game_environment(settings)
-        self.assertTrue(env['SPARTAN_KEY_MAP'].startswith('cross=Q,square=Mouse Left,'))
-        self.assertNotIn('SPARTAN_PAD_MAP', env)
-        self.assertEqual(env['SPARTAN_PARALLEL_WARMUP'], '1')
-        self.assertEqual(env['SPARTAN_BACKGROUND_WARMUP'], '1')
-        self.assertEqual(env['SPARTAN_PERF_DIAG'], '0')
-        self.assertEqual(env['SPARTAN_PARTIAL_HEIGHT_VIEWS'], '1')
-        self.assertEqual(launcher.game_environment({**settings, 'partial_height_views': False})['SPARTAN_PARTIAL_HEIGHT_VIEWS'], '0')
-        self.assertNotIn('SPARTAN_FRAME_CAPTURE_KEY', {k for k in env if k not in __import__('os').environ})
-        self.assertEqual(launcher.game_environment({**settings, 'frame_capture_key': True})['SPARTAN_FRAME_CAPTURE_KEY'], '1')
+        self.assertTrue(env['RATCHET_KEY_MAP'].startswith('cross=Q,square=Mouse Left,'))
+        self.assertNotIn('RATCHET_PAD_MAP', env)
+        self.assertEqual(env['RATCHET_PARALLEL_WARMUP'], '1')
+        self.assertEqual(env['RATCHET_BACKGROUND_WARMUP'], '1')
+        self.assertEqual(env['RATCHET_PERF_DIAG'], '0')
+        self.assertEqual(env['RATCHET_PARTIAL_HEIGHT_VIEWS'], '1')
+        self.assertEqual(launcher.game_environment({**settings, 'partial_height_views': False})['RATCHET_PARTIAL_HEIGHT_VIEWS'], '0')
+        self.assertNotIn('RATCHET_FRAME_CAPTURE_KEY', {k for k in env if k not in __import__('os').environ})
+        self.assertEqual(launcher.game_environment({**settings, 'frame_capture_key': True})['RATCHET_FRAME_CAPTURE_KEY'], '1')
         # Graphics options live in spartanport.ini (run.py and the in-game menu), not in the environment.
-        for name in ('SPARTAN_FULLSCREEN', 'SPARTAN_PRESENT_MODE', 'SPARTAN_FPS_LIMIT', 'SPARTAN_ASYNC_SHADERS',
-                     'SPARTAN_DEFERRED_READBACK', 'SPARTAN_STALE_READBACK', 'SPARTAN_FSR1', 'SPARTAN_RCAS'):
+        for name in ('RATCHET_FULLSCREEN', 'RATCHET_PRESENT_MODE', 'RATCHET_FPS_LIMIT', 'RATCHET_ASYNC_SHADERS',
+                     'RATCHET_DEFERRED_READBACK', 'RATCHET_STALE_READBACK', 'RATCHET_FSR1', 'RATCHET_RCAS'):
             self.assertNotIn(name, {k for k in env if k not in __import__('os').environ})
-        old = launcher.game_environment({**settings, 'extra_env': 'SPARTAN_DRAW_PIPE=0'})
-        self.assertNotIn('SPARTAN_DRAW_PIPE', old)  # the old free-text field is ignored
-        self.assertEqual(launcher.game_environment({**settings, 'parallel_warmup': False})['SPARTAN_PARALLEL_WARMUP'], '0')
-        self.assertEqual(launcher.game_environment({**settings, 'background_warmup': False})['SPARTAN_BACKGROUND_WARMUP'], '0')
+        old = launcher.game_environment({**settings, 'extra_env': 'RATCHET_DRAW_PIPE=0'})
+        self.assertNotIn('RATCHET_DRAW_PIPE', old)  # the old free-text field is ignored
+        self.assertEqual(launcher.game_environment({**settings, 'parallel_warmup': False})['RATCHET_PARALLEL_WARMUP'], '0')
+        self.assertEqual(launcher.game_environment({**settings, 'background_warmup': False})['RATCHET_BACKGROUND_WARMUP'], '0')
 
     def test_temporal_upscaler_stays_off_with_a_saved_2_1_8_switch(self):
         # 2.1.8 showed the experimental switch; a player who turned it on must not keep it on now that it is hidden.
         for saved in (True, False, None):
             env = launcher.game_environment({**launcher.APP_DEFAULTS, 'experimental_upscaler': saved})
-            self.assertEqual(env['SPARTAN_EXPERIMENTAL_UPSCALER'], '0')
+            self.assertEqual(env['RATCHET_EXPERIMENTAL_UPSCALER'], '0')
 
     def test_glyph_style_is_off_by_default(self):
         self.assertEqual(launcher.APP_DEFAULTS['glyph_style'], 'off')
-        self.assertNotIn('SPARTAN_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS}))
+        self.assertNotIn('RATCHET_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS}))
 
     def test_glyph_style_choices_reach_the_game(self):
         for style in ('auto', 'xbox', 'nintendo', 'keyboard'):
             env = launcher.game_environment({**launcher.APP_DEFAULTS, 'glyph_style': style})
-            self.assertEqual(env['SPARTAN_GLYPH_STYLE'], style)
+            self.assertEqual(env['RATCHET_GLYPH_STYLE'], style)
 
     def test_unknown_glyph_style_is_off(self):
         for style in ('playstation', 'XBOX', 7, None, ''):
             env = launcher.game_environment({**launcher.APP_DEFAULTS, 'glyph_style': style})
-            self.assertNotIn('SPARTAN_GLYPH_STYLE', env)
+            self.assertNotIn('RATCHET_GLYPH_STYLE', env)
 
     def test_inherited_glyph_style_is_dropped_when_off(self):
         from unittest import mock
 
-        with mock.patch.dict(launcher.os.environ, {'SPARTAN_GLYPH_STYLE': 'xbox'}):
-            self.assertNotIn('SPARTAN_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS}))
+        with mock.patch.dict(launcher.os.environ, {'RATCHET_GLYPH_STYLE': 'xbox'}):
+            self.assertNotIn('RATCHET_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS}))
             self.assertEqual(launcher.game_environment({**launcher.APP_DEFAULTS, 'glyph_style': 'nintendo'})
-                             ['SPARTAN_GLYPH_STYLE'], 'nintendo')
+                             ['RATCHET_GLYPH_STYLE'], 'nintendo')
 
     def test_settings_keys_kept(self):
         for key in ('game_dir', 'user_dir', 'mods_dir', 'patches_dir', 'language', 'hdr',
@@ -311,7 +311,7 @@ class ControlMapTest(unittest.TestCase):
         # The player name option is gone: an old settings.json value is ignored.
         self.assertNotIn('player_name', launcher.APP_DEFAULTS)
         env = launcher.game_environment({**launcher.APP_DEFAULTS, 'player_name': ' Kratos '})
-        self.assertNotIn('SPARTAN_USER_NAME', env)
+        self.assertNotIn('RATCHET_USER_NAME', env)
         for key in ('display_mode', 'fps_limit', 'render_resolution', 'engine_fps'):
             self.assertIn(key, launcher.INI_DEFAULTS)
 
@@ -322,7 +322,7 @@ class ControlMapTest(unittest.TestCase):
         self.assertEqual([v for v, _t in launcher.ENGINE_FPS_CHOICES], ['60', '100', '120', '144', '180', '240'])
         self.assertEqual(d['frames_queued'], '1')
         self.assertEqual([v for v, _t in launcher.FRAMES_QUEUED], ['1', '2', '0'])
-        self.assertNotIn('SPARTAN_FRAMES_AHEAD', launcher.game_environment({**launcher.APP_DEFAULTS, 'frames_ahead': '2'}))
+        self.assertNotIn('RATCHET_FRAMES_AHEAD', launcher.game_environment({**launcher.APP_DEFAULTS, 'frames_ahead': '2'}))
 
 
 class GameFilesTest(unittest.TestCase):
@@ -718,13 +718,13 @@ class GpuChoiceTest(unittest.TestCase):
 
     def test_gpu_choice_reaches_the_game(self):
         from unittest import mock
-        with mock.patch.dict(launcher.os.environ, {'SPARTAN_GPU_ID': '7'}):
+        with mock.patch.dict(launcher.os.environ, {'RATCHET_GPU_ID': '7'}):
             env = launcher.game_environment({**launcher.APP_DEFAULTS, 'game_dir': 'x'})
-            self.assertIsNone(env.get('SPARTAN_GPU_ID'))  # Automatic wins over an inherited value
+            self.assertIsNone(env.get('RATCHET_GPU_ID'))  # Automatic wins over an inherited value
             env = launcher.game_environment({**launcher.APP_DEFAULTS, 'game_dir': 'x', 'gpu_id': '1'})
-            self.assertEqual(env['SPARTAN_GPU_ID'], '1')
+            self.assertEqual(env['RATCHET_GPU_ID'], '1')
             env = launcher.game_environment({**launcher.APP_DEFAULTS, 'game_dir': 'x', 'gpu_id': 'bad'})
-            self.assertIsNone(env.get('SPARTAN_GPU_ID'))
+            self.assertIsNone(env.get('RATCHET_GPU_ID'))
         self.assertEqual(launcher.APP_DEFAULTS['gpu_id'], '')
 
 

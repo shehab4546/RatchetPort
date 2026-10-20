@@ -207,6 +207,6 @@ def applied_engine_fps(names):
 
 
 def environment(options):
-    return {'SPARTAN_DEFERRED_READBACK': options['deferred_readback'],
-            'SPARTAN_STALE_READBACK': options['stale_readback'],
-            'SPARTAN_ASYNC_SHADERS': options['async_shaders']}
+    return {'RATCHET_DEFERRED_READBACK': options['deferred_readback'],
+            'RATCHET_STALE_READBACK': options['stale_readback'],
+            'RATCHET_ASYNC_SHADERS': options['async_shaders']}

@@ -4,12 +4,12 @@
 // and, with --stats, the driver's statistics of every pass (SPARTAN_FSR4_STATS).
 //
 //   fsr4-bench [render WxH] [output WxH] [preset 0-4] [frames] [--stats] [--fsr411]
-// --fsr411: FSR 4.1.1 replay (fsr411.cpp, assets in SPARTAN_FSR411_DIR or fsr4_411) instead of v07;
+// --fsr411: FSR 4.1.1 replay (fsr411.cpp, assets in RATCHET_FSR411_DIR or fsr4_411) instead of v07;
 // its frames match tools/fsr4cap (jitter phase, reset on the first frame).
 //   defaults: 2260x1272 3840x2160 2 (balanced) 900
 // BENCH_NOISE=1: pseudo-random inputs (a fixed seed); BENCH_DUMP=<file>: the output after the
 // last frame, raw RGBA16F, for comparing shader variants.
-// Assets: SPARTAN_FSR4_DIR or fsr4_shaders in the working directory.
+// Assets: RATCHET_FSR4_DIR or fsr4_shaders in the working directory.
 
 #include <array>
 #include <cstdio>
@@ -292,12 +292,12 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "unsupported output size\n");
         return 1;
     }
-    const char* dir_env = std::getenv("SPARTAN_FSR4_DIR");
+    const char* dir_env = std::getenv("RATCHET_FSR4_DIR");
     const std::string dir = std::string{dir_env && dir_env[0] ? dir_env : "fsr4_shaders"} + "/";
     std::array<std::vector<unsigned char>, FFX_FSR4_VK_PASS_COUNT> code;
     std::vector<unsigned char> initializer, weights;
-    // As vk_fsr4.cpp: passes from opt/ (tools/fsr4_optimize.sh) unless SPARTAN_FSR4_OPT=0.
-    const char* opt_env = std::getenv("SPARTAN_FSR4_OPT");
+    // As vk_fsr4.cpp: passes from opt/ (tools/fsr4_optimize.sh) unless RATCHET_FSR4_OPT=0.
+    const char* opt_env = std::getenv("RATCHET_FSR4_OPT");
     const bool use_opt = !(opt_env && opt_env[0] == '0');
     int optimized = 0;
     const auto load = [&](const char* name, std::vector<unsigned char>& data) {
@@ -494,7 +494,7 @@ int main(int argc, char** argv) {
     double gpu_ms = 0.0;
     float period_ns = 1.0f;
     if (fsr411) {
-        const char* dir411 = std::getenv("SPARTAN_FSR411_DIR");
+        const char* dir411 = std::getenv("RATCHET_FSR411_DIR");
         upscaler411 = std::make_unique<Fsr411::Upscaler>(gpu.physical, gpu.device,
                                                          dir411 && dir411[0] ? dir411 : "fsr4_411");
         VkQueryPoolCreateInfo qci{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};

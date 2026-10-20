@@ -23,12 +23,12 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
-/* sceKernelGetDirectMemorySize on retail PS4: 5056 MiB. SPARTAN_DMEM_MB raises it (the resolution
+/* sceKernelGetDirectMemorySize on retail PS4: 5056 MiB. RATCHET_DMEM_MB raises it (the resolution
  * patches above 1080p need about 4 GiB more; run.sh sets it). */
 static uint64_t pool_size_bytes(void) {
     static uint64_t size;
     if (!size) {
-        const char *env = getenv("SPARTAN_DMEM_MB");
+        const char *env = getenv("RATCHET_DMEM_MB");
         uint64_t mb = env ? strtoull(env, NULL, 10) : 0;
         if (mb < 5056 || mb > 16384) mb = 5056;
         size = mb * 1024 * 1024;
@@ -852,7 +852,7 @@ void *runtime_low_map(size_t size, int prot) {
 }
 /* ---- GPU library interface (gpu/shim/ratchetgpu.cpp) ---- */
 /* Optimizations switched off at run time (diagnostics): the number in the file named by
- * SPARTAN_TOGGLE_FILE, re-read every 250 ms. Bits: 1 region cache, 2 fetch shader cache,
+ * RATCHET_TOGGLE_FILE, re-read every 250 ms. Bits: 1 region cache, 2 fetch shader cache,
  * 4 page tracking early exit, 8 pending-op poll limit, 16 threaded Vulkan recording,
  * 32 texture descriptor cache, 64 lock-free upload check, 128 image lookup cache,
  * 256 buffer uploads on the recording thread, 512 barrier tracker insert memo,
@@ -860,10 +860,10 @@ void *runtime_low_map(size_t size, int prot) {
  * 4096 resource sharps read by the draw-preparation workers,
  * 8192 prepared draws from the draw-preparation workers,
  * 16384 small read-only buffer copies on the recording thread,
- * 32768 hot pages (opt-in with SPARTAN_HOT_PAGES=1),
- * 65536 unprotect the 256 KiB window around a guest write fault (SPARTAN_FAULT_WINDOW KiB),
- * 131072 large guest memory copies split across copy threads (SPARTAN_COPY_THREADS),
- * 262144 with SPARTAN_ASYNC_FENCES=1: wait for guest copies at fences again,
+ * 32768 hot pages (opt-in with RATCHET_HOT_PAGES=1),
+ * 65536 unprotect the 256 KiB window around a guest write fault (RATCHET_FAULT_WINDOW KiB),
+ * 131072 large guest memory copies split across copy threads (RATCHET_COPY_THREADS),
+ * 262144 with RATCHET_ASYNC_FENCES=1: wait for guest copies at fences again,
  * 524288 small guest copies batched for the copy threads instead of the recording thread,
  * 1073741824 the lock-free UpdateImage path for clean, tracked images. */
 /* Bits 32 and up: the draw pipeline and related GPU thread work (gpu/shim/ratchet_toggles.h). */
@@ -890,7 +890,7 @@ static void *toggle_watcher(void *path) {
     return NULL;
 }
 void runtime_memory_set_gpu_hooks(GpuRange map, GpuRange unmap, GpuRange invalidate) {
-    const char *toggles=getenv("SPARTAN_TOGGLE_FILE");
+    const char *toggles=getenv("RATCHET_TOGGLE_FILE");
     static pthread_t watcher;
     if (toggles && !watcher) pthread_create(&watcher,NULL,toggle_watcher,(void *)toggles);
     write_lock();

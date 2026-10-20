@@ -13,7 +13,7 @@ from patches import (compile_patches, external_patches, external_selection, comp
 
 SPARTAN = ROOT / 'patches/CUSA01623.xml'
 ULTRAWIDE = ROOT / 'extras/mods/Ultrawide/patches/Ultrawide.xml'
-SPARTAN_IDS = {'CUSA01623'}
+RATCHET_IDS = {'CUSA01623'}
 SEGMENTS = [(0, 0x6000000)]
 
 
@@ -42,7 +42,7 @@ class ExternalPatchTests(unittest.TestCase):
             (folder / 'extra.xml').write_text(EXTERNAL)
             (folder / 'other.xml').write_text(EXTERNAL.replace('CUSA01623', 'CUSA99999'))
             (folder / 'broken.xml').write_text('<Patch>')
-            found = external_patches(folder, '01.02', SPARTAN, SPARTAN_IDS)
+            found = external_patches(folder, '01.02', SPARTAN, RATCHET_IDS)
             self.assertEqual([key for key, _, _ in found],
                              ['extra.xml/On', 'extra.xml/Off', 'extra.xml/Mask'])
             # The file's isEnabled; the mask patch is skipped as a whole.
@@ -58,10 +58,10 @@ class ExternalPatchTests(unittest.TestCase):
             folder = Path(directory)
             (folder / legacy.LEGACY_PATCH_FILE).write_text(EXTERNAL)
             (folder / 'extra.xml').write_text(EXTERNAL)
-            found = external_patches(folder, '01.02', SPARTAN, SPARTAN_IDS)
+            found = external_patches(folder, '01.02', SPARTAN, RATCHET_IDS)
             self.assertEqual({key.split('/')[0] for key, _, _ in found}, {'extra.xml'})
     def test_built_in_file_is_not_external(self):
-        self.assertEqual(external_patches(SPARTAN.parent, '01.02', SPARTAN, SPARTAN_IDS), [])
+        self.assertEqual(external_patches(SPARTAN.parent, '01.02', SPARTAN, RATCHET_IDS), [])
 
 
 class GameProfileTests(unittest.TestCase):
@@ -207,11 +207,11 @@ class SignatureTests(unittest.TestCase):
             _, _, pattern, at = match[0]
             self.assertEqual(fixed(pattern, int(at), len(original) // 2), list(bytes.fromhex(original)), name)
 
-    @unittest.skipUnless(os.environ.get('SPARTAN_GAME'), 'SPARTAN_GAME (game folder) not set')
+    @unittest.skipUnless(os.environ.get('RATCHET_GAME'), 'RATCHET_GAME (game folder) not set')
     def test_spartanport_signatures_in_the_reference_and_a_moved_build(self):
         from prepare import parse_self
         from patches import eboot_image, eboot_segments
-        elf, *_ = parse_self((Path(os.environ['SPARTAN_GAME']) / 'eboot.bin').read_bytes())
+        elf, *_ = parse_self((Path(os.environ['RATCHET_GAME']) / 'eboot.bin').read_bytes())
         image = eboot_image(bytes(elf))
         names = [m.get('Name') for m in ET.parse(SPARTAN).getroot().iter('Metadata')]
         segments = eboot_segments(bytes(elf))  # as patches.py: .bss included (memsz)
@@ -259,10 +259,10 @@ class SignatureTests(unittest.TestCase):
         self.assertEqual(rel(cave, 2, 0x61217a), 0x1e79258)
         self.assertEqual(rel(cave, 11, 0x61217f), 0x4b4c90)
 
-    @unittest.skipUnless(os.environ.get('SPARTAN_GAME'), 'SPARTAN_GAME (game folder) not set')
+    @unittest.skipUnless(os.environ.get('RATCHET_GAME'), 'RATCHET_GAME (game folder) not set')
     def test_spartanport_skip_intro_original_bytes(self):
         from prepare import parse_self
-        elf, _, ph, _, _ = parse_self((Path(os.environ['SPARTAN_GAME']) / 'eboot.bin').read_bytes())
+        elf, _, ph, _, _ = parse_self((Path(os.environ['RATCHET_GAME']) / 'eboot.bin').read_bytes())
         text = next(p for p in ph if p['type'] == 1 and p['flags'] & 1)
         original = {0x184950: '7534', 0x0c8440: '488d05955b38008b00c3660f1f440000',
                     0x01b36a: 'e821990900', 0x212170: '90' * 15}

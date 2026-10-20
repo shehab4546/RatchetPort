@@ -58,7 +58,7 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     SDL_DestroyProperties(props);
     ASSERT_MSG(window, "Failed to create window: {}", SDL_GetError());
     // spartanport: the game's own icon (run.py converts sce_sys/icon0.png to BMP, SDL's built-in format).
-    if (const char* icon_path = std::getenv("SPARTAN_WINDOW_ICON")) {
+    if (const char* icon_path = std::getenv("RATCHET_WINDOW_ICON")) {
         if (SDL_Surface* icon = SDL_LoadBMP(icon_path)) {
             SDL_SetWindowIcon(window, icon);
             SDL_DestroySurface(icon);
@@ -84,8 +84,8 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     } else {
         UNREACHABLE_MSG("Unsupported SDL video driver {}", driver ? driver : "(none)");
     }
-    // spartanport: SPARTAN_FULLSCREEN=1 (older launchers) still asks for fullscreen.
-    if (const char* fullscreen = std::getenv("SPARTAN_FULLSCREEN"); fullscreen && fullscreen[0] == '1' &&
+    // spartanport: RATCHET_FULLSCREEN=1 (older launchers) still asks for fullscreen.
+    if (const char* fullscreen = std::getenv("RATCHET_FULLSCREEN"); fullscreen && fullscreen[0] == '1' &&
         RatchetSettings::Get().display_mode == RatchetGraphics::Windowed) {
         RatchetSettings::Get().display_mode = RatchetGraphics::Borderless;
     }

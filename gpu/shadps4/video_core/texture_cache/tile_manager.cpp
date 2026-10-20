@@ -207,7 +207,7 @@ void TileManager::RecordTilingDispatch(vk::Pipeline pipeline, const vk::Descript
                                        const vk::DescriptorBufferInfo& params, u32 dim_x) {
     scheduler.Record([pipeline, layout = *pl_layout, tiled, linear, params,
                       dim_x, limit = max_dispatch_groups_x](vk::CommandBuffer cmdbuf) {
-        if (Vulkan::Scheduler::FullBarriers()) { // spartanport: SPARTAN_FULL_BARRIERS=1
+        if (Vulkan::Scheduler::FullBarriers()) { // spartanport: RATCHET_FULL_BARRIERS=1
             Vulkan::Scheduler::RecordFullBarrier(cmdbuf);
         }
         cmdbuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline);
