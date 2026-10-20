@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "ratchet_settings.h"
-#include "spartanport_orbs.h"
 #include "ratchet_graphics.h"
 
 #include <algorithm>
@@ -18,7 +17,7 @@ namespace {
 
 const char* Path() {
     const char* env = std::getenv("RATCHET_CONFIG");
-    return env && env[0] ? env : "spartanport.ini";
+    return env && env[0] ? env : "ratchet.ini";
 }
 
 float Clamp(float v, float lo, float hi) {
@@ -56,14 +55,6 @@ void Set(Values& v, const std::string& key, const std::string& value) {
     if (key == "menu_tab") {
         v.menu_tab = i >= 0 && i <= 3 ? i : 0;
         return;
-    }
-    const char* cheat_keys[] = {"cheat_health", "cheat_magic", "cheat_item", "cheat_rage", "cheat_orbs",
-                                "cheat_very_hard", "cheat_double_jumps"};
-    for (unsigned cheat = 0; cheat < SPARTAN_CHEAT_COUNT; ++cheat) {
-        if (key == cheat_keys[cheat]) {
-            v.cheats[cheat] = i != 0;
-            return;
-        }
     }
     if (key == "upscaler") {
         for (int u = 0; u < UpscalerCount; ++u) {
@@ -123,8 +114,6 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.anisotropy = RatchetGraphics::ParseAnisotropy(i);
     } else if (key == "vibration") {
         v.vibration = value.empty() ? 100 : std::clamp(i, 0, 100);
-    } else if (key == "mouse_prompt_distance") {
-        v.mouse_prompt_distance = value.empty() ? 48 : std::clamp(i, 16, 200);
     } else if (key == "mouse_lock") {
         v.mouse_lock = value.empty() || i != 0;
     } else if (key == "mouse_aim_style") {
@@ -133,22 +122,6 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.mouse_aim_sensitivity = value.empty() ? 100 : std::clamp(i, 10, 200);
     } else if (key == "restart_unconfirmed") {
         v.restart_unconfirmed = i != 0;
-    } else if (key == "enemy_health_bar") {
-        v.enemy_health_bar = i != 0;
-    } else if (key == "auto_qte") {
-        v.auto_qte = i != 0;
-    } else if (key == "red_orb_multiplier") {
-        v.red_orb_multiplier = SpartanOrbs::ClampMultiplier(f);
-    } else if (key == "damage_dealt") {
-        v.damage_dealt = SpartanOrbs::ClampMultiplier(f);
-    } else if (key == "damage_taken") {
-        v.damage_taken = SpartanOrbs::ClampMultiplier(f);
-    } else if (key == "green_orb_multiplier") {
-        v.green_orb_multiplier = SpartanOrbs::ClampMultiplier(f);
-    } else if (key == "blue_orb_multiplier") {
-        v.blue_orb_multiplier = SpartanOrbs::ClampMultiplier(f);
-    } else if (key == "gold_orb_multiplier") {
-        v.gold_orb_multiplier = SpartanOrbs::ClampMultiplier(f);
     } else if (key == "fsr4_auto_exposure") {
         v.fsr4_auto_exposure = i != 0;
     } else if (key == "fsr4_invert_jitter") {
@@ -203,9 +176,8 @@ void Load() {
         {"RATCHET_STALE_READBACK", "stale_readback"},     {"RATCHET_FSR1", "fsr1"},
         {"RATCHET_RCAS", "rcas"},                        {"RATCHET_FRAMES_AHEAD", "frames_queued"},
         {"RATCHET_ANISOTROPY", "anisotropy"},            {"RATCHET_VIBRATION", "vibration"},
-        {"RATCHET_MOUSE_PROMPT_DISTANCE", "mouse_prompt_distance"}, {"RATCHET_MOUSE_LOCK", "mouse_lock"},
+        {"RATCHET_MOUSE_LOCK", "mouse_lock"},
         {"RATCHET_MOUSE_AIM_STYLE", "mouse_aim_style"}, {"RATCHET_MOUSE_AIM_SENSITIVITY", "mouse_aim_sensitivity"},
-        {"SPARTAN_AUTO_QTE", "auto_qte"},
     };
     for (const auto& [env, key] : env_keys) {
         if (const char* value = std::getenv(env); value && value[0]) {
@@ -325,7 +297,7 @@ void Save() {
         return;
     }
     std::fprintf(file,
-                 "# spartanport settings (in-game menu: Insert / R3+L2)\n"
+                 "# RatchetPort settings (in-game menu: Insert / R3+L2)\n"
                  "upscaler=%s\npreset=%d\nsharpen=%d\nsharpness=%.2f\njitter=%d\n"
                  "reactive=%d\nobject_motion=%d\nreactive_scale=%.2f\nreactive_threshold=%.2f\nreactive_max=%.2f\n"
                  "debug_view=%d\nshow_fps=%d\nfsr4_auto_exposure=%d\nfsr4_invert_jitter=%d\n",
@@ -336,19 +308,6 @@ void Save() {
                  v.debug_view.load(), int(v.show_fps.load()),
                  int(v.fsr4_auto_exposure.load()), int(v.fsr4_invert_jitter.load()));
     std::fprintf(file, "output_res=%dx%d\n", OutputWidths[v.output_res], OutputHeights[v.output_res]);
-    std::fprintf(file, "red_orb_multiplier=%.3f\n", v.red_orb_multiplier.load());
-    std::fprintf(file, "damage_dealt=%.3f\n", v.damage_dealt.load());
-    std::fprintf(file, "damage_taken=%.3f\n", v.damage_taken.load());
-    std::fprintf(file, "green_orb_multiplier=%.3f\n", v.green_orb_multiplier.load());
-    std::fprintf(file, "blue_orb_multiplier=%.3f\n", v.blue_orb_multiplier.load());
-    std::fprintf(file, "gold_orb_multiplier=%.3f\n", v.gold_orb_multiplier.load());
-    std::fprintf(file, "cheat_health=%d\ncheat_magic=%d\ncheat_item=%d\ncheat_rage=%d\ncheat_orbs=%d\n"
-                       "cheat_very_hard=%d\ncheat_double_jumps=%d\n",
-                 int(v.cheats[0].load()), int(v.cheats[1].load()), int(v.cheats[2].load()),
-                 int(v.cheats[3].load()), int(v.cheats[4].load()),
-                 int(v.cheats[5].load()), int(v.cheats[6].load()));
-    std::fprintf(file, "enemy_health_bar=%d\n", int(v.enemy_health_bar.load()));
-    std::fprintf(file, "auto_qte=%d\n", int(v.auto_qte.load()));
     std::fprintf(file,
                  "overlay_fps=%d\noverlay_frametime=%d\noverlay_upscaler=%d\noverlay_gpu=%d\n"
                  "overlay_cpu=%d\noverlay_ram=%d\noverlay_vram=%d\noverlay_scale=%d\noverlay_corner=%d\n"
@@ -369,9 +328,9 @@ void Save() {
                  resolution_names[std::clamp(v.render_resolution.load(), 0, int(resolution_names.size()) - 1)].c_str(),
                  v.engine_fps.load(), int(v.deferred_readback.load()), int(v.stale_readback.load()),
                  int(v.restart_unconfirmed.load()));
-    std::fprintf(file, "anisotropy=%d\nvibration=%d\nmouse_prompt_distance=%d\nmouse_lock=%d\nmouse_aim_style=%d\n"
+    std::fprintf(file, "anisotropy=%d\nvibration=%d\nmouse_lock=%d\nmouse_aim_style=%d\n"
                        "mouse_aim_sensitivity=%d\n",
-                 v.anisotropy.load(), v.vibration.load(), v.mouse_prompt_distance.load(), int(v.mouse_lock.load()),
+                 v.anisotropy.load(), v.vibration.load(), int(v.mouse_lock.load()),
                  v.mouse_aim_style.load(), v.mouse_aim_sensitivity.load());
     // Read by run.sh at start.
     std::fprintf(file, "live_resolution=%s\n", v.live_resolution < 0 ? "auto"

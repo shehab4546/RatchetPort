@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // spartanport: user settings changed at run time from the in-game menu (ratchet_overlay.h) and kept
-// in spartanport.ini (RATCHET_CONFIG overrides the path). Environment variables override the file at
+// in ratchet.ini (RATCHET_CONFIG overrides the path). Environment variables override the file at
 // start. Readers load the atomics every frame; writers are the menu and Load().
 
 #pragma once
 
-#include "../../src/cheat_hook.h"
 
 #include <atomic>
 #include <cstdint>
@@ -46,21 +45,6 @@ struct Values {
     std::atomic<unsigned> overlay_items{7};
     std::atomic<int> overlay_scale{100}, overlay_corner{1}, overlay_opacity{50}, overlay_layout{0};
     std::atomic<int> menu_tab{0};
-    std::atomic<float> red_orb_multiplier{1.0f};
-    std::atomic<bool> red_orbs_supported{false};
-    /// Damage and orb pickup multipliers (src/damage_hook.h, src/orb_hook.h), 0.1x to 100x.
-    /// The game's code reads these floats directly.
-    std::atomic<float> damage_dealt{1.0f}, damage_taken{1.0f};
-    std::atomic<float> green_orb_multiplier{1.0f}, blue_orb_multiplier{1.0f}, gold_orb_multiplier{1.0f};
-    std::atomic<bool> damage_supported{false}, orb_pickup_supported{false};
-    std::atomic<bool> cheats[SPARTAN_CHEAT_COUNT]{};
-    std::atomic<uint32_t> cheats_supported{0};
-    /// Damage hook (src/actor_hook.h): enemy health bar, off by default.
-    std::atomic<bool> enemy_health_bar{false};
-    std::atomic<bool> actor_watch_supported{false};
-    /// QTE prompts answered in the game's own checks (src/qte_hook.h), off by default. Live.
-    std::atomic<bool> auto_qte{false};
-    std::atomic<bool> qte_supported{false};
     // Graphics (ratchet_graphics.h). Live: applied on the next frame.
     std::atomic<int> display_mode{0};
     std::atomic<bool> vsync{true};
@@ -77,8 +61,6 @@ struct Values {
     std::atomic<int> frames_queued{1};
     /// Controller vibration strength in percent; 0 turns it off (runtime_pad.c). Live.
     std::atomic<int> vibration{100};
-    /// Mouse movement in px that counts as one step of a stick prompt (runtime_pad.c). Live.
-    std::atomic<int> mouse_prompt_distance{48};
     /// Keep the mouse in the game window while the game has it (window.cpp). Live.
     std::atomic<bool> mouse_lock{true};
     /// L2 aim with the mouse (runtime_pad.c): 0 relative (follows movement), 1 absolute. Live.

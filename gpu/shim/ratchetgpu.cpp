@@ -364,26 +364,12 @@ extern "C" void ratchetgpu_movie_picture(void) {
     Vulkan::MovieBars::Cutscenes().NotePicture(Vulkan::MovieBars::NowMs());
 }
 
-extern "C" int ratchetgpu_mouse_prompt_distance(void) {
-    return RatchetSettings::Get().mouse_prompt_distance.load(std::memory_order_relaxed);
-}
-
 extern "C" int ratchetgpu_mouse_aim_style(void) {
     return RatchetSettings::Get().mouse_aim_style.load(std::memory_order_relaxed);
 }
 
 extern "C" int ratchetgpu_mouse_aim_sensitivity(void) {
     return RatchetSettings::Get().mouse_aim_sensitivity.load(std::memory_order_relaxed);
-}
-
-// The menu's Automatic QTE switch, read by the game's code through the QTE stubs (src/qte_hook.h).
-extern "C" uintptr_t spartanport_auto_qte_flag(void) {
-    static_assert(sizeof(std::atomic<bool>) == 1, "the stubs compare one byte");
-    return reinterpret_cast<uintptr_t>(&RatchetSettings::Get().auto_qte);
-}
-
-extern "C" void spartanport_qte_status(int supported) {
-    RatchetSettings::Get().qte_supported = supported != 0;
 }
 
 extern "C" void ratchetgpu_mouse_pause_key(void) {

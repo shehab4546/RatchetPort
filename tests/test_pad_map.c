@@ -5,7 +5,6 @@
 
 int ratchetgpu_overlay_captures_input(void) { return 0; }
 int ratchetgpu_vibration_percent(void) { return 100; }
-int ratchetgpu_mouse_prompt_distance(void) { return 48; }
 static int pause_keys;
 void ratchetgpu_mouse_pause_key(void) { ++pause_keys; }
 static int aim_style;
@@ -108,19 +107,6 @@ int main(void) {
     assert(SDL_GetAtomicInt(&wheel_ticks[1])==WHEEL_MAX_PENDING);
     drop_wheel();
     assert(SDL_GetAtomicInt(&wheel_ticks[1])==0 && !wheel_held(1,t1));
-    /* Rage: one source for L3 + R3; "None" clears L3 and R3 so their keys press nothing. */
-    ButtonMap rage=key_map;
-    assert(apply_button_map(&rage,"l3=None,r3=none,rage=V",true)==3);
-    assert(pressed_by(&rage,SDL_SCANCODE_Z)==0 && pressed_by(&rage,SDL_SCANCODE_C)==0);
-    assert(pressed_by(&rage,SDL_SCANCODE_V)==RAGE);
-    PadData sparta={0};
-    sparta.buttons=RAGE|BTN_SQUARE;
-    apply_combos(&sparta);
-    assert(sparta.buttons==(BTN_L3|BTN_R3|BTN_SQUARE));
-    sparta.buttons=BTN_L3;
-    apply_combos(&sparta);
-    assert(sparta.buttons==BTN_L3);
-
     /* The pause key tells the window once per press; L1 + touchpad right (photo mode) does not. */
     PadData menu={0};
     menu.buttons=CLICK_RIGHT; note_pause_key(&menu); note_pause_key(&menu);
@@ -181,112 +167,6 @@ int main(void) {
     assert(item.right_x==128+31);
     aim_sensitivity=100;
     aim_style=0;
-
-    /* Grab: L1 + Circle from one source, alongside rage. */
-    ButtonMap grab=key_map;
-    assert(apply_button_map(&grab,"r3=X,grab=C,rage=V",true)==3); /* C was R3's default key */
-    assert(pressed_by(&grab,SDL_SCANCODE_C)==GRAB && pressed_by(&grab,SDL_SCANCODE_X)==BTN_R3);
-    sparta.buttons=GRAB|RAGE;
-    apply_combos(&sparta);
-    assert(sparta.buttons==(BTN_L1|BTN_CIRCLE|BTN_L3|BTN_R3));
-
-    /* Dodge: a host-only source; the right stick follows the left one, or goes back when still. */
-    ButtonMap evade=key_map;
-    assert(apply_button_map(&evade,"dodge=Left Alt",true)==1 && pressed_by(&evade,SDL_SCANCODE_LALT)==DODGE);
-    PadData p={0};
-    p.left_x=p.left_y=p.right_x=p.right_y=128; p.timestamp=1000000;
-    p.buttons=DODGE|BTN_CROSS; p.left_x=0;                      /* A held: dodge left */
-    apply_dodge(&p);
-    assert(p.right_x==0 && p.right_y==128 && p.buttons==BTN_CROSS);
-    p.buttons=DODGE; p.left_x=255; p.left_y=0; p.timestamp+=10000; /* W+D: up and right */
-    apply_dodge(&p);
-    assert(p.right_x==255 && p.right_y==0);
-    p.buttons=0; p.right_x=p.right_y=128; p.timestamp+=10000;  /* released early: held to the minimum */
-    apply_dodge(&p);
-    assert(p.right_x==255 && p.right_y==0);
-    p.right_x=p.right_y=128; p.timestamp=1000000+DODGE_MIN_US;
-    apply_dodge(&p);
-    assert(p.right_x==128 && p.right_y==128);
-    p.buttons=DODGE; p.left_x=p.left_y=140; p.timestamp+=1000000; /* standing still: back */
-    apply_dodge(&p);
-    assert(p.right_x==128 && p.right_y==255);
-    reset_dodge();
-    p.buttons=0; p.right_x=p.right_y=128; p.timestamp+=1000;
-    apply_dodge(&p);
-    assert(p.right_x==128 && p.right_y==128);
-    /* Keyboard rotation minigame: a prompt is up while the update hook counts frames. */
-    _putenv("RATCHET_STICK_PROMPTS=keyboard");
-    _putenv("SPARTAN_QTE_SEQUENCES=360ccw=Q>E, up180cw = D > S > A ,bogus=W,down180cw=D>Mouse Left");
-    static uint8_t prompt[0x20];
-    spartanport_qte.block=(uint64_t)(uintptr_t)prompt;
-    static bool keyboard[SDL_SCANCODE_COUNT];
-    uint64_t now=10000000;
-    prompt[SPARTAN_QTE_TYPE_OFFSET]=4;                            /* Up180CW: D S A */
-    assert(!qte_play(keyboard,now));                           /* no frames: no prompt */
-    assert(qte_sequences[2].length==3 && qte_sequences[2].keys[1]==SDL_SCANCODE_S); /* kept */
-    assert(qte_sequences[5].length==2 && qte_sequences[5].keys[0]==SDL_SCANCODE_Q);
-    keyboard[SDL_SCANCODE_D]=true;                             /* held while walking in */
-    ++spartanport_qte.heartbeat;
-    assert(qte_play(keyboard,now) && qte.step==0);
-    keyboard[SDL_SCANCODE_D]=false;
-    now+=16000; ++spartanport_qte.heartbeat;
-    assert(qte_play(keyboard,now) && qte.step==0);
-    const int wrong[]={SDL_SCANCODE_D,SDL_SCANCODE_S,SDL_SCANCODE_D,SDL_SCANCODE_S,SDL_SCANCODE_A};
-    const unsigned steps[]={1,2,1,2,3};                        /* D out of turn: back to step 1 */
-    for (unsigned i=0;i<5;++i) {
-        keyboard[wrong[i]]=true; now+=16000; ++spartanport_qte.heartbeat;
-        assert(qte_play(keyboard,now) && qte.step==steps[i]);
-        keyboard[wrong[i]]=false; now+=16000; ++spartanport_qte.heartbeat;
-        assert(qte_play(keyboard,now));
-    }
-    assert(qte.passed && spartanport_qte.pass==1);
-    spartanport_qte.pass=0;                                           /* the rotation stub answered */
-    keyboard[SDL_SCANCODE_D]=true; now+=16000; ++spartanport_qte.heartbeat;
-    assert(qte_play(keyboard,now) && spartanport_qte.pass==0);         /* once per prompt */
-    keyboard[SDL_SCANCODE_D]=false;
-    now+=QTE_ACTIVE_US+1;                                      /* the prompt went away */
-    assert(!qte_play(keyboard,now) && !qte.passed && qte.step==0);
-    prompt[SPARTAN_QTE_TYPE_OFFSET]=1;                            /* a circle prompt: WASD stay */
-    ++spartanport_qte.heartbeat;
-    assert(!qte_play(keyboard,now));
-    prompt[SPARTAN_QTE_TYPE_OFFSET]=9;                            /* 360CCW, custom Q E */
-    now+=QTE_ACTIVE_US+1; ++spartanport_qte.heartbeat;
-    assert(qte_play(keyboard,now));
-    const int custom[]={SDL_SCANCODE_Q,SDL_SCANCODE_E};
-    for (unsigned i=0;i<2;++i) {
-        keyboard[custom[i]]=true; now+=16000; ++spartanport_qte.heartbeat;
-        assert(qte_play(keyboard,now));
-        keyboard[custom[i]]=false;
-    }
-    assert(spartanport_qte.pass==1);
-    int parsed[QTE_KEYS_MAX];
-    assert(qte_parse_sequence("Left Shift > Space",parsed)==2 && parsed[0]==SDL_SCANCODE_LSHIFT);
-    assert(!qte_parse_sequence("D>Mouse Left",parsed) && !qte_parse_sequence("A>B>C>D>E>F>G>H>I",parsed));
-    /* Adaptive mouse: the same sequence drawn, one step per mouse_step px in a new direction. */
-    qte.mode=STICK_PROMPTS_MOUSE;
-    prompt[SPARTAN_QTE_TYPE_OFFSET]=6;                            /* Down180CW: D S A */
-    SDL_Event move={0};
-    move.type=SDL_EVENT_MOUSE_MOTION;
-    move.motion.xrel=500.0f; mouse_watch(NULL,&move);          /* before the prompt: forgotten */
-    now+=QTE_ACTIVE_US+1;
-    assert(!qte_play(keyboard,now));                           /* no prompt between the two */
-    ++spartanport_qte.heartbeat;
-    assert(qte_play(keyboard,now) && qte.step==0);
-    const float path[][2]={{20,0},{30,5},{40,0},{0,30},{5,50},{-60,0},{-30,0}};
-    const unsigned drawn[]={0,1,1,1,2,3,3};                    /* right, down, left; once each */
-    for (unsigned i=0;i<7;++i) {
-        move.motion.xrel=path[i][0]; move.motion.yrel=path[i][1];
-        mouse_watch(NULL,&move);
-        now+=16000; ++spartanport_qte.heartbeat;
-        assert(qte_play(keyboard,now) && qte.step==drawn[i]);
-    }
-    assert(spartanport_qte.pass==1);
-    move.motion.xrel=0; move.motion.yrel=-3; mouse_watch(NULL,&move);  /* jitter: nothing */
-    now+=QTE_ACTIVE_US+1;
-    assert(!qte_play(keyboard,now));
-    ++spartanport_qte.heartbeat;
-    assert(qte_play(keyboard,now) && qte.step==0 && spartanport_qte.pass==0);
-    spartanport_qte.block=0;
 
     puts("PASS: pad and key maps");
 }
