@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "spartanport_actors.h"
-#include "spartanport_settings.h"
+#include "ratchet_settings.h"
 #include <cstdint>
 #include "../../src/actor_hook.h"
 
@@ -11,5 +11,5 @@ extern "C" uintptr_t spartanport_actor_slots_address(void) {
 }
 
 extern "C" void spartanport_actor_status(int supported) {
-    SpartanSettings::Get().actor_watch_supported = supported != 0;
+    RatchetSettings::Get().actor_watch_supported = supported != 0;
 }

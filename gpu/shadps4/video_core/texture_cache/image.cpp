@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include <ranges>
 #include "common/assert.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
@@ -126,7 +126,7 @@ Image::Image(const Vulkan::Instance& instance, Vulkan::Runtime& runtime_,
              Common::SlotVector<ImageView>& slot_image_views_, const ImageInfo& info_)
     : guest_begin{info_.guest_address}, guest_end{info_.guest_address + info_.guest_size},
       info{info_}, runtime{&runtime_}, slot_image_views{&slot_image_views_} {
-    SpartanStats::Timer timer{SpartanStats::t_image_create};
+    RatchetStats::Timer timer{RatchetStats::t_image_create};
     if (info.pixel_format == vk::Format::eUndefined) {
         return;
     }

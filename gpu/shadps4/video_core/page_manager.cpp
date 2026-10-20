@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <boost/container/small_vector.hpp>
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "common/assert.h"
 #include "common/debug.h"
 #include "common/div_ceil.h"
@@ -72,14 +72,14 @@ struct PageManager::Impl {
         // spartanport: the draw recording thread handles its faults inline too (vk_draw_pipe.h).
         const auto is_gpu_thread = rasterizer->IsGpuSideThread();
         if (is_gpu_thread) {
-            SpartanStats::gpu_signal_faults.fetch_add(1, std::memory_order_relaxed);
+            RatchetStats::gpu_signal_faults.fetch_add(1, std::memory_order_relaxed);
         }
         if (Common::IsWriteError(context)) {
-            SpartanStats::Timer timer{SpartanStats::t_write_faults};
+            RatchetStats::Timer timer{RatchetStats::t_write_faults};
             return rasterizer->OnWriteFault(addr, is_gpu_thread);
         } else {
-            SpartanStats::read_faults.fetch_add(1, std::memory_order_relaxed);
-            SpartanStats::Timer timer{SpartanStats::t_read_faults};
+            RatchetStats::read_faults.fetch_add(1, std::memory_order_relaxed);
+            RatchetStats::Timer timer{RatchetStats::t_read_faults};
             return rasterizer->ReadMemory(addr, 8, is_gpu_thread);
         }
         return false;
@@ -358,7 +358,7 @@ public:
             const VAddr addr = msg.arg.pagefault.address;
             const auto ptid = msg.arg.pagefault.feat.ptid;
             {
-                SpartanStats::Timer timer{SpartanStats::t_write_faults};
+                RatchetStats::Timer timer{RatchetStats::t_write_faults};
                 rasterizer->OnWriteFault(addr, rasterizer->IsGpuSideThreadId(ptid));
             }
             // Protect() clears with DONTWAKE (it may run for pages nobody waits on).

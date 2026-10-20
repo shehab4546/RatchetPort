@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // spartanport: the Vulkan drivers where the game's multisampled images are created single-sampled
-// unless SPARTAN_NO_MSAA says otherwise (spartanport_msaa.h). Plain C: vk_instance.cpp decides with it
+// unless SPARTAN_NO_MSAA says otherwise (ratchet_msaa.h). Plain C: vk_instance.cpp decides with it
 // and tools/gpu_capabilities.c prints it per GPU (`--list`) for the launcher to show.
 //
 // AMD's Windows driver: the RX 6600 family reads the 2-sample depth buffer wrong and the

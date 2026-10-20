@@ -79,7 +79,7 @@ inline bool Disabled(std::uint64_t bit) {
 }
 } // namespace SpartanToggle
 
-namespace SpartanStats {
+namespace RatchetStats {
 /// Guest writes caught by page protection, and pages currently left unprotected as hot.
 inline std::atomic<std::uint64_t> tracker_faults{0};
 inline std::atomic<std::int64_t> hot_pages{0};
@@ -140,4 +140,4 @@ inline std::atomic<std::uint64_t> gpu_signal_faults{0};
 /// Protection changes: calls and pages, those removing write access (TLB shootdowns) apart.
 inline std::atomic<std::uint64_t> protect_calls{0}, protect_pages{0}, protect_revoke_calls{0},
     protect_revoke_pages{0};
-} // namespace SpartanStats
+} // namespace RatchetStats

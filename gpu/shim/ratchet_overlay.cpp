@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "spartanport_overlay.h"
+#include "ratchet_overlay.h"
 
 #include <algorithm>
 #include <atomic>
@@ -13,11 +13,11 @@
 #include <vector>
 
 #include <SDL3/SDL.h>
-#include "spartanport_settings.h"
+#include "ratchet_settings.h"
 #include "spartanport_orbs.h"
 #include "spartanport_actors.h"
-#include "spartanport_graphics.h"
-#include "spartanport_perf_stats.h"
+#include "ratchet_graphics.h"
+#include "ratchet_perf_stats.h"
 #include "../../src/actor_hook.h"
 
 extern SpartanActorSlot spartanport_actor_slots[2];
@@ -56,7 +56,7 @@ asm(".section .rodata\n"
 extern "C" const unsigned char spartanport_font_ttf[];
 extern "C" const unsigned char spartanport_font_ttf_end[];
 
-namespace SpartanOverlay {
+namespace RatchetOverlay {
 
 namespace {
 
@@ -99,11 +99,11 @@ void SetOpen(bool value) {
     }
     ImGui::GetIO().MouseDrawCursor = value;
     if (value) {
-        requested_tab = SpartanSettings::Get().menu_tab;
+        requested_tab = RatchetSettings::Get().menu_tab;
     }
     if (!value && dirty) {
         dirty = false;
-        SpartanSettings::Save();
+        RatchetSettings::Save();
     }
 }
 
@@ -278,11 +278,11 @@ void SliderRow(const char* label, std::atomic<int>& value, int lo, int hi, const
 
 const char* UpscalerLabel(int upscaler) {
     switch (upscaler) {
-    case SpartanSettings::UpscalerFsr3: return "FSR 3.1";
-    case SpartanSettings::UpscalerFsr4: return "FSR 4";
-    case SpartanSettings::UpscalerFsr411: return "FSR 4.1.1";
-    case SpartanSettings::UpscalerTaa: return "TAA";
-    case SpartanSettings::UpscalerDlss: return "DLSS";
+    case RatchetSettings::UpscalerFsr3: return "FSR 3.1";
+    case RatchetSettings::UpscalerFsr4: return "FSR 4";
+    case RatchetSettings::UpscalerFsr411: return "FSR 4.1.1";
+    case RatchetSettings::UpscalerTaa: return "TAA";
+    case RatchetSettings::UpscalerDlss: return "DLSS";
     default: return "";
     }
 }
@@ -291,8 +291,8 @@ const Vulkan::Instance* overlay_instance = nullptr; // for the overlay's measure
 
 // The performance overlay's text with the current settings (also the menu's preview).
 std::string OverlayText() {
-    namespace P = SpartanPerfStats;
-    const auto& s = SpartanSettings::Get();
+    namespace P = RatchetPerfStats;
+    const auto& s = RatchetSettings::Get();
     const unsigned items = s.overlay_items;
     if ((items & (P::Gpu | P::Cpu | P::Ram | P::Vram)) && overlay_instance) {
         P::Start(*overlay_instance);
@@ -307,7 +307,7 @@ std::string OverlayText() {
 constexpr const char* Unsupported = "Unavailable: game version or code signature mismatch.";
 
 void GameTab() {
-    auto& s = SpartanSettings::Get();
+    auto& s = RatchetSettings::Get();
     ImGui::SeparatorText("Cheats");
     if (BeginRows("##cheats")) {
         static const char* const names[] = {"Infinite health", "Infinite magic", "Infinite item meter",
@@ -397,8 +397,8 @@ void GameTab() {
 }
 
 void ImageTab() {
-    namespace G = SpartanGraphics;
-    auto& s = SpartanSettings::Get();
+    namespace G = RatchetGraphics;
+    auto& s = RatchetSettings::Get();
     ImGui::SeparatorText("Display");
     if (BeginRows("##display")) {
         ChoiceRow("Display mode", s.display_mode, G::DisplayModeNames.data(), nullptr, G::DisplayModeCount,
@@ -466,8 +466,8 @@ void ImageTab() {
 }
 
 void PerformanceTab() {
-    namespace G = SpartanGraphics;
-    auto& s = SpartanSettings::Get();
+    namespace G = RatchetGraphics;
+    auto& s = RatchetSettings::Get();
     ImGui::SeparatorText("Live");
     if (BeginRows("##live")) {
         static const char* const fps_labels[] = {"30", "60", "100", "120", "144", "180", "240", "Unlimited"};
@@ -478,7 +478,7 @@ void PerformanceTab() {
         ChoiceRow("Engine frame rate", s.engine_fps, engine_labels, G::EngineFps.data(), int(G::EngineFps.size()),
                   "The highest frame rate the game itself runs at. 60 for spots that break above it (a ledge "
                   "Kratos cannot cross, a button-mash prompt). R3 + L1 + R1 or F9 go through the list.");
-        const int effective = G::EffectiveFps(s.fps_limit, SpartanSettings::EngineFpsNow());
+        const int effective = G::EffectiveFps(s.fps_limit, RatchetSettings::EngineFpsNow());
         if (s.fps_limit == 0 || effective < s.fps_limit) {
             char text[48];
             std::snprintf(text, sizeof(text), "%d FPS (engine frame rate)", effective);
@@ -528,8 +528,8 @@ void PerformanceTab() {
 }
 
 void OverlayTab() {
-    namespace P = SpartanPerfStats;
-    auto& s = SpartanSettings::Get();
+    namespace P = RatchetPerfStats;
+    auto& s = RatchetSettings::Get();
     if (BeginRows("##overlay_on")) {
         CheckRow("Show overlay", s.show_fps, "The performance overlay in a corner of the screen.");
         ImGui::EndTable();
@@ -602,14 +602,14 @@ void OverlayTab() {
 
 // Startup options changed since this launch (applied by "Apply and restart").
 int RestartChanges() {
-    const auto& s = SpartanSettings::Get();
+    const auto& s = RatchetSettings::Get();
     return (s.render_resolution != s.startup_render_resolution) +
            (s.deferred_readback != s.startup_deferred_readback) + (s.stale_readback != s.startup_stale_readback) +
            (s.anisotropy != s.startup_anisotropy);
 }
 
 void Menu() {
-    auto& s = SpartanSettings::Get();
+    auto& s = RatchetSettings::Get();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
                                    viewport->WorkPos.y + viewport->WorkSize.y * 0.5f),
@@ -683,7 +683,7 @@ void Menu() {
             // The new launch confirms the options once the game shows; run.py restores the
             // previous ones if it never does (restart_unconfirmed).
             s.restart_unconfirmed = true;
-            SpartanSettings::Save();
+            RatchetSettings::Save();
             runtime_restart();
         }
         ImGui::EndDisabled();
@@ -709,7 +709,7 @@ void HealthDisplay() {
         std::chrono::steady_clock::time_point at{};
     };
     static Seen seen[2];
-    const auto& s = SpartanSettings::Get();
+    const auto& s = RatchetSettings::Get();
     if (!s.actor_watch_supported.load()) {
         return;
     }
@@ -852,7 +852,7 @@ void LoadingScreen() {
 }
 
 void FpsCounter() {
-    const auto& s = SpartanSettings::Get();
+    const auto& s = RatchetSettings::Get();
     const std::string text = OverlayText();
     if (text.empty()) {
         return;
@@ -931,7 +931,7 @@ void ShowNotice(const std::string& text, int milliseconds) {
 }
 
 void CycleEngineFps() {
-    const int fps = SpartanSettings::CycleEngineFps();
+    const int fps = RatchetSettings::CycleEngineFps();
     ShowNotice(fps ? "Engine frame rate: " + std::to_string(fps) + " FPS"
                    : std::string("Engine frame rate: 60 FPS only (no frame rate patch for this game build)"));
 }
@@ -1211,12 +1211,12 @@ bool HandleEvent(const SDL_Event& event) {
 // seconds of frames after loading (run.py restores the previous ones otherwise).
 void ConfirmRestart() {
     static u32 frames = 0;
-    auto& s = SpartanSettings::Get();
+    auto& s = RatchetSettings::Get();
     if (!s.restart_unconfirmed || loading || ++frames < 600) {
         return;
     }
     s.restart_unconfirmed = false;
-    SpartanSettings::Save();
+    RatchetSettings::Save();
     std::puts("Settings: graphics options confirmed after restart");
 }
 
@@ -1232,7 +1232,7 @@ void SetLoading(bool active, u32 done, u32 total) {
 }
 
 bool Visible() {
-    const auto& s = SpartanSettings::Get();
+    const auto& s = RatchetSettings::Get();
     return initialized && (loading || background_total || menu_open || text_entry_active || choice_active ||
                            choice_retiring || s.show_fps || NoticeActive() ||
                            (s.actor_watch_supported && s.enemy_health_bar));
@@ -1300,7 +1300,7 @@ void Render(vk::CommandBuffer cmdbuf, vk::ImageView view, vk::Extent2D extent) {
     if (menu_open) {
         Menu();
     }
-    if (SpartanSettings::Get().show_fps && !menu_open) {
+    if (RatchetSettings::Get().show_fps && !menu_open) {
         FpsCounter();
     }
     if (NoticeActive()) {
@@ -1340,4 +1340,4 @@ void Render(vk::CommandBuffer cmdbuf, vk::ImageView view, vk::Extent2D extent) {
     cmdbuf.endRendering();
 }
 
-} // namespace SpartanOverlay
+} // namespace RatchetOverlay

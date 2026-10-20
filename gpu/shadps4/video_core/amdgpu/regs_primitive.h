@@ -5,7 +5,7 @@
 
 #include <algorithm>
 #include "common/types.h"
-#include "video_core/amdgpu/spartanport_msaa.h"
+#include "video_core/amdgpu/ratchet_msaa.h"
 
 namespace AmdGpu {
 

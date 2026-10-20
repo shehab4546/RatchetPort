@@ -1,5 +1,5 @@
 // spartanport: fault-handler registry. The C loader's SIGSEGV handler calls
-// spartanportgpu_handle_fault() first; registered handlers run in priority order.
+// ratchetgpu_handle_fault() first; registered handlers run in priority order.
 #pragma once
 #include <compare>
 #include <set>

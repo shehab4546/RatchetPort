@@ -6,7 +6,7 @@
 #include <string>
 #include "common/types.h"
 
-u32 SpartanDisplayRefreshHz(); // spartanportgpu.cpp: primary display refresh rate, 60 when unknown
+u32 SpartanDisplayRefreshHz(); // ratchetgpu.cpp: primary display refresh rate, 60 when unknown
 
 enum GpuReadbacksMode : int { Disabled, Relaxed, Precise };
 

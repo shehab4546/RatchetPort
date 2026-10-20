@@ -3,16 +3,16 @@
 #include <assert.h>
 #include "../src/runtime_pad.c"
 
-int spartanportgpu_overlay_captures_input(void) { return 0; }
-int spartanportgpu_vibration_percent(void) { return 100; }
-int spartanportgpu_mouse_prompt_distance(void) { return 48; }
+int ratchetgpu_overlay_captures_input(void) { return 0; }
+int ratchetgpu_vibration_percent(void) { return 100; }
+int ratchetgpu_mouse_prompt_distance(void) { return 48; }
 static int pause_keys;
-void spartanportgpu_mouse_pause_key(void) { ++pause_keys; }
+void ratchetgpu_mouse_pause_key(void) { ++pause_keys; }
 static int aim_style;
-int spartanportgpu_mouse_aim_style(void) { return aim_style; }
+int ratchetgpu_mouse_aim_style(void) { return aim_style; }
 static int aim_sensitivity=100;
-int spartanportgpu_mouse_aim_sensitivity(void) { return aim_sensitivity; }
-void spartanportgpu_engine_fps_cycle(void) {}
+int ratchetgpu_mouse_aim_sensitivity(void) { return aim_sensitivity; }
+void ratchetgpu_engine_fps_cycle(void) {}
 uintptr_t runtime_lookup(const RuntimeExport *table, size_t count, const char *name) {
     (void)table; (void)count; (void)name;
     return 0;

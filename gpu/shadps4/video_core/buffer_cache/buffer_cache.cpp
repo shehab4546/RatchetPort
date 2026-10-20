@@ -9,8 +9,8 @@
 #include <bit>
 #include <cstdlib>
 #include <magic_enum/magic_enum.hpp>
-#include "spartanport_copy.h"
-#include "spartanport_toggles.h"
+#include "ratchet_copy.h"
+#include "ratchet_toggles.h"
 #include "common/alignment.h"
 #include "core/memory.h"
 #include "video_core/amdgpu/liverpool.h"
@@ -117,7 +117,7 @@ void BufferCache::InvalidateMemory(VAddr device_addr, u64 size, bool assume_lock
 // pages marked CPU-modified without being written only cost an upload when bound.
 // Item: context = BufferCache, source = guest address, destination = host pointer, size,
 // extra = the Buffer whose mapping holds the destination (flushed after the copy).
-void BufferCache::RunGuestCopy(const SpartanCopy::Item& item) {
+void BufferCache::RunGuestCopy(const RatchetCopy::Item& item) {
     auto* cache = static_cast<BufferCache*>(item.context);
     auto* dst = reinterpret_cast<u8*>(item.destination);
     cache->memory->CopySparseMemory(item.source, dst, item.size);
@@ -127,12 +127,12 @@ void BufferCache::RunGuestCopy(const SpartanCopy::Item& item) {
 
 // Small guest copies run on the recording thread (it spins for work: no wakeup, and it is
 // idle most of the time); PoolSmallCopies (toggle 524288) batches them for the copy threads.
-void BufferCache::SmallGuestCopy(const SpartanCopy::Item& item) {
+void BufferCache::SmallGuestCopy(const RatchetCopy::Item& item) {
     if (scheduler.IsRecordingDeferred() && !SpartanToggle::Disabled(SpartanToggle::PoolSmallCopies)) {
         scheduler.RecordHostCopy([item] { item.run(item); });
         return;
     }
-    SpartanCopy::QueueCopy(item);
+    RatchetCopy::QueueCopy(item);
 }
 
 void BufferCache::ExtendWriteFault(VAddr device_addr) {
@@ -236,7 +236,7 @@ void NoteHotUse(VAddr address, u32 size) {
         return;
     }
     auto& st = Stats();
-    const u64 frame = SpartanStats::gpu_frames.load(std::memory_order_relaxed);
+    const u64 frame = RatchetStats::gpu_frames.load(std::memory_order_relaxed);
     for (u64 block = address >> 16; block <= (address + size - 1) >> 16; ++block) {
         auto [it, inserted] = st.last_use.try_emplace(block, frame);
         if (!inserted && it->second != frame) {
@@ -335,14 +335,14 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBuffer(VAddr device_addr, u32 s
     const u64 last_block = (device_addr + size - 1) >> block_shift;
     const auto* arena = GetArena(first_block, last_block);
     EnsureResident(arena, first_block, last_block);
-    const u64 uploaded_before = SpartanStats::buffer_upload_bytes.load(std::memory_order_relaxed);
+    const u64 uploaded_before = RatchetStats::buffer_upload_bytes.load(std::memory_order_relaxed);
     SynchronizeMemory(arena, device_addr, size, is_written, is_texel_buffer);
     if (stats) {
         auto& region = Stats().regions[RegionKey(device_addr)];
         ++region.arena_count;
         region.arena_bytes += size;
         region.upload_bytes +=
-            SpartanStats::buffer_upload_bytes.load(std::memory_order_relaxed) - uploaded_before;
+            RatchetStats::buffer_upload_bytes.load(std::memory_order_relaxed) - uploaded_before;
     }
     if (is_written) {
         gpu_modified_ranges.Add(device_addr, size);
@@ -364,7 +364,7 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBufferForImage(VAddr device_add
         // the upload reads the staging only after submission, which waits for the copies.
         constexpr u64 Chunk = 1_MB;
         for (u64 offset = 0; offset < staging.size; offset += Chunk) {
-            const SpartanCopy::Item item{
+            const RatchetCopy::Item item{
                 .run = &RunGuestCopy,
                 .context = this,
                 .source = device_addr + offset,
@@ -375,7 +375,7 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBufferForImage(VAddr device_add
             if (staging.size < Chunk) {
                 SmallGuestCopy(item);
             } else {
-                SpartanCopy::Async([item] { item.run(item); });
+                RatchetCopy::Async([item] { item.run(item); });
             }
         }
         return {staging.buffer, staging.offset};
@@ -471,7 +471,7 @@ void BufferCache::EnsureResident(const Buffer* arena, u64 first_block, u64 last_
     if (bind_ranges.Empty()) {
         return;
     }
-    SpartanStats::Timer timer{SpartanStats::t_resident};
+    RatchetStats::Timer timer{RatchetStats::t_resident};
 
     const vk::MemoryAllocateInfo alloc_info = {
         .allocationSize = resident_blocks << block_shift,
@@ -548,7 +548,7 @@ const Buffer* BufferCache::UploadCopies(const Buffer* arena, std::span<vk::Buffe
     for (const auto& copy : copies) {
         texture_cache.ResolveReadbacks(copy.dstOffset, copy.size, true, ReadbackSource::BufferUpload);
     }
-    SpartanStats::buffer_upload_bytes.fetch_add(total_size_bytes, std::memory_order_relaxed);
+    RatchetStats::buffer_upload_bytes.fetch_add(total_size_bytes, std::memory_order_relaxed);
     const auto staging = staging_pool.Request(total_size_bytes, MemoryType::HostUncached);
     // spartanport: the guest memory is copied into staging on the copy threads, started now in
     // groups of about 1 MiB; submission and guest-visible fences wait for them
@@ -579,7 +579,7 @@ const Buffer* BufferCache::UploadCopies(const Buffer* arena, std::span<vk::Buffe
         auto group = std::make_shared<Group>();
         u64 group_bytes = 0;
         const auto launch = [&] {
-            SpartanCopy::Async([group, memory = memory, staging] {
+            RatchetCopy::Async([group, memory = memory, staging] {
                 for (const auto& copy : *group) {
                     memory->CopySparseMemory(copy.source, copy.destination, copy.size);
                 }
@@ -607,7 +607,7 @@ const Buffer* BufferCache::UploadCopies(const Buffer* arena, std::span<vk::Buffe
                                  copies[i].size);
     };
     if (total_size_bytes >= 2_MB && copies.size() > 1) {
-        SpartanCopy::ParallelFor(copies.size(), copy);
+        RatchetCopy::ParallelFor(copies.size(), copy);
     } else {
         for (std::size_t i = 0; i < copies.size(); ++i) {
             copy(i);

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: user settings changed at run time from the in-game menu (spartanport_overlay.h) and kept
+// spartanport: user settings changed at run time from the in-game menu (ratchet_overlay.h) and kept
 // in spartanport.ini (SPARTAN_CONFIG overrides the path). Environment variables override the file at
 // start. Readers load the atomics every frame; writers are the menu and Load().
 
@@ -10,7 +10,7 @@
 #include <atomic>
 #include <cstdint>
 
-namespace SpartanSettings {
+namespace RatchetSettings {
 
 enum Upscaler : int { UpscalerOff = 0, UpscalerFsr3 = 1, UpscalerFsr4 = 2, UpscalerFsr411 = 3,
                       UpscalerTaa = 4, UpscalerDlss = 5, UpscalerCount };
@@ -40,7 +40,7 @@ struct Values {
     std::atomic<float> reactive_max{0.9f};
     std::atomic<int> debug_view{DebugNone};
     std::atomic<bool> show_fps{false};
-    /// Performance overlay (spartanport_perf_stats.h): items shown, font size and background opacity
+    /// Performance overlay (ratchet_perf_stats.h): items shown, font size and background opacity
     /// in percent, corner (0 top left, 1 top right, 2 bottom left, 3 bottom right), layout
     /// (0 one line, 1 one item per line). menu_tab: the menu's last tab.
     std::atomic<unsigned> overlay_items{7};
@@ -61,7 +61,7 @@ struct Values {
     /// QTE prompts answered in the game's own checks (src/qte_hook.h), off by default. Live.
     std::atomic<bool> auto_qte{false};
     std::atomic<bool> qte_supported{false};
-    // Graphics (spartanport_graphics.h). Live: applied on the next frame.
+    // Graphics (ratchet_graphics.h). Live: applied on the next frame.
     std::atomic<int> display_mode{0};
     std::atomic<bool> vsync{true};
     std::atomic<int> fps_limit{0};
@@ -90,7 +90,7 @@ struct Values {
     std::atomic<int> engine_fps{120};
     std::atomic<bool> deferred_readback{true};
     std::atomic<bool> stale_readback{true};
-    /// SpartanGraphics::Anisotropies; the samplers read startup_anisotropy.
+    /// RatchetGraphics::Anisotropies; the samplers read startup_anisotropy.
     std::atomic<int> anisotropy{0};
     int startup_anisotropy = 0;
     /// Set before an "Apply and restart"; cleared once the new launch shows the game. run.py
@@ -116,7 +116,7 @@ struct Values {
     /// Why FSR 4 cannot run (assets, device features), or null. Set by the renderer.
     std::atomic<const char*> fsr4_problem{nullptr};
     std::atomic<bool> fsr4_supported{false}, fsr411_supported{false};
-    /// DLSS (spartanport_dlss.dll, NVIDIA RTX) is ready, or why not (null before the device exists).
+    /// DLSS (ratchet_dlss.dll, NVIDIA RTX) is ready, or why not (null before the device exists).
     std::atomic<bool> dlss_supported{false};
     std::atomic<const char*> dlss_problem{nullptr};
 
@@ -157,4 +157,4 @@ float PresetScale(int preset);
 const char* PresetName(int preset);
 const char* UpscalerName(int upscaler);
 
-} // namespace SpartanSettings
+} // namespace RatchetSettings

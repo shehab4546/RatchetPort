@@ -4,7 +4,7 @@
 #include <cstring>
 #include <unordered_map>
 #include <vector>
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "common/assert.h"
 #include "shader_recompiler/frontend/decode.h"
 #include "shader_recompiler/frontend/fetch_shader.h"

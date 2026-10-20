@@ -1,11 +1,11 @@
-#ifndef SPARTAN_RUNTIME_H
-#define SPARTAN_RUNTIME_H
+#ifndef RATCHET_RUNTIME_H
+#define RATCHET_RUNTIME_H
 #include <stdint.h>
 #include <stddef.h>
 #ifdef _WIN32
 #include "compat_win.h"
 /* No signals on Windows: the exception handler resumes the thread in spartanport_longjmp
- * (gpu/shim/spartanport_toggles.h uses the same buffer type). */
+ * (gpu/shim/ratchet_toggles.h uses the same buffer type). */
 typedef spartanport_jmp_buf sigjmp_buf;
 #define sigsetjmp(buffer, save) spartanport_setjmp(buffer)
 #else

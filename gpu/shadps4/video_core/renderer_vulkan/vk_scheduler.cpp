@@ -11,9 +11,9 @@
 #endif
 #include <functional>
 
-#include "spartanport_copy.h"
+#include "ratchet_copy.h"
 #include "video_core/renderer_vulkan/vk_gpu_profiler.h"
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "video_core/renderer_vulkan/vk_wait_diagnostics.h"
 #include "common/assert.h"
 #include "common/debug.h"
@@ -21,7 +21,7 @@
 #include "imgui/renderer/texture_manager.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
-#include "spartanport_threads.h"
+#include "ratchet_threads.h"
 
 namespace Vulkan {
 
@@ -224,10 +224,10 @@ void Scheduler::SignalAfterHostCopies(std::function<void()> signal) {
         signal();
         return;
     }
-    SpartanCopy::FlushBatch();
+    RatchetCopy::FlushBatch();
     deferred_signals_issued.fetch_add(1, std::memory_order_relaxed);
     Record([signal = std::move(signal), done = deferred_signals_done](vk::CommandBuffer) mutable {
-        SpartanCopy::AfterCopies([signal = std::move(signal), done = std::move(done)] {
+        RatchetCopy::AfterCopies([signal = std::move(signal), done = std::move(done)] {
             signal();
             done->fetch_add(1, std::memory_order_release);
         });
@@ -241,26 +241,26 @@ void Scheduler::WaitDeferredSignals() {
         SpartanToggle::Disabled(SpartanToggle::OrderedGuestWrites)) {
         return;
     }
-    SpartanStats::WaitTimer timer{SpartanStats::host_copies_wait_ns};
+    RatchetStats::WaitTimer timer{RatchetStats::host_copies_wait_ns};
     KickRecording(true);
     while (deferred_signals_done->load(std::memory_order_acquire) < issued) {
         // Helps the copy threads the signals wait for.
-        SpartanCopy::WaitAsync();
+        RatchetCopy::WaitAsync();
         std::this_thread::yield();
     }
 }
 
 void Scheduler::WaitHostCopies() {
     if (host_copies_done.load(std::memory_order_acquire) < host_copies_issued) {
-        SpartanStats::WaitTimer timer{SpartanStats::host_copies_wait_ns};
-        SpartanStats::host_copy_waits.fetch_add(1, std::memory_order_relaxed);
+        RatchetStats::WaitTimer timer{RatchetStats::host_copies_wait_ns};
+        RatchetStats::host_copy_waits.fetch_add(1, std::memory_order_relaxed);
         KickRecording(true);
         while (host_copies_done.load(std::memory_order_acquire) < host_copies_issued) {
             std::this_thread::yield();
         }
     }
-    SpartanStats::WaitTimer timer{SpartanStats::copy_threads_wait_ns};
-    SpartanCopy::WaitAsync();
+    RatchetStats::WaitTimer timer{RatchetStats::copy_threads_wait_ns};
+    RatchetCopy::WaitAsync();
 }
 
 void Scheduler::KickRecording(bool force) {
@@ -303,7 +303,7 @@ void Scheduler::SyncRecording() {
         return;
     }
     KickRecording(true);
-    SpartanStats::WaitTimer timer{SpartanStats::sync_recording_ns};
+    RatchetStats::WaitTimer timer{RatchetStats::sync_recording_ns};
     std::unique_lock lk{recorder_mutex};
     recorder_idle_cv.wait(lk, [this] { return recorder_queue.empty() && !recorder_busy; });
 }
@@ -389,7 +389,7 @@ void Scheduler::Wait(u64 tick, std::source_location caller, u64 submit_ns) {
         SubmitInfo info{};
         Flush(info);
     }
-    SpartanStats::WaitTimer timer{SpartanStats::tick_wait_ns};
+    RatchetStats::WaitTimer timer{RatchetStats::tick_wait_ns};
     const auto submitted = diagnose ? std::chrono::steady_clock::now() : start;
     work_semaphore.Wait(tick);
     if (diagnose) {

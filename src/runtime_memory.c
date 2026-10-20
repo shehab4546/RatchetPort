@@ -115,7 +115,7 @@ static int pool_fd=-1;
 static unsigned char *backing_base; /* second view of the pool: host writes bypass guest/GPU page protection */
 #define FLEX_SPAN (UINT64_C(1024) * 1024 * 1024)
 static uint64_t flex_bitmap[FLEX_SPAN/PAGE/64];
-/* GPU hooks (spartanportgpu): notified outside the lock, in order, after each operation. */
+/* GPU hooks (ratchetgpu): notified outside the lock, in order, after each operation. */
 typedef void (*GpuRange)(uintptr_t address, uint64_t size);
 static GpuRange hook_map, hook_unmap, hook_invalidate;
 enum { HOOK_MAP, HOOK_UNMAP, HOOK_INVALIDATE };
@@ -850,7 +850,7 @@ void *runtime_low_map(size_t size, int prot) {
     return p==MAP_FAILED ? NULL : p;
 #endif
 }
-/* ---- GPU library interface (gpu/shim/spartanportgpu.cpp) ---- */
+/* ---- GPU library interface (gpu/shim/ratchetgpu.cpp) ---- */
 /* Optimizations switched off at run time (diagnostics): the number in the file named by
  * SPARTAN_TOGGLE_FILE, re-read every 250 ms. Bits: 1 region cache, 2 fetch shader cache,
  * 4 page tracking early exit, 8 pending-op poll limit, 16 threaded Vulkan recording,
@@ -866,7 +866,7 @@ void *runtime_low_map(size_t size, int prot) {
  * 262144 with SPARTAN_ASYNC_FENCES=1: wait for guest copies at fences again,
  * 524288 small guest copies batched for the copy threads instead of the recording thread,
  * 1073741824 the lock-free UpdateImage path for clean, tracked images. */
-/* Bits 32 and up: the draw pipeline and related GPU thread work (gpu/shim/spartanport_toggles.h). */
+/* Bits 32 and up: the draw pipeline and related GPU thread work (gpu/shim/ratchet_toggles.h). */
 uint64_t runtime_disabled_optimizations;
 /* Speculative readers of guest memory (GPU draw-preparation workers) register a recovery
  * point: a fault on that thread jumps back to it instead of terminating (probe.c). */

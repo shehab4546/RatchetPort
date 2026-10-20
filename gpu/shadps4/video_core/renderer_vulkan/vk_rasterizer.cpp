@@ -3,7 +3,7 @@
 
 #include <xxhash.h>
 #include "video_core/renderer_vulkan/ui_composition.h"
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "video_core/renderer_vulkan/vk_frame_capture.h"
 #include "video_core/renderer_vulkan/vk_lighting_test.h"
 #include "video_core/renderer_vulkan/vk_pass_census.h"
@@ -22,7 +22,7 @@
 #include "video_core/renderer_vulkan/vk_pipeline_cache.h"
 #include "video_core/renderer_vulkan/vk_rasterizer.h"
 #include "video_core/renderer_vulkan/vk_gpu_profiler.h"
-#include "spartanport_threads.h"
+#include "ratchet_threads.h"
 #include "video_core/renderer_vulkan/vk_runtime.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "video_core/renderer_vulkan/vk_shader_hle.h"
@@ -997,7 +997,7 @@ bool Rasterizer::FilterDrawPasses() const {
 
 void Rasterizer::Draw(bool is_indexed, u32 index_offset, const PreparedDraw* prepared) {
     RENDERER_TRACE;
-    SpartanStats::draws.fetch_add(1, std::memory_order_relaxed);
+    RatchetStats::draws.fetch_add(1, std::memory_order_relaxed);
 
     // spartanport: with the draw pipeline this thread only selects the pipeline and hands the draw
     // to the recording thread (DrawRecord there); draws FilterDraw handles itself run here.
@@ -1405,7 +1405,7 @@ void Rasterizer::DrawIndirectRecord(const GraphicsPipeline* pipeline, bool is_in
 
 void Rasterizer::DispatchDirect() {
     RENDERER_TRACE;
-    SpartanStats::dispatches.fetch_add(1, std::memory_order_relaxed);
+    RatchetStats::dispatches.fetch_add(1, std::memory_order_relaxed);
     // spartanport: like draws, handed to the draw recording thread after the pipeline selection.
     const bool pipelined = UseDrawPipe() && !SpartanToggle::Disabled(SpartanToggle::PipelinedDispatch);
     if (!pipelined) {
@@ -2855,7 +2855,7 @@ bool Rasterizer::BindTexturesFromSet(const Shader::Info& stage, const PreparedSt
 RenderState Rasterizer::BeginRendering(const GraphicsPipeline* pipeline) {
     // spartanport: RenderStateMemo (see BeginMemo).
     const bool memo_on = !SpartanToggle::Disabled(SpartanToggle::RenderStateMemo) && !FrameCapture::Active();
-    if (SpartanStats::enabled && ((begin_memo_hits + begin_memo_misses) & 0x3FFFF) == 0x3FFFF) {
+    if (RatchetStats::enabled && ((begin_memo_hits + begin_memo_misses) & 0x3FFFF) == 0x3FFFF) {
         std::printf("Render state memo: %llu hits, %llu misses; texture sets: %llu hits, %llu "
                     "misses\n",
                     static_cast<unsigned long long>(begin_memo_hits),
@@ -3064,9 +3064,9 @@ RenderState Rasterizer::BeginRenderingFull(const GraphicsPipeline* pipeline) {
         std::printf("Scene pass: reduced %d %s\n", reduced, why.c_str());
     }
     push_data.scene_size = reduced ? SceneResolution::Pack(scene_targets->Size()) : 0;
-    if (SpartanStats::enabled) {
-        SpartanStats::reduced_draws.fetch_add(reduced, std::memory_order_relaxed);
-        SpartanStats::scene_draws.fetch_add(scene_started, std::memory_order_relaxed);
+    if (RatchetStats::enabled) {
+        RatchetStats::reduced_draws.fetch_add(reduced, std::memory_order_relaxed);
+        RatchetStats::scene_draws.fetch_add(scene_started, std::memory_order_relaxed);
     }
     RenderState state;
     state.width = instance.GetMaxFramebufferWidth();
@@ -3945,7 +3945,7 @@ void Rasterizer::NoteFrameStart() {
     if (auto* profiler = GpuProfiler::Get()) {
         profiler->BeginFrame();
     }
-    const u64 frame = SpartanStats::gpu_frames.fetch_add(1, std::memory_order_relaxed) + 1;
+    const u64 frame = RatchetStats::gpu_frames.fetch_add(1, std::memory_order_relaxed) + 1;
     // SPARTAN_BUFFER_STATS=1: how many earlier frames the GPU has not finished when the GPU thread
     // starts a frame — the lag that decides whether guest memory can be read in place.
     static const bool stats = [] {

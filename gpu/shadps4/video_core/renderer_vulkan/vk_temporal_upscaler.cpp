@@ -14,8 +14,8 @@
 
 #include <vk_mem_alloc.h>
 
-#include "spartanport_settings.h"
-#include "spartanport_toggles.h"
+#include "ratchet_settings.h"
+#include "ratchet_toggles.h"
 #include "ffx_vk_portable.h"
 #include "video_core/host_shaders/upscale_merge_comp.h"
 #include "video_core/host_shaders/upscale_reactive_comp.h"
@@ -162,15 +162,15 @@ TemporalUpscaler::TemporalUpscaler(const Instance& instance_, Scheduler& schedul
     : instance{instance_}, scheduler{scheduler_}, texture_cache{texture_cache_},
       runtime{runtime_}, camera_motion{camera_motion_}, scene_targets{scene_targets_} {
     // Reject unsupported shaders before allocating resources or recording a frame.
-    SpartanSettings::ConfigureUpscalerSupport(instance.IsFsr4Int8Supported(),
+    RatchetSettings::ConfigureUpscalerSupport(instance.IsFsr4Int8Supported(),
                                          instance.IsFsr411Supported());
     fsr4 = std::make_unique<Fsr4Upscaler>(instance, scheduler);
     {
         const Dlss* dlss = Dlss::Get();
         static std::string problem;
-        problem = !dlss ? "spartanport_dlss.dll and nvngx_dlss.dll are not installed"
+        problem = !dlss ? "ratchet_dlss.dll and nvngx_dlss.dll are not installed"
                         : dlss->Problem();
-        SpartanSettings::ConfigureDlssSupport(dlss && dlss->Available(), problem.c_str());
+        RatchetSettings::ConfigureDlssSupport(dlss && dlss->Available(), problem.c_str());
     }
     // Available unless SPARTAN_UPSCALER=none; on/off and the parameters are the menu's settings.
     const char* env = std::getenv("SPARTAN_UPSCALER");
@@ -213,7 +213,7 @@ TemporalUpscaler::TemporalUpscaler(const Instance& instance_, Scheduler& schedul
     if (enabled) {
         std::printf("Upscaler: FSR 3.1 available (%s) on scene color before compute shader "
                     "%016llx\n",
-                    SpartanSettings::Get().upscaler != SpartanSettings::UpscalerOff ? "on" : "off",
+                    RatchetSettings::Get().upscaler != RatchetSettings::UpscalerOff ? "on" : "off",
                     static_cast<unsigned long long>(trigger_hash));
     }
 }
@@ -229,17 +229,17 @@ TemporalUpscaler::~TemporalUpscaler() {
 bool TemporalUpscaler::Active() const {
     // Toggle 1 << 24 switches it off at run time (A/B); history restarts after.
     return enabled && !failed &&
-           (SpartanSettings::Get().upscaler == SpartanSettings::UpscalerFsr3 ||
-            SpartanSettings::IsFsr4(SpartanSettings::Get().upscaler) ||
-            SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa ||
-            SpartanSettings::Get().upscaler == SpartanSettings::UpscalerDlss) &&
+           (RatchetSettings::Get().upscaler == RatchetSettings::UpscalerFsr3 ||
+            RatchetSettings::IsFsr4(RatchetSettings::Get().upscaler) ||
+            RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa ||
+            RatchetSettings::Get().upscaler == RatchetSettings::UpscalerDlss) &&
            !SpartanToggle::Disabled(1u << 24);
 }
 
 bool TemporalUpscaler::ReactiveOn() const {
     // FSR 4 takes no reactive mask: the opaque snapshot and the mask pass would be wasted.
-    return SpartanSettings::Get().reactive && !SpartanToggle::Disabled(1u << 27) && !UseFsr4() && !UseDlss() &&
-           SpartanSettings::Get().upscaler != SpartanSettings::UpscalerTaa;
+    return RatchetSettings::Get().reactive && !SpartanToggle::Disabled(1u << 27) && !UseFsr4() && !UseDlss() &&
+           RatchetSettings::Get().upscaler != RatchetSettings::UpscalerTaa;
 }
 
 void TemporalUpscaler::OnSceneColor(VideoCore::ImageId color) {
@@ -276,31 +276,31 @@ bool TemporalUpscaler::OnFrameStart() {
             int provider = -1;
             const int fields = std::fscanf(f, "%d %d %d", &value, &output, &provider);
             if (fields >= 1 && value >= 0 &&
-                value < SpartanSettings::PresetCount) {
-                SpartanSettings::Get().preset.store(value);
+                value < RatchetSettings::PresetCount) {
+                RatchetSettings::Get().preset.store(value);
             }
-            if (fields >= 2 && output >= 0 && output < SpartanSettings::OutputCount) {
-                SpartanSettings::Get().output_res.store(output);
+            if (fields >= 2 && output >= 0 && output < RatchetSettings::OutputCount) {
+                RatchetSettings::Get().output_res.store(output);
             }
-            if (fields == 3 && provider >= 0 && provider < SpartanSettings::UpscalerCount) {
-                SpartanSettings::Get().upscaler.store(provider);
+            if (fields == 3 && provider >= 0 && provider < RatchetSettings::UpscalerCount) {
+                RatchetSettings::Get().upscaler.store(provider);
             }
             std::fclose(f);
         }
     }
-    const auto& settings = SpartanSettings::Get();
+    const auto& settings = RatchetSettings::Get();
     // The guest's startup resolution patch remains in effect until restart. Keep the FSR
     // model at the applied preset while the menu saves the requested one for run.sh.
-    const int preset = SpartanSettings::RenderPreset();
-    if (applied_preset != preset || settings.upscaler == SpartanSettings::UpscalerOff) failed = false;
+    const int preset = RatchetSettings::RenderPreset();
+    if (applied_preset != preset || settings.upscaler == RatchetSettings::UpscalerOff) failed = false;
     const bool active = Active();
     const bool jitter_on = active && settings.jitter && !SpartanToggle::Disabled(1u << 25);
     const int upscaler = settings.upscaler.load();
     const int output = settings.output_res.load();
     const bool output_changed = !scaled_session && applied_output != output;
     if (output_changed) {
-        target_width = SpartanSettings::OutputWidths[output];
-        target_height = SpartanSettings::OutputHeights[output];
+        target_width = RatchetSettings::OutputWidths[output];
+        target_height = RatchetSettings::OutputHeights[output];
         std::printf("Output resolution: %ux%u (live)\n", target_width, target_height);
         failed = false;
         fsr4_failed = false;
@@ -311,7 +311,7 @@ bool TemporalUpscaler::OnFrameStart() {
         // A failed provider keeps a fatal flag internally; a user retry gets a fresh context.
         scheduler.Finish();
         fsr4 = std::make_unique<Fsr4Upscaler>(instance, scheduler);
-        if (SpartanSettings::IsFsr4(upscaler)) SpartanSettings::Get().fsr4_problem = nullptr;
+        if (RatchetSettings::IsFsr4(upscaler)) RatchetSettings::Get().fsr4_problem = nullptr;
     }
     if (applied_upscaler != upscaler) fsr4_failed = false; // retry after a menu change
     // Dynamic scene resolution scaling (live preset switching) works on all GPUs.
@@ -322,8 +322,8 @@ bool TemporalUpscaler::OnFrameStart() {
         render_width = scene_targets.Size().width;
         render_height = scene_targets.Size().height;
     }
-    SpartanSettings::Get().active_render_width = Scaled() ? render_width : scene_targets.Size().width;
-    SpartanSettings::Get().active_render_height = Scaled() ? render_height : scene_targets.Size().height;
+    RatchetSettings::Get().active_render_width = Scaled() ? render_width : scene_targets.Size().width;
+    RatchetSettings::Get().active_render_height = Scaled() ? render_height : scene_targets.Size().height;
     if (changed || !dispatched_last_frame) reset = true;
     if (changed) jitter_index = 0;
     applied_preset = preset;
@@ -372,7 +372,7 @@ void TemporalUpscaler::OnDispatch(u64 cs_hash) {
 bool TemporalUpscaler::EnsureResources(u32 w, u32 h, u32 ow, u32 oh, bool hdr) {
     // DLSS, like FSR 4, has its own context: no portable FSR 3 context is made.
     const bool use_fsr4 = UseFsr4() || UseDlss();
-    const bool use_taa = SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa;
+    const bool use_taa = RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa;
     if (use_taa && (w != ow || h != oh)) {
         std::printf("TAA: remove SPARTAN_RENDER_RES to use native-resolution TAA\n");
         return false;
@@ -701,7 +701,7 @@ void TemporalUpscaler::RecordTaa(vk::CommandBuffer cmdbuf, vk::ImageView color,
     cmdbuf.pushConstants(*taa_pipeline_layout, vk::ShaderStageFlagBits::eCompute, 0,
                          sizeof(params), &params);
     cmdbuf.dispatch((out_width + 7) / 8, (out_height + 7) / 8, 1);
-    const auto& settings = SpartanSettings::Get();
+    const auto& settings = RatchetSettings::Get();
     const float strength = std::clamp(settings.sharpness.load(), 0.0f, 2.0f);
     if (settings.sharpen && strength > 0.0f && !(params.pad & 0xffu)) {
         const vk::MemoryBarrier2 resolved{
@@ -730,7 +730,7 @@ void TemporalUpscaler::RecordTaa(vk::CommandBuffer cmdbuf, vk::ImageView color,
 
 void TemporalUpscaler::ExtraSharpen(vk::CommandBuffer cmdbuf, vk::Image target, bool ldr, u32 w,
                                     u32 h) {
-    const auto& settings = SpartanSettings::Get();
+    const auto& settings = RatchetSettings::Get();
     const float extra = std::clamp(settings.sharpness.load(), 0.0f, 2.0f) - 1.0f;
     if (!settings.sharpen || extra <= 0.0f) {
         return;
@@ -938,7 +938,7 @@ bool TemporalUpscaler::RecordReactive(vk::ImageView color_view) {
     const u32 w = width, h = height;
     // Relative color change times the scale (default 1), zero below the threshold (0.2), at
     // most the maximum (0.9, never fully reactive) — the defaults of AMD's mask generator.
-    const auto& settings = SpartanSettings::Get();
+    const auto& settings = RatchetSettings::Get();
     const std::array<float, 3> params{settings.reactive_scale, settings.reactive_max,
                                       settings.reactive_threshold};
     scheduler.Record([=](vk::CommandBuffer cmdbuf) {
@@ -996,7 +996,7 @@ bool TemporalUpscaler::RecordReactive(vk::ImageView color_view) {
 
 void TemporalUpscaler::Run() {
     if (auto* profiler = GpuProfiler::Get()) {
-        const char* label = SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa
+        const char* label = RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa
             ? "upscaler Run (TAA)" : "upscaler Run (FSR)";
         profiler->Mark(0xF5A0'0000ull ^ std::hash<std::string_view>{}(label),
                        [label] { return std::string{label}; });
@@ -1083,7 +1083,7 @@ void TemporalUpscaler::Run() {
     last_frame = now;
 
     bool dispatched = false;
-    if (SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa) {
+    if (RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa) {
         RecordTaa(cmdbuf, input_color_view, input_depth_view);
         dispatched = true;
     } else if (UseFsr4()) {
@@ -1139,8 +1139,8 @@ void TemporalUpscaler::Run() {
         info.viewSpaceToMeters = 1.0f;
         // RCAS strength 0..1 (menu, SPARTAN_FSR_SHARPNESS); jitter at 1:1 softens the image slightly.
         // AMD's RCAS ends at 1; ExtraSharpen adds the rest of the menu's 0..2.
-        info.sharpness = std::min(SpartanSettings::Get().sharpness.load(), 1.0f);
-        info.enableSharpening = SpartanSettings::Get().sharpen ? VK_TRUE : VK_FALSE;
+        info.sharpness = std::min(RatchetSettings::Get().sharpness.load(), 1.0f);
+        info.enableSharpening = RatchetSettings::Get().sharpen ? VK_TRUE : VK_FALSE;
         info.reset = reset ? VK_TRUE : VK_FALSE;
         info.frameId = frame_id++;
     
@@ -1167,7 +1167,7 @@ void TemporalUpscaler::Run() {
     if (dispatched) {
         reset = false;
         dispatched_last_frame = true;
-        if (SpartanSettings::Get().upscaler != SpartanSettings::UpscalerTaa) {
+        if (RatchetSettings::Get().upscaler != RatchetSettings::UpscalerTaa) {
             ExtraSharpen(cmdbuf, vk::Image(output_image), false, ow, oh);
         }
         // The result replaces the scene color's RGB (its alpha carries data for the post).
@@ -1214,11 +1214,11 @@ void TemporalUpscaler::Run() {
         }};
         // Debug (menu or toggle 1 << 28): the reactive mask in red over a darkened frame;
         // or the motion vectors (menu).
-        const int debug_view = SpartanSettings::Get().debug_view;
-        const u32 mode = has_reactive && (debug_view == SpartanSettings::DebugReactive ||
+        const int debug_view = RatchetSettings::Get().debug_view;
+        const u32 mode = has_reactive && (debug_view == RatchetSettings::DebugReactive ||
                                           SpartanToggle::Disabled(1u << 28))
                              ? 1
-                         : debug_view == SpartanSettings::DebugMotion ? 2
+                         : debug_view == RatchetSettings::DebugMotion ? 2
                                                                  : 0;
         cmdbuf.bindPipeline(vk::PipelineBindPoint::eCompute, *merge_pipeline);
         cmdbuf.pushDescriptorSetKHR(vk::PipelineBindPoint::eCompute, *merge_pipeline_layout, 0,
@@ -1278,8 +1278,8 @@ std::array<u32, 2> TemporalUpscaler::SceneSize(u32 w, u32 h) const {
 }
 
 float TemporalUpscaler::SceneMipBias() const {
-    if (!Active() || SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa) return 0.0f;
-    const float render = float(SpartanSettings::Get().active_render_width.load());
+    if (!Active() || RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa) return 0.0f;
+    const float render = float(RatchetSettings::Get().active_render_width.load());
     const float output = float(Scaled() ? target_width : 1920u);
     return render > 0.0f && render < output ? std::log2(render / output) : 0.0f;
 }
@@ -1527,7 +1527,7 @@ void TemporalUpscaler::RunUiOnly(VideoCore::ImageId color_id, VideoCore::ImageId
 
 void TemporalUpscaler::RunScaled() {
     if (auto* profiler = GpuProfiler::Get()) {
-        const char* label = SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa
+        const char* label = RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa
             ? "upscaler RunScaled (TAA)" : "upscaler RunScaled (FSR)";
         profiler->Mark(0xF5A0'0000ull ^ std::hash<std::string_view>{}(label),
                        [label] { return std::string{label}; });
@@ -1615,12 +1615,12 @@ void TemporalUpscaler::RunScaled() {
     last_frame = now;
 
     // spartanport: FSR 4 writes its HDR-format output, copied into the output-size UI image.
-    if (UseFsr4() || UseDlss() || SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa) {
+    if (UseFsr4() || UseDlss() || RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa) {
         barrier(vk::Image(output_image), vk::ImageAspectFlagBits::eColor,
                 vk::ImageLayout::eUndefined, all, vk::AccessFlagBits2::eNone,
                 vk::ImageLayout::eGeneral, all, rw);
         bool ok4 = true;
-        if (SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa) {
+        if (RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa) {
             RecordTaa(cmdbuf, color_view, depth_view);
         } else if (UseDlss()) {
             ok4 = RecordDlss(cmdbuf,
@@ -1635,7 +1635,7 @@ void TemporalUpscaler::RunScaled() {
                             oh, frame_ms);
         }
         if (ok4) {
-            if (SpartanSettings::Get().upscaler != SpartanSettings::UpscalerTaa) {
+            if (RatchetSettings::Get().upscaler != RatchetSettings::UpscalerTaa) {
                 ExtraSharpen(cmdbuf, vk::Image(output_image), false, ow, oh);
             }
             barrier(vk::Image(output_image), vk::ImageAspectFlagBits::eColor,
@@ -1669,7 +1669,7 @@ void TemporalUpscaler::RunScaled() {
                 DumpImages(instance, scheduler, cmdbuf, dump,
                            {{depth_image, source_width, source_height, 4, "depth", "f32",
                              vk::ImageAspectFlagBits::eDepth}});
-                if (SpartanSettings::Get().upscaler == SpartanSettings::UpscalerTaa &&
+                if (RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa &&
                     std::getenv("SPARTAN_TAA_DIAGNOSTICS")) {
                     DumpImages(instance, scheduler, cmdbuf, dump,
                                {{vk::Image(taa_history[taa_next]),ow,oh,16,
@@ -1693,7 +1693,7 @@ void TemporalUpscaler::RunScaled() {
         return;
     }
 
-    const auto& settings = SpartanSettings::Get();
+    const auto& settings = RatchetSettings::Get();
     FfxVkPortableUpscaleDispatchInfo info{};
     info.structSize = sizeof(info);
     info.commandBuffer = cmdbuf;
@@ -1925,17 +1925,17 @@ bool TemporalUpscaler::DisplayOverride(VAddr address, Display& display) {
 namespace Vulkan {
 
 bool TemporalUpscaler::UseFsr4() const {
-    const int selected = SpartanSettings::Get().upscaler;
-    const bool supported = selected == SpartanSettings::UpscalerFsr411
+    const int selected = RatchetSettings::Get().upscaler;
+    const bool supported = selected == RatchetSettings::UpscalerFsr411
                                ? instance.IsFsr411Supported()
                                : instance.IsFsr4Int8Supported();
-    return SpartanSettings::IsFsr4(selected) && supported && !fsr4_failed;
+    return RatchetSettings::IsFsr4(selected) && supported && !fsr4_failed;
 }
 
 bool TemporalUpscaler::RecordFsr4(vk::CommandBuffer cmdbuf, Fsr4Upscaler::Image color,
                                   Fsr4Upscaler::Image depth, u32 w, u32 h, u32 ow, u32 oh,
                                   float frame_ms) {
-    const auto& settings = SpartanSettings::Get();
+    const auto& settings = RatchetSettings::Get();
     // Same jitter convention as FSR 3; the menu (or toggle 1 << 26) flips it for tests.
     const float sign =
         SpartanToggle::Disabled(1u << 26) != settings.fsr4_invert_jitter.load() ? -1.0f : 1.0f;
@@ -1962,18 +1962,18 @@ bool TemporalUpscaler::RecordFsr4(vk::CommandBuffer cmdbuf, Fsr4Upscaler::Image 
     static std::string shown;
     const char* problem = fsr4->Problem();
     if (!problem) {
-        SpartanSettings::Get().fsr4_problem = nullptr;
+        RatchetSettings::Get().fsr4_problem = nullptr;
     } else if (shown != problem) {
         shown = problem;
         static std::array<std::string, 8> kept;
         static u32 next = 0;
         kept[next] = shown;
-        SpartanSettings::Get().fsr4_problem = kept[next].c_str();
+        RatchetSettings::Get().fsr4_problem = kept[next].c_str();
         next = (next + 1) % kept.size();
     }
     if (!ok && fsr4->Fatal()) {
         std::printf("Upscaler: falling back to FSR 3.1\n");
-        SpartanSettings::Get().upscaler = SpartanSettings::UpscalerFsr3;
+        RatchetSettings::Get().upscaler = RatchetSettings::UpscalerFsr3;
         fsr4_failed = true; // EnsureResources creates the FSR 3 context next frame
         reset = true;
     }
@@ -1982,7 +1982,7 @@ bool TemporalUpscaler::RecordFsr4(vk::CommandBuffer cmdbuf, Fsr4Upscaler::Image 
 
 bool TemporalUpscaler::UseDlss() const {
     const Dlss* dlss = Dlss::Get();
-    return SpartanSettings::Get().upscaler == SpartanSettings::UpscalerDlss && dlss && dlss->Available() &&
+    return RatchetSettings::Get().upscaler == RatchetSettings::UpscalerDlss && dlss && dlss->Available() &&
            !dlss_failed;
 }
 
@@ -2002,7 +2002,7 @@ bool TemporalUpscaler::RecordDlss(vk::CommandBuffer cmdbuf, const Dlss::Resource
     if (ok) {
         // The jitter and motion vectors FSR 3 gets: render pixels, current to previous.
         const float sign = SpartanToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
-        const auto& settings = SpartanSettings::Get();
+        const auto& settings = RatchetSettings::Get();
         ok = dlss->Evaluate(cmdbuf, {
             .color = color,
             .depth = depth,
@@ -2019,7 +2019,7 @@ bool TemporalUpscaler::RecordDlss(vk::CommandBuffer cmdbuf, const Dlss::Resource
     }
     if (!ok) {
         std::printf("Upscaler: DLSS failed; falling back to FSR 3.1\n");
-        SpartanSettings::Get().upscaler = SpartanSettings::UpscalerFsr3;
+        RatchetSettings::Get().upscaler = RatchetSettings::UpscalerFsr3;
         dlss_failed = true; // EnsureResources creates the FSR 3 context next frame
         reset = true;
     }

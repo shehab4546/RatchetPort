@@ -14,7 +14,7 @@
 #include "actor_hook.h"
 #include "damage_hook.h"
 #include "menu_hook.h"
-#include "gpu/spartanportgpu.h"
+#include "gpu/ratchetgpu.h"
 #if !defined(__x86_64__) || !defined(__GNUC__)
 #error This prototype requires x86-64 GCC or Clang (including MinGW).
 #endif
@@ -49,7 +49,7 @@ static unsigned cpu_missing_sets; /* CPU_SET_* the host lacks; the guest code ne
 static IsaTable *isa_table; /* rewritten sites (--isa-rewrite); the fault handlers and the report read it */
 static void loader_report_hook(void) {
     if (isa_table) isa_rewrite_report(isa_table, stdout);
-    if (gpu_enabled) printf("GPU: copy waits yielded %llu times\n", spartanportgpu_copy_yields());
+    if (gpu_enabled) printf("GPU: copy waits yielded %llu times\n", ratchetgpu_copy_yields());
 }
 int vulkan_smoke(void);
 
@@ -605,7 +605,7 @@ static LONG fatal_exception(EXCEPTION_POINTERS *info) {
             }
         }
     }
-    if (gpu_enabled) spartanportgpu_dump_guest_writes(info);
+    if (gpu_enabled) ratchetgpu_dump_guest_writes(info);
     /* rbp chain (guest and host code keep frame pointers). */
     uintptr_t rbp=(uintptr_t)c->Rbp;
     for (int depth=0; depth<24 && rbp; ++depth) {
@@ -644,7 +644,7 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
     }
     if (code==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         /* GPU page tracking (write-protected guest pages) is resolved first. */
-        if (gpu_enabled && spartanportgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
+        if (gpu_enabled && ratchetgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
         if (runtime_fault_recover) {
             /* A speculative guest memory read (GPU draw preparation) faulted: the thread resumes
              * in spartanport_longjmp, outside the exception dispatcher, back at its recovery point. */
@@ -710,7 +710,7 @@ static void fault(int sig, siginfo_t *info, void *context) {
         }
     }
     /* GPU page tracking (write-protected guest pages) is resolved first. */
-    if (gpu_enabled && sig == SIGSEGV && spartanportgpu_handle_fault(context, info->si_addr)) return;
+    if (gpu_enabled && sig == SIGSEGV && ratchetgpu_handle_fault(context, info->si_addr)) return;
     /* A speculative guest memory read (runtime_memory.c) failed: resume its recovery point. */
     if ((sig == SIGSEGV || sig == SIGBUS) && runtime_fault_recover) {
         sigjmp_buf *recover = runtime_fault_recover;
@@ -740,7 +740,7 @@ static void fault(int sig, siginfo_t *info, void *context) {
     else
         snprintf(line, sizeof(line), "Fault (signal %d) at RIP %p, address %p\n", sig, (void *)rip, info->si_addr);
     { ssize_t written_=write(2, line, strlen(line)); (void)written_; }
-    if (gpu_enabled) spartanportgpu_dump_guest_writes(context);
+    if (gpu_enabled) ratchetgpu_dump_guest_writes(context);
     /* Host call chain (frames with unwind info; guest frames end it). */
     void *frames[32];
     int depth = backtrace(frames, 32);
@@ -1333,7 +1333,7 @@ int main(int argc, char **argv) {
         if (sfo_value(sfo,"INSTALL_DIR_SAVEDATA",id,sizeof(id),NULL) || sfo_value(sfo,"TITLE_ID",id,sizeof(id),NULL))
             runtime_savedata_configure(id);
     }
-    spartanportgpu_register_kernel();
+    ratchetgpu_register_kernel();
 #ifdef _WIN32
     SYSTEM_INFO system_info; GetSystemInfo(&system_info); page_size = system_info.dwPageSize;
     AddVectoredExceptionHandler(1, vectored_fault);
@@ -1480,10 +1480,10 @@ int main(int argc, char **argv) {
         sfo_value(sfo,"ATTRIBUTE",NULL,0,&attributes);
         uint64_t sdk=0;
         if (procparam) memcpy(&sdk,image+procparam+16,8); /* procparam: size, magic, count, sdk_version */
-        SpartanGpuConfig gpu={title,serial,user_dir ? user_dir : "user",(uint32_t)sdk,attributes,1920,1080};
+        RatchetGpuConfig gpu={title,serial,user_dir ? user_dir : "user",(uint32_t)sdk,attributes,1920,1080};
         gpu_enabled=1; /* page tracking starts while the rasterizer registers guest memory */
-        if (spartanportgpu_init(&gpu)) fail("GPU initialization failed");
-        printf("GPU: window and Vulkan presenter ready; SDK 0x%08x, %u HLE symbols\n",(unsigned)sdk,spartanportgpu_symbol_count());
+        if (ratchetgpu_init(&gpu)) fail("GPU initialization failed");
+        printf("GPU: window and Vulkan presenter ready; SDK 0x%08x, %u HLE symbols\n",(unsigned)sdk,ratchetgpu_symbol_count());
     }
     unsigned char *traps = allocate(round_page((import_count + 1) * 32));
     unsigned char *data_traps = allocate((import_count + 1) * page_size);

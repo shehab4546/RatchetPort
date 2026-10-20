@@ -9,14 +9,14 @@
 static int capture;
 static int vibration_percent=100;
 static uint16_t rumble_low, rumble_high;
-int spartanportgpu_overlay_captures_input(void) { return capture; }
-int spartanportgpu_vibration_percent(void) { return vibration_percent; }
+int ratchetgpu_overlay_captures_input(void) { return capture; }
+int ratchetgpu_vibration_percent(void) { return vibration_percent; }
 static int engine_fps_cycles;
-void spartanportgpu_engine_fps_cycle(void) { ++engine_fps_cycles; }
-int spartanportgpu_mouse_prompt_distance(void) { return 48; }
-void spartanportgpu_mouse_pause_key(void) {}
-int spartanportgpu_mouse_aim_style(void) { return 0; }
-int spartanportgpu_mouse_aim_sensitivity(void) { return 100; }
+void ratchetgpu_engine_fps_cycle(void) { ++engine_fps_cycles; }
+int ratchetgpu_mouse_prompt_distance(void) { return 48; }
+void ratchetgpu_mouse_pause_key(void) {}
+int ratchetgpu_mouse_aim_style(void) { return 0; }
+int ratchetgpu_mouse_aim_sensitivity(void) { return 100; }
 
 static bool SDLCALL record_rumble(void *userdata, uint16_t low, uint16_t high) {
     (void)userdata;

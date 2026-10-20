@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "spartanport_write_log.h"
+#include "ratchet_write_log.h"
 
 #include <array>
 #include <atomic>
@@ -15,7 +15,7 @@
 #endif
 #include <x86intrin.h>
 
-namespace SpartanWriteLog {
+namespace RatchetWriteLog {
 namespace {
 struct Entry {
     std::uint64_t address, size, first, tsc;
@@ -82,10 +82,10 @@ void Record(std::uint64_t address, const void* data, std::uint64_t size, Source 
         }
     }
 }
-} // namespace SpartanWriteLog
+} // namespace RatchetWriteLog
 
-extern "C" void spartanportgpu_dump_guest_writes(void* ucontext) {
-    using namespace SpartanWriteLog;
+extern "C" void ratchetgpu_dump_guest_writes(void* ucontext) {
+    using namespace RatchetWriteLog;
     if (Mode() == 0) {
         return;
     }

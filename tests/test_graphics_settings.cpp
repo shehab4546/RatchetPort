@@ -1,14 +1,14 @@
-// spartanport.ini graphics keys (spartanport_settings.cpp, spartanport_graphics.h).
+// spartanport.ini graphics keys (ratchet_settings.cpp, ratchet_graphics.h).
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
 #include <string>
-#include "spartanport_graphics.h"
-#include "spartanport_settings.h"
+#include "ratchet_graphics.h"
+#include "ratchet_settings.h"
 
-namespace G = SpartanGraphics;
+namespace G = RatchetGraphics;
 
 static std::string Read(const char* path) {
     std::ifstream in(path);
@@ -61,31 +61,31 @@ int main() {
     }
     _putenv_s("SPARTAN_CONFIG", path);
     _putenv_s("SPARTAN_ASYNC_SHADERS", "");
-    auto& v = SpartanSettings::Get();
-    SpartanSettings::Load();
+    auto& v = RatchetSettings::Get();
+    RatchetSettings::Load();
     assert(v.display_mode == G::Borderless && !v.vsync && v.fps_limit == 240 && !v.async_shaders);
     assert(v.render_resolution == 4 && v.engine_fps == 240 && !v.deferred_readback && v.stale_readback);
     // FSR 1 left the menus in 2.2.0: a saved fsr1=1 (or SPARTAN_FSR1) no longer turns it on.
     assert(!v.fsr1 && !v.rcas && v.rcas_strength == 40 && v.frames_queued == 2);
     _putenv_s("SPARTAN_FSR1", "1");
-    SpartanSettings::Load();
+    RatchetSettings::Load();
     assert(!v.fsr1);
     _putenv_s("SPARTAN_FSR1", "");
-    assert(!SpartanSettings::GraphicsNeedRestart());
+    assert(!RatchetSettings::GraphicsNeedRestart());
     assert(v.applied_engine_fps == 240);  // no SPARTAN_ENGINE_FPS: the configured rate
     _putenv_s("SPARTAN_ENGINE_FPS", "60");    // run.py: the frame rate patch did not apply
-    SpartanSettings::Load();
-    assert(v.engine_fps == 240 && v.applied_engine_fps == 60 && !SpartanSettings::GraphicsNeedRestart());
+    RatchetSettings::Load();
+    assert(v.engine_fps == 240 && v.applied_engine_fps == 60 && !RatchetSettings::GraphicsNeedRestart());
     _putenv_s("SPARTAN_ENGINE_FPS", "");
     v.render_resolution = 0;
-    assert(SpartanSettings::GraphicsNeedRestart());
+    assert(RatchetSettings::GraphicsNeedRestart());
     v.render_resolution = 4;
     v.fps_limit = 60;   // live: no restart because of them
     v.engine_fps = 120;
-    assert(!SpartanSettings::GraphicsNeedRestart());
+    assert(!RatchetSettings::GraphicsNeedRestart());
     v.engine_fps = 240;
 
-    SpartanSettings::Save();
+    RatchetSettings::Save();
     const std::string saved = Read(path);
     for (const char* line : {"display_mode=borderless\n", "vsync=0\n", "fps_limit=60\n", "async_shaders=0\n",
                              "render_resolution=1440p\n", "engine_fps=240\n", "deferred_readback=0\n",
@@ -98,9 +98,9 @@ int main() {
         std::ofstream out(path);
         out << "render_resolution=8K\n";
     }
-    SpartanSettings::Load();
+    RatchetSettings::Load();
     assert(v.render_resolution == G::ParseResolution("8K"));
-    SpartanSettings::Save();
+    RatchetSettings::Save();
     assert(Read(path).find("render_resolution=8K\n") != std::string::npos);
 
     {
@@ -113,12 +113,12 @@ int main() {
             std::ofstream out(path);
             out << "render_resolution=2880x1200\n";
         }
-        SpartanSettings::Load();
+        RatchetSettings::Load();
         assert(v.render_resolution == 24);
-        SpartanSettings::Save();
+        RatchetSettings::Save();
         assert(Read(path).find("render_resolution=2880x1200\n") != std::string::npos);
         _putenv_s("SPARTAN_EXTRA_RESOLUTIONS", "");  // the mod is off: its resolution is unknown, so native
-        SpartanSettings::Load();
+        RatchetSettings::Load();
         assert(v.render_resolution == 0 && G::ResolutionNames().size() == G::Resolutions.size());
     }
 
@@ -129,7 +129,7 @@ int main() {
     }
     _putenv_s("SPARTAN_ASYNC_SHADERS", "1");  // the environment still wins at start
     v.async_shaders = false;
-    SpartanSettings::Load();
+    RatchetSettings::Load();
     assert(v.display_mode == G::Windowed && v.fps_limit == 0 && v.render_resolution == 0 && v.engine_fps == 120);
     assert(v.rcas_strength == 75 && v.frames_queued == 1);
     assert(v.async_shaders);
@@ -137,8 +137,8 @@ int main() {
         std::ofstream out(path);
         out << "cheat_double_jumps=1\ncheat_very_hard=1\n";
     }
-    SpartanSettings::Load();
-    SpartanSettings::Save();
+    RatchetSettings::Load();
+    RatchetSettings::Save();
     const std::string cheats = Read(path);
     assert(cheats.find("cheat_double_jumps=1\n") != std::string::npos);
     assert(cheats.find("cheat_very_hard=1\n") != std::string::npos);

@@ -293,7 +293,7 @@ private:
     static void RunTextureTask(void* rasterizer);
     static void JoinBindHelper(void* rasterizer);
 
-    /// Display pass: counts the frame (SpartanStats::gpu_frames) and, with SPARTAN_BUFFER_STATS, the lag.
+    /// Display pass: counts the frame (RatchetStats::gpu_frames) and, with SPARTAN_BUFFER_STATS, the lag.
     void NoteFrameStart();
     /// Without an upscaler: the display buffer of the last NoteFrameStart (HUD draws go there too).
     VAddr last_display_buffer = 0;

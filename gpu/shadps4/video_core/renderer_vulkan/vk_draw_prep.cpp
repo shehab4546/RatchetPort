@@ -7,8 +7,8 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "spartanport_threads.h"
-#include "spartanport_toggles.h"
+#include "ratchet_threads.h"
+#include "ratchet_toggles.h"
 #include "common/thread.h"
 #include "video_core/amdgpu/liverpool.h"
 #include "video_core/amdgpu/pm4_cmds.h"

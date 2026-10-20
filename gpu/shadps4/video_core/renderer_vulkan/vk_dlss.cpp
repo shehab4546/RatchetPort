@@ -17,7 +17,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#include "../../../dlss_bridge/spartanport_dlss_bridge.h"
+#include "../../../dlss_bridge/ratchet_dlss_bridge.h"
 #endif
 
 namespace Vulkan {
@@ -30,7 +30,7 @@ int Dlss::QualityForScale(float scale) {
 #ifdef _WIN32
 
 namespace {
-constexpr wchar_t BridgeName[] = L"spartanport_dlss.dll";
+constexpr wchar_t BridgeName[] = L"ratchet_dlss.dll";
 constexpr wchar_t NgxName[] = L"nvngx_dlss.dll";
 
 std::filesystem::path ExecutableDirectory() {
@@ -115,7 +115,7 @@ Dlss::Dlss() : impl{std::make_unique<Impl>()} {
                      : nullptr;
     impl->api = get_api ? get_api() : nullptr;
     if (!impl->api || impl->api->abi != SPARTAN_DLSS_BRIDGE_ABI) {
-        impl->Disable("spartanport_dlss.dll is missing or from another version");
+        impl->Disable("ratchet_dlss.dll is missing or from another version");
         return;
     }
     // NGX writes its logs and model updates here: beside the saves and shader caches.

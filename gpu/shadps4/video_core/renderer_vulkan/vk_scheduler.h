@@ -18,7 +18,7 @@
 #include <thread>
 #include <queue>
 
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "common/assert.h"
 #include "common/interval_set.h"
 #include "common/unique_function.h"
@@ -844,7 +844,7 @@ public:
     void SyncRecording();
 
     /// spartanport: guest memory copies on the recording thread (small ones, RecordHostCopy) or the
-    /// copy threads (SpartanCopy::Async) must be done before the guest learns the GPU is past them
+    /// copy threads (RatchetCopy::Async) must be done before the guest learns the GPU is past them
     /// (it may then rewrite the memory, e.g. UI vertices: flickering) and before the
     /// submission that reads them. Waits for all.
     void WaitHostCopies();
@@ -862,7 +862,7 @@ public:
 
     /// spartanport: runs `signal` once the guest memory copies issued so far are done, without
     /// waiting here: the recording thread reaches it after the copies queued before it and hands
-    /// it to the copy threads' completion (SpartanCopy::AfterCopies).
+    /// it to the copy threads' completion (RatchetCopy::AfterCopies).
     void SignalAfterHostCopies(std::function<void()> signal);
 
     /// spartanport: before a guest-visible write that is not deferred (WriteData, end-of-shader

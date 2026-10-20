@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "spartanport_copy.h"
-#include "spartanport_threads.h"
+#include "ratchet_copy.h"
+#include "ratchet_threads.h"
 
 #include <algorithm>
 #include <atomic>
@@ -13,10 +13,10 @@
 #include <thread>
 #include <vector>
 
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "common/thread.h"
 
-namespace SpartanCopy {
+namespace RatchetCopy {
 namespace {
 
 thread_local bool in_copy_thread = false;
@@ -312,4 +312,4 @@ void ParallelFor(std::size_t count, const std::function<void(std::size_t)>& task
     GetPool().Run(count, task);
 }
 
-} // namespace SpartanCopy
+} // namespace RatchetCopy

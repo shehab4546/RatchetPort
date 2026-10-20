@@ -706,7 +706,7 @@ class GpuChoiceTest(unittest.TestCase):
         from unittest import mock
         with mock.patch.object(launcher, 'find_tool', return_value=None):
             self.assertEqual(launcher.list_gpus(), [])
-        with mock.patch.object(launcher, 'find_tool', return_value='spartanport-gpu-capabilities.exe'):
+        with mock.patch.object(launcher, 'find_tool', return_value='ratchet-gpu-capabilities.exe'):
             with mock.patch.object(launcher.subprocess, 'run', side_effect=subprocess.TimeoutExpired('x', 5)):
                 self.assertEqual(launcher.list_gpus(), [])
             with mock.patch.object(launcher.subprocess, 'run', side_effect=OSError):
@@ -756,7 +756,7 @@ class PadStyleTest(unittest.TestCase):
         self.assertEqual(list(launcher.PAD_STYLES), ['playstation', 'xbox', 'nintendo'])
 
     def test_connected_gamepad_skips_a_probe_without_its_dlls(self):
-        on_disk = lambda path: path.name in ('spartanport-probe.exe', 'spartanport-probe')  # no SDL3.dll anywhere
+        on_disk = lambda path: path.name in ('ratchet-probe.exe', 'ratchet-probe')  # no SDL3.dll anywhere
         with mock.patch.object(launcher, 'WINDOWS', True), \
                 mock.patch.object(launcher.Path, 'is_file', on_disk), \
                 mock.patch.object(launcher.subprocess, 'run') as run:

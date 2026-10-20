@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: numbers for the performance overlay (spartanport_overlay.cpp). A thread started once samples
+// spartanport: numbers for the performance overlay (ratchet_overlay.cpp). A thread started once samples
 // CPU, RAM, GPU use (Windows counters) and VRAM (VK_EXT_memory_budget) twice a second;
 // a value that cannot be measured stays negative and shows as "n/a".
 
@@ -14,9 +14,9 @@ namespace Vulkan {
 class Instance;
 }
 
-namespace SpartanPerfStats {
+namespace RatchetPerfStats {
 
-/// Overlay items (SpartanSettings::Values::overlay_items).
+/// Overlay items (RatchetSettings::Values::overlay_items).
 enum Item : unsigned {
     Fps = 1u << 0,
     FrameTime = 1u << 1,
@@ -109,4 +109,4 @@ void Start(const Vulkan::Instance& instance);
 /// The latest CPU, RAM, GPU and VRAM values (the caller fills FPS, frametime and upscaler).
 Sample Latest();
 
-} // namespace SpartanPerfStats
+} // namespace RatchetPerfStats

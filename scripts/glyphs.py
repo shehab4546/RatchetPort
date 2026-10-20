@@ -149,7 +149,7 @@ def glyph(host, style, faces=None):
 
 
 def parse_gamepad(output):
-    """(style, faces, name) from the line `spartanport-probe --gamepad` prints, None without a gamepad."""
+    """(style, faces, name) from the line `ratchet-probe --gamepad` prints, None without a gamepad."""
     for line in output.splitlines():
         if line.startswith('Gamepad: type='):
             fields, _, name = line[len('Gamepad: '):].partition(' name=')

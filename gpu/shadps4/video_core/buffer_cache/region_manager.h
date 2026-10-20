@@ -7,7 +7,7 @@
 #include <chrono>
 #include <cstdlib>
 
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "common/div_ceil.h"
 #include "common/logging/log.h"
 #include "core/emulator_settings.h"
@@ -242,7 +242,7 @@ private:
             if (writeable.Get(page)) {
                 continue; // not protected: no fault
             }
-            SpartanStats::tracker_faults.fetch_add(1, std::memory_order_relaxed);
+            RatchetStats::tracker_faults.fetch_add(1, std::memory_order_relaxed);
             if (!hot_enabled) {
                 continue;
             }
@@ -256,7 +256,7 @@ private:
                 }
                 hot.Set(page);
                 ++num_hot;
-                SpartanStats::hot_pages.fetch_add(1, std::memory_order_relaxed);
+                RatchetStats::hot_pages.fetch_add(1, std::memory_order_relaxed);
             }
         }
     }
@@ -268,7 +268,7 @@ private:
         if (!HotPagesEnabled() ||
             std::chrono::steady_clock::now() - hot_since > HotPeriod) {
             // Re-protect them (on this upload) and start counting again.
-            SpartanStats::hot_pages.fetch_sub(num_hot, std::memory_order_relaxed);
+            RatchetStats::hot_pages.fetch_sub(num_hot, std::memory_order_relaxed);
             hot.Clear();
             write_faults.fill(0);
             num_hot = 0;

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Startup graphics options of spartanport.ini (gpu/shim/spartanport_graphics.h) for run.py.
+"""Startup graphics options of spartanport.ini (gpu/shim/ratchet_graphics.h) for run.py.
 
 The in-game menu and the launcher write them; run.py turns them into game patches and
 environment variables at every start, so "Apply and restart" uses the new values. After a
@@ -176,7 +176,7 @@ def patch_names(names, options, texture_fix_available=True):
         names = [n for n in names if n != TEXTURE_FIX] + [f'{RESOLUTION_PREFIX} - {resolution}']
     elif texture_fix_available and TEXTURE_FIX not in names:
         names.insert(0, TEXTURE_FIX)
-    # The engine rate is chosen live (spartanport_settings.cpp SyncEngineFps): the highest patch gives
+    # The engine rate is chosen live (ratchet_settings.cpp SyncEngineFps): the highest patch gives
     # the swing energy fix and a vblank every lower rate fits in.
     names.append(f'{FPS_PREFIX} - {max(ENGINE_FPS)} FPS')
     return names

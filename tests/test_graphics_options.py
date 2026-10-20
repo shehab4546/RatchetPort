@@ -218,7 +218,7 @@ class GraphicsOptionsTest(unittest.TestCase):
         self.assertIn(100, g.ENGINE_FPS)
         options = g.startup_options({'render_resolution': 'native', 'engine_fps': '100'})
         self.assertEqual(options['engine_fps'], '100')
-        # 100 is written live over the 240 FPS patch (spartanport_settings.cpp SyncEngineFps).
+        # 100 is written live over the 240 FPS patch (ratchet_settings.cpp SyncEngineFps).
         self.assertEqual(g.patch_names(['Bug Fix - Texture Corruption Fix'], options),
                          ['Bug Fix - Texture Corruption Fix', 'Frame Rate Patch - 240 FPS'])
         self.assertEqual(g.startup_options({'engine_fps': '90'})['engine_fps'], '120')  # not a choice: the default
@@ -274,8 +274,8 @@ class GraphicsOptionsTest(unittest.TestCase):
 
 class WindowSizeTest(unittest.TestCase):
     def test_the_game_knows_the_launcher_sizes(self):
-        """gpu/shim/spartanport_graphics.h ResolutionSizes, which sizes the window, matches SIZES."""
-        header = (paths.ROOT / 'gpu' / 'shim' / 'spartanport_graphics.h').read_text(encoding='utf-8')
+        """gpu/shim/ratchet_graphics.h ResolutionSizes, which sizes the window, matches SIZES."""
+        header = (paths.ROOT / 'gpu' / 'shim' / 'ratchet_graphics.h').read_text(encoding='utf-8')
         found = {name: (int(w), int(h)) for name, w, h in re.findall(r'\{"(\w+)", \{(\d+), (\d+)\}\}', header)}
         self.assertEqual(found, g.SIZES)
 

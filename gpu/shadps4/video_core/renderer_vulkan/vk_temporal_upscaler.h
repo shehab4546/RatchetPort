@@ -166,7 +166,7 @@ private:
     bool RecordReactive(vk::ImageView color_view);
     /// FSR 4 is selected, possible in this session (not SPARTAN_RENDER_RES) and has not failed.
     [[nodiscard]] bool UseFsr4() const;
-    /// spartanport: DLSS selected and the bridge is ready (NVIDIA RTX, spartanport_dlss.dll).
+    /// spartanport: DLSS selected and the bridge is ready (NVIDIA RTX, ratchet_dlss.dll).
     [[nodiscard]] bool UseDlss() const;
     /// Records DLSS into `cmdbuf` (output in General). `hdr`: linear scene color input.
     bool RecordDlss(vk::CommandBuffer cmdbuf, const Dlss::Resource& color,

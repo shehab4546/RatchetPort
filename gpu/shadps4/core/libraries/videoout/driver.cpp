@@ -15,9 +15,9 @@
 #include <sys/resource.h>
 #endif
 #include "common/assert.h"
-#include "spartanport_toggles.h"
-#include "spartanport_settings.h"
-#include "spartanport_graphics.h"
+#include "ratchet_toggles.h"
+#include "ratchet_settings.h"
+#include "ratchet_graphics.h"
 #include "video_core/renderer_vulkan/vk_frame_capture.h"
 #include "common/debug.h"
 #include "common/thread.h"
@@ -327,15 +327,15 @@ void VideoOutDriver::Flip(const Request& req) {
         // Stall diagnostics: what happened during a long frame.
         static u64 last_gpu_ns, last_images, last_image_bytes, last_buffer_bytes;
         static u64 last_t[6], last_minflt, last_sigf, last_pc, last_pp, last_rc, last_rp;
-        const u64 pc = SpartanStats::protect_calls.load(), pp = SpartanStats::protect_pages.load(),
-                  rc = SpartanStats::protect_revoke_calls.load(), rp = SpartanStats::protect_revoke_pages.load();
-        const u64 minflt = SpartanStats::gpu_minor_faults.load(), sigf = SpartanStats::gpu_signal_faults.load();
+        const u64 pc = RatchetStats::protect_calls.load(), pp = RatchetStats::protect_pages.load(),
+                  rc = RatchetStats::protect_revoke_calls.load(), rp = RatchetStats::protect_revoke_pages.load();
+        const u64 minflt = RatchetStats::gpu_minor_faults.load(), sigf = RatchetStats::gpu_signal_faults.load();
         static u64 last_copy_cpu, last_copy_sys, last_copy_flt;
-        const u64 copy_cpu = SpartanStats::t_copy_cpu.load(), copy_sys = SpartanStats::copy_sys_us.load(),
-                  copy_flt = SpartanStats::copy_minflt.load();
+        const u64 copy_cpu = RatchetStats::t_copy_cpu.load(), copy_sys = RatchetStats::copy_sys_us.load(),
+                  copy_flt = RatchetStats::copy_minflt.load();
         static u64 last_proc_flt, last_copy_ns, last_copy_bytes, last_rf, last_trf, last_twf;
-        const u64 rf = SpartanStats::read_faults.load(), trf = SpartanStats::t_read_faults.load(),
-                  twf = SpartanStats::t_write_faults.load();
+        const u64 rf = RatchetStats::read_faults.load(), trf = RatchetStats::t_read_faults.load(),
+                  twf = RatchetStats::t_write_faults.load();
         // spartanport: every frame over 40 ms (SPARTAN_STALL_MS) after the first, at most 10 per 5 s window.
         static const double stall_ms = [] {
             const char* value = std::getenv("SPARTAN_STALL_MS");
@@ -349,10 +349,10 @@ void VideoOutDriver::Flip(const Request& req) {
         // Waits and work inside the long frame (window counters are reset every 5 s, so the
         // previous values are reset with them).
         static u64 last_wait[7];
-        const u64 wait_now[7] = {SpartanStats::t_readback_wait.load(), SpartanStats::tick_wait_ns.load(),
-                                 SpartanStats::sync_recording_ns.load(), SpartanStats::host_copies_wait_ns.load(),
+        const u64 wait_now[7] = {RatchetStats::t_readback_wait.load(), RatchetStats::tick_wait_ns.load(),
+                                 RatchetStats::sync_recording_ns.load(), RatchetStats::host_copies_wait_ns.load(),
                                  u64(Vulkan::g_spartanport_compile_ns.load()), u64(Vulkan::g_spartanport_compiles.load()),
-                                 SpartanStats::t_gc.load()};
+                                 RatchetStats::t_gc.load()};
         if (stall) {
             std::printf("Stall: %.1f ms frame; waits: readback %.1f ms, GPU ticks %.1f ms, "
                         "recorder %.1f ms, host copies %.1f ms; %llu compiles %.1f ms; GC %.1f ms\n",
@@ -370,27 +370,27 @@ void VideoOutDriver::Flip(const Request& req) {
         last_rf = rf;
         last_trf = trf;
         last_twf = twf;
-        const u64 copy_ns = SpartanStats::t_copy.load(), copy_bytes = SpartanStats::copy_bytes.load();
+        const u64 copy_ns = RatchetStats::t_copy.load(), copy_bytes = RatchetStats::copy_bytes.load();
         u64 proc_flt = 0;
 #ifndef _WIN32
         if (rusage usage{}; getrusage(RUSAGE_SELF, &usage) == 0) {
             proc_flt = usage.ru_minflt;
         }
 #endif
-        const u64 t_now[6] = {SpartanStats::t_resident.load(), SpartanStats::t_protect.load(),
-                              SpartanStats::t_image_create.load(), SpartanStats::t_refresh.load(),
-                              SpartanStats::t_staging.load(), SpartanStats::t_host_wait.load()};
+        const u64 t_now[6] = {RatchetStats::t_resident.load(), RatchetStats::t_protect.load(),
+                              RatchetStats::t_image_create.load(), RatchetStats::t_refresh.load(),
+                              RatchetStats::t_staging.load(), RatchetStats::t_host_wait.load()};
         static u64 last_draws, last_dispatches, last_subs, last_sys, last_user, last_invol, last_vol;
-        const u64 draws = SpartanStats::draws.load(), dispatches = SpartanStats::dispatches.load(),
-                  subs = SpartanStats::submissions.load(), sys_us = SpartanStats::gpu_sys_us.load(),
-                  user_us = SpartanStats::gpu_user_us.load(), invol = SpartanStats::gpu_invol_switches.load(),
-                  vol = SpartanStats::gpu_vol_switches.load();
+        const u64 draws = RatchetStats::draws.load(), dispatches = RatchetStats::dispatches.load(),
+                  subs = RatchetStats::submissions.load(), sys_us = RatchetStats::gpu_sys_us.load(),
+                  user_us = RatchetStats::gpu_user_us.load(), invol = RatchetStats::gpu_invol_switches.load(),
+                  vol = RatchetStats::gpu_vol_switches.load();
         u64 gpu_ns = 0;
 #ifdef _WIN32
         // spartanport: Windows has no per-thread clock id; the thread's user + kernel time instead.
         static HANDLE gpu_thread = nullptr;
         if (!gpu_thread) {
-            if (const unsigned long id = SpartanStats::gpu_thread_id.load()) {
+            if (const unsigned long id = RatchetStats::gpu_thread_id.load()) {
                 gpu_thread = OpenThread(THREAD_QUERY_LIMITED_INFORMATION, FALSE, id);
             }
         }
@@ -402,15 +402,15 @@ void VideoOutDriver::Flip(const Request& req) {
             gpu_ns = ns(kernel) + ns(user);
         }
 #else
-        if (const int clock = SpartanStats::gpu_thread_clock.load(); clock != -1) {
+        if (const int clock = RatchetStats::gpu_thread_clock.load(); clock != -1) {
             timespec ts{};
             clock_gettime(static_cast<clockid_t>(clock), &ts);
             gpu_ns = u64(ts.tv_sec) * 1000000000ull + u64(ts.tv_nsec);
         }
 #endif
-        const u64 images = SpartanStats::images_registered.load();
-        const u64 image_bytes = SpartanStats::image_upload_bytes.load();
-        const u64 buffer_bytes = SpartanStats::buffer_upload_bytes.load();
+        const u64 images = RatchetStats::images_registered.load();
+        const u64 image_bytes = RatchetStats::image_upload_bytes.load();
+        const u64 buffer_bytes = RatchetStats::buffer_upload_bytes.load();
         if (stall) {
             std::printf("       GPU thread on CPU %.1f ms; %llu images registered, "
                         "%.1f MB image uploads, %.1f MB buffer uploads\n",
@@ -486,12 +486,12 @@ void VideoOutDriver::Flip(const Request& req) {
             const double guest_wait_ms = Vulkan::g_spartanport_guest_wait_ns.exchange(0) / 1e6;
             const u32 pending_draws = Vulkan::g_spartanport_pending_draws.exchange(0);
             const u64 direct = Vulkan::Scheduler::direct_recordings.exchange(0);
-            const u64 faults = SpartanStats::tracker_faults.exchange(0);
+            const u64 faults = RatchetStats::tracker_faults.exchange(0);
             // GPU command thread CPU time per draw: comparable between builds even when the scene
             // (and so the frame rate) differs a little.
             static u64 window_draws = 0, window_gpu_us = 0;
-            const u64 all_draws = SpartanStats::draws.load();
-            const u64 gpu_us = SpartanStats::gpu_user_us.load() + SpartanStats::gpu_sys_us.load();
+            const u64 all_draws = RatchetStats::draws.load();
+            const u64 gpu_us = RatchetStats::gpu_user_us.load() + RatchetStats::gpu_sys_us.load();
             const double us_per_draw = all_draws > window_draws
                                            ? double(gpu_us - window_gpu_us) / (all_draws - window_draws)
                                            : 0.0;
@@ -510,16 +510,16 @@ void VideoOutDriver::Flip(const Request& req) {
                         compile_ns / 1e6, capture_ms, async_ms, wait_ms, snapshot_ms, guest_wait_ms,
                         pending_draws,
                         static_cast<unsigned long long>(direct),
-                        faults / window, static_cast<long long>(SpartanStats::hot_pages.load()),
+                        faults / window, static_cast<long long>(RatchetStats::hot_pages.load()),
                         us_per_draw, draws_per_frame,
-                        SpartanStats::gpu_idle_ns.exchange(0) / (window * 1e7),
-                        SpartanStats::sync_recording_ns.exchange(0) / (window * 1e7),
-                        SpartanStats::host_copies_wait_ns.exchange(0) / (window * 1e7),
-                        frames ? double(SpartanStats::host_copy_waits.exchange(0)) / frames : 0.0,
-                        SpartanStats::copy_threads_wait_ns.exchange(0) / (window * 1e7),
-                        SpartanStats::tick_wait_ns.exchange(0) / (window * 1e7),
-                        frames ? double(SpartanStats::reduced_draws.exchange(0)) / frames : 0.0,
-                        frames ? double(SpartanStats::scene_draws.exchange(0)) / frames : 0.0);
+                        RatchetStats::gpu_idle_ns.exchange(0) / (window * 1e7),
+                        RatchetStats::sync_recording_ns.exchange(0) / (window * 1e7),
+                        RatchetStats::host_copies_wait_ns.exchange(0) / (window * 1e7),
+                        frames ? double(RatchetStats::host_copy_waits.exchange(0)) / frames : 0.0,
+                        RatchetStats::copy_threads_wait_ns.exchange(0) / (window * 1e7),
+                        RatchetStats::tick_wait_ns.exchange(0) / (window * 1e7),
+                        frames ? double(RatchetStats::reduced_draws.exchange(0)) / frames : 0.0,
+                        frames ? double(RatchetStats::scene_draws.exchange(0)) / frames : 0.0);
             presenter->GetRasterizer().GetPipelineCache().ReportCompilerStats();
             Vulkan::WaitDiagnostics::Report();
             // Frame pacing: spread of the guest flip intervals (judder that the mean hides).
@@ -663,7 +663,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
 
     // spartanport: frame limit (see EmulatorSettings::GetFrameLimit). A request waits in the queue
     // until its slot; slots advance by one period (no drift) but never lag behind by more.
-    // spartanport: the in-game menu changes the limit and the engine rate live (SpartanSettings::fps_limit,
+    // spartanport: the in-game menu changes the limit and the engine rate live (RatchetSettings::fps_limit,
     // engine_fps); the uncapped presets keep their fixed limit, still capped by the engine rate.
     // SPARTAN_FPS_LIMIT (measurements) is used as given.
     const bool measured_limit = std::getenv("SPARTAN_FPS_LIMIT") != nullptr;
@@ -673,8 +673,8 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
             return EmulatorSettings.GetFrameLimit();
         }
         const int limit = vblank_hz == 480 ? int(EmulatorSettings.GetFrameLimit())
-                                           : SpartanSettings::Get().fps_limit.load();
-        return u32(SpartanGraphics::PresentLimit(limit, SpartanSettings::EngineFpsNow(), vblank_hz));
+                                           : RatchetSettings::Get().fps_limit.load();
+        return u32(RatchetGraphics::PresentLimit(limit, RatchetSettings::EngineFpsNow(), vblank_hz));
     };
     u32 frame_limit = current_limit();
     auto frame_period = frame_limit ? std::chrono::nanoseconds(1000000000 / frame_limit)
@@ -698,7 +698,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
     bool immediate_flips = frame_limit != 0;
 
     while (!token.stop_requested()) {
-        SpartanSettings::SyncEngineFps();
+        RatchetSettings::SyncEngineFps();
         if (const u32 limit = current_limit(); limit != frame_limit) {
             frame_limit = limit;
             frame_period = limit ? std::chrono::nanoseconds(1000000000 / limit) : std::chrono::nanoseconds(0);

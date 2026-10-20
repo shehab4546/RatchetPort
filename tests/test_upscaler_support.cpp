@@ -5,10 +5,10 @@
 #include <cstdlib>
 #include <initializer_list>
 #include <unistd.h>
-#include "spartanport_settings.h"
+#include "ratchet_settings.h"
 
 int main() {
-    using namespace SpartanSettings;
+    using namespace RatchetSettings;
     char path[] = "/tmp/spartanport-upscaler-test-XXXXXX";
     const int fd = mkstemp(path);
     assert(fd >= 0);

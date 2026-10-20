@@ -99,7 +99,7 @@ public:
     Frame* PrepareBlankFrame(bool present_thread);
 
     void Present(Frame* frame, bool is_reusing_frame = false, bool is_game_frame = true);
-    /// spartanport: a black frame with the loading screen (SpartanOverlay::SetLoading) only.
+    /// spartanport: a black frame with the loading screen (RatchetOverlay::SetLoading) only.
     void PresentLoadingFrame();
     Frame* PrepareLastFrame();
 

@@ -10,7 +10,7 @@
 #include <ranges>
 #include <string>
 #include <unordered_set>
-#include "spartanport_threads.h"
+#include "ratchet_threads.h"
 
 #include "common/hash.h"
 #include "common/thread.h"
@@ -22,7 +22,7 @@
 #include "shader_recompiler/info.h"
 #include "shader_recompiler/recompiler.h"
 #include "shader_recompiler/runtime_info.h"
-#include "spartanport_settings.h"
+#include "ratchet_settings.h"
 #include "video_core/amdgpu/liverpool.h"
 #include "video_core/cache_storage.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
@@ -396,7 +396,7 @@ PipelineCache::PipelineCache(const Instance& instance_, Scheduler& scheduler_,
                vk::to_string(cache_result));
     pipeline_cache = std::move(cache);
     // spartanport: the compiler threads always exist; the in-game menu switches async compilation live
-    // (SpartanSettings::async_shaders, SPARTAN_ASYNC_SHADERS at start).
+    // (RatchetSettings::async_shaders, SPARTAN_ASYNC_SHADERS at start).
     {
         const auto count = std::clamp(SpartanThreads::Available() / 2, 1u, 6u);
         const auto capture_count = std::min(2u, std::max(1u, SpartanThreads::Available() / 4));
@@ -636,7 +636,7 @@ void PipelineCache::FinishCompilations() {
 }
 
 bool PipelineCache::AsyncCompilation() const {
-    return compiler && SpartanSettings::Get().async_shaders.load(std::memory_order_relaxed);
+    return compiler && RatchetSettings::Get().async_shaders.load(std::memory_order_relaxed);
 }
 
 void PipelineCache::SeedWorkerCaches() {

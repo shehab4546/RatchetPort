@@ -20,7 +20,7 @@
 #include "common/scope_exit.h"
 #include "video_core/renderer_vulkan/vk_pipeline_serialization.h"
 #include "common/thread.h"
-#include "spartanport_overlay.h"
+#include "ratchet_overlay.h"
 #include "core/emulator_settings.h"
 #include "shader_recompiler/frontend/fetch_shader.h"
 #include "shader_recompiler/info.h"
@@ -1245,7 +1245,7 @@ void PipelineCache::PumpWarmUp() {
     warm.last_batch = now;
     ++warm.batches;
     const u32 done = warm.done + warm.pool->failed;
-    SpartanOverlay::SetBackgroundLoading(done, std::max(warm.total.load(), done));
+    RatchetOverlay::SetBackgroundLoading(done, std::max(warm.total.load(), done));
 
     static const std::array<Shader::RuntimeInfo, MaxShaderStages> no_runtime_infos{};
     for (auto& entry : warm.read.Take(32)) {
@@ -1345,7 +1345,7 @@ void PipelineCache::PumpWarmUp() {
                 g_spartanport_pipeline_total_ns / 1e9);
     // The idle threads stay parked (StopWarmUp).
     warm.finished = true;
-    SpartanOverlay::SetBackgroundLoading(0, 0);
+    RatchetOverlay::SetBackgroundLoading(0, 0);
     Storage::DataBase::Instance().FinishPreload();
 }
 
@@ -1359,7 +1359,7 @@ void PipelineCache::StopWarmUp() {
     // while the game ran crashed in ntdll (RtlWakeAllConditionVariable). Join them once the
     // cause is known.
     background = nullptr;
-    SpartanOverlay::SetBackgroundLoading(0, 0);
+    RatchetOverlay::SetBackgroundLoading(0, 0);
 }
 
 void PipelineCache::Sync() {

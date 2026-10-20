@@ -1,13 +1,13 @@
-#include "spartanport_write_log.h"
+#include "ratchet_write_log.h"
 // spartanport: glue between the C loader and the vendored shadPS4 video core.
-#include "spartanport_overlay.h"
-#include "spartanport_png.h"
-#include "spartanport_settings.h"
-#include "spartanport_copy.h"
+#include "ratchet_overlay.h"
+#include "ratchet_png.h"
+#include "ratchet_settings.h"
+#include "ratchet_copy.h"
 #ifndef _WIN32
 #include <sys/resource.h>
 #endif
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -21,7 +21,7 @@
 #include <thread>
 #include <vector>
 #include <SDL3/SDL.h>
-#include "../spartanportgpu.h"
+#include "../ratchetgpu.h"
 #include "common/elf_info.h"
 #include "common/logging/log.h"
 #include "core/libraries/kernel/orbis_error.h"
@@ -78,7 +78,7 @@ void SymbolsResolver::AddSymbol(const char* nid, const char* library, const char
 namespace Core {
 class Emulator {
 public:
-    static void FillElfInfo(const SpartanGpuConfig& config) {
+    static void FillElfInfo(const RatchetGpuConfig& config) {
         auto& info = Common::ElfInfo::Instance();
         info.initialized = true;
         info.game_serial = config.serial ? config.serial : "UNKNOWN";
@@ -124,16 +124,16 @@ static void CopySparseSerial(VAddr source, u8* dest, u64 size) {
 void MemoryManager::CopySparseMemory(VAddr source, u8* dest, u64 size) {
     // spartanport: large uploads (streaming) are split across the copy threads.
     constexpr u64 Chunk = 512 * 1024;
-    if (size < 4 * Chunk || !SpartanCopy::Enabled()) {
+    if (size < 4 * Chunk || !RatchetCopy::Enabled()) {
         return CopySparseSerial(source, dest, size);
     }
-    SpartanCopy::ParallelFor((size + Chunk - 1) / Chunk, [&](std::size_t i) {
+    RatchetCopy::ParallelFor((size + Chunk - 1) / Chunk, [&](std::size_t i) {
         const u64 offset = i * Chunk;
         CopySparseSerial(source + offset, dest + offset, std::min(Chunk, size - offset));
     });
 }
 bool MemoryManager::TryWriteBacking(void* address, const void* data, u64 size) {
-    SpartanWriteLog::Note(reinterpret_cast<uintptr_t>(address), data, size, SpartanWriteLog::Backing);
+    RatchetWriteLog::Note(reinterpret_cast<uintptr_t>(address), data, size, RatchetWriteLog::Backing);
     const bool written = runtime_memory_write_backing(reinterpret_cast<uintptr_t>(address), data, size) != 0;
     // The write skipped page tracking: textures over it must reload (#138).
     // ponytail: fence and label writes (<= 8 bytes) never hold texels, so they are left out;
@@ -144,13 +144,13 @@ bool MemoryManager::TryWriteBacking(void* address, const void* data, u64 size) {
     return written;
 }
 void AddressSpace::Protect(VAddr virtual_addr, u64 size, MemoryPermission perms) {
-    SpartanStats::Timer timer{SpartanStats::t_protect};
+    RatchetStats::Timer timer{RatchetStats::t_protect};
     const u64 pages = (size + 4095) / 4096;
-    SpartanStats::protect_calls.fetch_add(1, std::memory_order_relaxed);
-    SpartanStats::protect_pages.fetch_add(pages, std::memory_order_relaxed);
+    RatchetStats::protect_calls.fetch_add(1, std::memory_order_relaxed);
+    RatchetStats::protect_pages.fetch_add(pages, std::memory_order_relaxed);
     if (!True(perms & MemoryPermission::Write)) {
-        SpartanStats::protect_revoke_calls.fetch_add(1, std::memory_order_relaxed);
-        SpartanStats::protect_revoke_pages.fetch_add(pages, std::memory_order_relaxed);
+        RatchetStats::protect_revoke_calls.fetch_add(1, std::memory_order_relaxed);
+        RatchetStats::protect_revoke_pages.fetch_add(pages, std::memory_order_relaxed);
     }
     runtime_memory_gpu_protect(virtual_addr, size, True(perms & MemoryPermission::Read),
                                True(perms & MemoryPermission::Write));
@@ -218,8 +218,8 @@ static void StartProfileWriter() {
 }
 #endif
 
-extern "C" int spartanportgpu_init(const SpartanGpuConfig* config) {
-    SpartanSettings::Load();
+extern "C" int ratchetgpu_init(const RatchetGpuConfig* config) {
+    RatchetSettings::Load();
 #ifdef SPARTAN_PGO_GENERATE
     StartProfileWriter();
 #endif
@@ -263,14 +263,14 @@ extern "C" int spartanportgpu_init(const SpartanGpuConfig* config) {
 }
 
 namespace Libraries::Kernel { void StartKernelService(); }
-extern "C" void spartanportgpu_register_kernel(void) {
+extern "C" void ratchetgpu_register_kernel(void) {
     Libraries::Kernel::StartKernelService();
     Core::Loader::SymbolsResolver resolver;
     Libraries::Kernel::RegisterEventQueue(&resolver);
     Libraries::AvPlayer::RegisterLib(&resolver);
 }
 
-extern "C" uintptr_t spartanportgpu_resolve(const char* scoped_nid) {
+extern "C" uintptr_t ratchetgpu_resolve(const char* scoped_nid) {
     const char* hash = std::strchr(scoped_nid, '#');
     const size_t length = hash ? size_t(hash - scoped_nid) : std::strlen(scoped_nid);
     for (const auto& symbol : g_symbols) {
@@ -281,16 +281,16 @@ extern "C" uintptr_t spartanportgpu_resolve(const char* scoped_nid) {
     return 0;
 }
 
-extern "C" int spartanportgpu_handle_fault(void* ucontext, void* address) {
+extern "C" int ratchetgpu_handle_fault(void* ucontext, void* address) {
     return Core::Signals::Instance()->DispatchAccessViolation(ucontext, address) ? 1 : 0;
 }
 
-extern "C" unsigned spartanportgpu_symbol_count(void) {
+extern "C" unsigned ratchetgpu_symbol_count(void) {
     return unsigned(g_symbols.size());
 }
 
-extern "C" unsigned long long spartanportgpu_copy_yields(void) {
-    return SpartanCopy::Yields();
+extern "C" unsigned long long ratchetgpu_copy_yields(void) {
+    return RatchetCopy::Yields();
 }
 
 // Kernel service thread: runs boost::asio timers for equeue timer events.
@@ -356,62 +356,62 @@ ScreenshotRequests ConsumeScreenshotRequests() {
 }
 } // namespace VideoCore
 
-extern "C" int spartanportgpu_vibration_percent(void) {
-    return SpartanSettings::Get().vibration.load(std::memory_order_relaxed);
+extern "C" int ratchetgpu_vibration_percent(void) {
+    return RatchetSettings::Get().vibration.load(std::memory_order_relaxed);
 }
 
-extern "C" void spartanportgpu_movie_picture(void) {
+extern "C" void ratchetgpu_movie_picture(void) {
     Vulkan::MovieBars::Cutscenes().NotePicture(Vulkan::MovieBars::NowMs());
 }
 
-extern "C" int spartanportgpu_mouse_prompt_distance(void) {
-    return SpartanSettings::Get().mouse_prompt_distance.load(std::memory_order_relaxed);
+extern "C" int ratchetgpu_mouse_prompt_distance(void) {
+    return RatchetSettings::Get().mouse_prompt_distance.load(std::memory_order_relaxed);
 }
 
-extern "C" int spartanportgpu_mouse_aim_style(void) {
-    return SpartanSettings::Get().mouse_aim_style.load(std::memory_order_relaxed);
+extern "C" int ratchetgpu_mouse_aim_style(void) {
+    return RatchetSettings::Get().mouse_aim_style.load(std::memory_order_relaxed);
 }
 
-extern "C" int spartanportgpu_mouse_aim_sensitivity(void) {
-    return SpartanSettings::Get().mouse_aim_sensitivity.load(std::memory_order_relaxed);
+extern "C" int ratchetgpu_mouse_aim_sensitivity(void) {
+    return RatchetSettings::Get().mouse_aim_sensitivity.load(std::memory_order_relaxed);
 }
 
 // The menu's Automatic QTE switch, read by the game's code through the QTE stubs (src/qte_hook.h).
 extern "C" uintptr_t spartanport_auto_qte_flag(void) {
     static_assert(sizeof(std::atomic<bool>) == 1, "the stubs compare one byte");
-    return reinterpret_cast<uintptr_t>(&SpartanSettings::Get().auto_qte);
+    return reinterpret_cast<uintptr_t>(&RatchetSettings::Get().auto_qte);
 }
 
 extern "C" void spartanport_qte_status(int supported) {
-    SpartanSettings::Get().qte_supported = supported != 0;
+    RatchetSettings::Get().qte_supported = supported != 0;
 }
 
-extern "C" void spartanportgpu_mouse_pause_key(void) {
+extern "C" void ratchetgpu_mouse_pause_key(void) {
     Frontend::ToggleMousePause();
 }
 
-extern "C" int spartanportgpu_overlay_captures_input(void) {
-    return SpartanOverlay::CapturesInput() ? 1 : 0;
+extern "C" int ratchetgpu_overlay_captures_input(void) {
+    return RatchetOverlay::CapturesInput() ? 1 : 0;
 }
 
-extern "C" void spartanportgpu_engine_fps_cycle(void) {
-    SpartanOverlay::CycleEngineFps();
+extern "C" void ratchetgpu_engine_fps_cycle(void) {
+    RatchetOverlay::CycleEngineFps();
 }
 
-// src/probe.c: the game's maximum frame rate globals (SpartanSettings::SyncEngineFps writes them).
+// src/probe.c: the game's maximum frame rate globals (RatchetSettings::SyncEngineFps writes them).
 extern "C" void spartanport_engine_fps_globals(uintptr_t fps, uintptr_t rounded) {
-    auto& s = SpartanSettings::Get();
+    auto& s = RatchetSettings::Get();
     s.engine_fps_int_global = reinterpret_cast<int32_t*>(rounded);
     s.engine_fps_global = reinterpret_cast<float*>(fps);
 }
 
-extern "C" int spartanportgpu_text_input_begin(const char* initial, const char* prompt) {
+extern "C" int ratchetgpu_text_input_begin(const char* initial, const char* prompt) {
     if (!g_window) return 0;
     g_window->BeginTextInput(initial ? initial : "", prompt ? prompt : "Text");
     return 1;
 }
 
-extern "C" int spartanportgpu_choice_begin(const char* title, const char* const* items, const char* const* images,
+extern "C" int ratchetgpu_choice_begin(const char* title, const char* const* items, const char* const* images,
                                     int count, int focus) {
     if (!g_window || count <= 0) return 0;
     // Pictures are decoded here, on the game's thread, before the list is shown.
@@ -421,16 +421,16 @@ extern "C" int spartanportgpu_choice_begin(const char* title, const char* const*
             LOG_WARNING(Lib_SaveDataDialog, "save list: no picture from {}", images[i]);
         }
     }
-    SpartanOverlay::BeginChoice(title ? title : "", std::vector<std::string>(items, items + count),
+    RatchetOverlay::BeginChoice(title ? title : "", std::vector<std::string>(items, items + count),
                              std::move(pictures), focus);
     return 1;
 }
 
-extern "C" int spartanportgpu_choice_poll(void) {
-    return SpartanOverlay::PollChoice();
+extern "C" int ratchetgpu_choice_poll(void) {
+    return RatchetOverlay::PollChoice();
 }
 
-extern "C" int spartanportgpu_text_input_poll(char* out, uint64_t size) {
+extern "C" int ratchetgpu_text_input_poll(char* out, uint64_t size) {
     if (!g_window) return 2;
     std::string text;
     const int state = g_window->PollTextInput(text);

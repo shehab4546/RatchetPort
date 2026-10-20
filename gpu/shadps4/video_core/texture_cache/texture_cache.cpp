@@ -5,7 +5,7 @@
 #include <xxhash.h>
 #include "video_core/amdgpu/liverpool.h"
 
-#include "spartanport_toggles.h"
+#include "ratchet_toggles.h"
 #include "common/assert.h"
 #include "common/debug.h"
 #include "common/div_ceil.h"
@@ -141,7 +141,7 @@ bool TextureCache::ResolveReadbacks(VAddr address, u64 size, bool assume_locks,
                 }
             }
         }
-        SpartanStats::Timer readback_timer{SpartanStats::t_readback_wait};
+        RatchetStats::Timer readback_timer{RatchetStats::t_readback_wait};
         if (const u64 tick = pending_readbacks.RequiredTick(address, size)) {
             ++readbacks_waited;
             waited = !scheduler.IsFree(tick);
@@ -1389,7 +1389,7 @@ void TextureCache::RefreshImage(Image& image) {
         ChurnTrace::Enabled() ? ChurnTrace::Describe(image) : ChurnTrace::Meta{}};
     ResolveReadbacks(image.info.guest_address, image.info.guest_size, true,
                      ReadbackSource::ImageRefresh);
-    SpartanStats::Timer timer{SpartanStats::t_refresh};
+    RatchetStats::Timer timer{RatchetStats::t_refresh};
 
     RENDERER_TRACE;
     TRACE_HINT(fmt::format("{:x}:{:x}", image.info.guest_address, image.info.guest_size));
@@ -1420,7 +1420,7 @@ void TextureCache::RefreshImage(Image& image) {
     const bool is_gpu_modified = True(image.flags & ImageFlagBits::GpuModified);
     const bool is_gpu_dirty = True(image.flags & ImageFlagBits::GpuDirty);
 
-    SpartanStats::image_upload_bytes.fetch_add(image.info.guest_size, std::memory_order_relaxed);
+    RatchetStats::image_upload_bytes.fetch_add(image.info.guest_size, std::memory_order_relaxed);
     ChurnTrace::RecordImage(image, ChurnTrace::Event::LegacyCharge, image.info.guest_size);
     boost::container::small_vector<vk::BufferImageCopy, 14> image_copies;
     for (u32 m = 0; m < num_mips; m++) {
@@ -1495,7 +1495,7 @@ vk::Sampler TextureCache::GetSampler(const AmdGpu::Sampler& sampler,
 }
 
 void TextureCache::RegisterImage(ImageId image_id) {
-    SpartanStats::images_registered.fetch_add(1, std::memory_order_relaxed);
+    RatchetStats::images_registered.fetch_add(1, std::memory_order_relaxed);
     Image& image = slot_images[image_id];
     ASSERT_MSG(False(image.flags & ImageFlagBits::Registered),
                "Trying to register an already registered image");
@@ -1664,7 +1664,7 @@ void TextureCache::UntrackImageTail(ImageId image_id) {
 }
 
 void TextureCache::GarbageCollectImages() {
-    SpartanStats::Timer gc_timer{SpartanStats::t_gc};
+    RatchetStats::Timer gc_timer{RatchetStats::t_gc};
 
     // Ratchet GC01: opt-in bounded look-ahead. Keep the original path for A/B tests.
     static const bool ratchet_gc01 = [] {

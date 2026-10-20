@@ -7,9 +7,9 @@
 #include "common/assert.h"
 #include "common/logging/log.h"
 #include "sdl_window.h"
-#include "spartanport_overlay.h"
-#include "spartanport_graphics.h"
-#include "spartanport_settings.h"
+#include "ratchet_overlay.h"
+#include "ratchet_graphics.h"
+#include "ratchet_settings.h"
 
 namespace Frontend {
 
@@ -25,9 +25,9 @@ void ToggleMousePause() {
 // size shrunk to fit. The picture is scaled to the window either way. True when shrunk.
 static bool StartSize(s32& width, s32& height) {
     constexpr int title_room = 48;
-    const std::vector<std::string> names = SpartanGraphics::ResolutionNames();
-    const int index = std::clamp(SpartanSettings::Get().render_resolution.load(), 0, int(names.size()) - 1);
-    const auto [w, h] = SpartanGraphics::ResolutionSize(names[index]);
+    const std::vector<std::string> names = RatchetGraphics::ResolutionNames();
+    const int index = std::clamp(RatchetSettings::Get().render_resolution.load(), 0, int(names.size()) - 1);
+    const auto [w, h] = RatchetGraphics::ResolutionSize(names[index]);
     double scale = 1.0;
     SDL_Rect usable{};
     if (SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay(), &usable) && usable.w > 0 && usable.h > title_room) {
@@ -86,13 +86,13 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     }
     // spartanport: SPARTAN_FULLSCREEN=1 (older launchers) still asks for fullscreen.
     if (const char* fullscreen = std::getenv("SPARTAN_FULLSCREEN"); fullscreen && fullscreen[0] == '1' &&
-        SpartanSettings::Get().display_mode == SpartanGraphics::Windowed) {
-        SpartanSettings::Get().display_mode = SpartanGraphics::Borderless;
+        RatchetSettings::Get().display_mode == RatchetGraphics::Windowed) {
+        RatchetSettings::Get().display_mode = RatchetGraphics::Borderless;
     }
-    ApplyDisplayMode(SpartanSettings::Get().display_mode);
+    ApplyDisplayMode(RatchetSettings::Get().display_mode);
     ApplyOutputResolution(true);
 
-    // spartanport: the game has no mouse; the in-game menu draws its own cursor (SpartanOverlay::SetOpen).
+    // spartanport: the game has no mouse; the in-game menu draws its own cursor (RatchetOverlay::SetOpen).
     SDL_HideCursor();
     int w = 0, h = 0;
     SDL_GetWindowSizeInPixels(window, &w, &h);
@@ -105,26 +105,26 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
 // mode. Window thread only (SDL). The swapchain follows the size events.
 void WindowSDL::ApplyDisplayMode(int mode) {
     display_mode = mode;
-    if (mode == SpartanGraphics::Windowed) {
+    if (mode == RatchetGraphics::Windowed) {
         SDL_SetWindowFullscreen(window, false);
     } else {
         const SDL_DisplayMode* desktop = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(window));
-        const bool exclusive = mode == SpartanGraphics::Fullscreen && desktop;
+        const bool exclusive = mode == RatchetGraphics::Fullscreen && desktop;
         if (!SDL_SetWindowFullscreenMode(window, exclusive ? desktop : nullptr)) {
             LOG_WARNING(Frontend, "Fullscreen mode: {}", SDL_GetError());
         }
         SDL_SetWindowFullscreen(window, true);
     }
     SDL_SyncWindow(window);
-    std::printf("Window: %s\n", SpartanGraphics::DisplayModeNames[mode]);
+    std::printf("Window: %s\n", RatchetGraphics::DisplayModeNames[mode]);
 }
 
 // Ratchet/port: output_res controls the real host window in Windowed mode.
 // Keep this separate from the guest VideoOut size and from the internal render preset.
 void WindowSDL::ApplyOutputResolution(bool force) {
-    int index = SpartanSettings::Get().output_res.load();
-    if (index < 0 || index >= SpartanSettings::OutputCount) {
-        index = SpartanSettings::OutputDefault;
+    int index = RatchetSettings::Get().output_res.load();
+    if (index < 0 || index >= RatchetSettings::OutputCount) {
+        index = RatchetSettings::OutputDefault;
     }
     if (!force && index == applied_output_res) {
         return;
@@ -133,12 +133,12 @@ void WindowSDL::ApplyOutputResolution(bool force) {
 
     // Borderless/fullscreen always follow the desktop. Remember the chosen output
     // so it can be restored when Windowed mode is selected again.
-    if (display_mode != SpartanGraphics::Windowed) {
+    if (display_mode != RatchetGraphics::Windowed) {
         return;
     }
 
-    const int target_w = SpartanSettings::OutputWidths[index];
-    const int target_h = SpartanSettings::OutputHeights[index];
+    const int target_w = RatchetSettings::OutputWidths[index];
+    const int target_h = RatchetSettings::OutputHeights[index];
 
     // A Windows window can remain maximized after leaving borderless/fullscreen.
     SDL_RestoreWindow(window);
@@ -183,7 +183,7 @@ void WindowSDL::UpdateTextTitle() {
     const std::string title = text_active ? base_title + " \u2014 " + text_prompt + ": " + text + "_  (Enter = OK, Esc = cancel)"
                                           : base_title;
     SDL_SetWindowTitle(window, title.c_str());
-    SpartanOverlay::SetTextEntry(text_active, text_prompt, text);
+    RatchetOverlay::SetTextEntry(text_active, text_prompt, text);
 }
 
 bool WindowSDL::PollEvents() {
@@ -197,9 +197,9 @@ bool WindowSDL::PollEvents() {
         }
     }
     if (!text_active) {
-        SpartanOverlay::UpdateTextInput(window);
+        RatchetOverlay::UpdateTextInput(window);
     }
-    if (const int mode = SpartanSettings::Get().display_mode; mode != display_mode) {
+    if (const int mode = RatchetSettings::Get().display_mode; mode != display_mode) {
         ApplyDisplayMode(mode);
         ApplyOutputResolution(true);
     } else {
@@ -234,7 +234,7 @@ bool WindowSDL::PollEvents() {
             UpdateTextTitle();
             continue;
         }
-        if (SpartanOverlay::HandleEvent(event)) {
+        if (RatchetOverlay::HandleEvent(event)) {
             continue;
         }
         switch (event.type) {
@@ -262,8 +262,8 @@ bool WindowSDL::PollEvents() {
     // another window or the game's pause menu (the pause key) get it back. Taken back, it starts
     // at the window's centre; let go by the pause key, the system cursor shows.
     const bool paused = mouse_paused.load(std::memory_order_relaxed);
-    const bool lock = SpartanSettings::Get().mouse_lock.load(std::memory_order_relaxed) && !text_active && !paused &&
-                      !SpartanOverlay::CapturesInput() && (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS);
+    const bool lock = RatchetSettings::Get().mouse_lock.load(std::memory_order_relaxed) && !text_active && !paused &&
+                      !RatchetOverlay::CapturesInput() && (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS);
     if (lock != mouse_locked) {
         if (lock) SDL_WarpMouseInWindow(window, width / 2.0f, height / 2.0f);
         if (SDL_SetWindowRelativeMouseMode(window, lock)) mouse_locked = lock;

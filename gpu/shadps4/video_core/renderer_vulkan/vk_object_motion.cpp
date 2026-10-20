@@ -6,8 +6,8 @@
 #include <cstring>
 
 #include <vk_mem_alloc.h>
-#include "spartanport_settings.h"
-#include "spartanport_toggles.h"
+#include "ratchet_settings.h"
+#include "ratchet_toggles.h"
 #include "shader_recompiler/runtime_info.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
@@ -53,8 +53,8 @@ ObjectMotion::ObjectMotion(const Instance& instance_, Scheduler& scheduler_)
     : instance{instance_}, scheduler{scheduler_} {
     // Pipeline selection limits the extra attachment and vertex stores to likely
     // animated draws. A setting or environment override can still disable the path.
-    if (!SpartanSettings::Get().object_motion ||
-        SpartanSettings::Get().upscaler == SpartanSettings::UpscalerOff) {
+    if (!RatchetSettings::Get().object_motion ||
+        RatchetSettings::Get().upscaler == RatchetSettings::UpscalerOff) {
         std::puts("Object motion: off (enable in menu or SPARTAN_OBJECT_MOTION=1)");
         return;
     }
@@ -95,7 +95,7 @@ void ObjectMotion::OnFrameStart() {
     if (!enabled) {
         return;
     }
-    if (SpartanStats::enabled && (frame % 600) == 0 && history.stats.draws) {
+    if (RatchetStats::enabled && (frame % 600) == 0 && history.stats.draws) {
         const auto& s = history.stats;
         std::printf("Object motion: %llu draws, %llu stored, %llu with history, %llu unmatched, "
                     "%llu capacity skips, %llu invalid, %llu still (600 frames); last frame %u/%u vertices; "

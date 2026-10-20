@@ -7,7 +7,7 @@ end=$((SECONDS + $1))
 while ((SECONDS < end)); do
     "$(dirname "$0")/press.sh" "rx=60" 2; sleep 8
     "$(dirname "$0")/press.sh" "rx=195" 2; sleep 8
-    if ! pgrep -x spartanport-probe > /dev/null; then
+    if ! pgrep -x ratchet-probe > /dev/null; then
         echo "DIED after $((SECONDS)) s: $(grep -m1 -E 'fault|Assert|Fault' out/session.log | cut -c1-160)"; exit 1
     fi
 done

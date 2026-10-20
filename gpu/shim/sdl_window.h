@@ -44,8 +44,8 @@ private:
     std::atomic<bool> is_open{true};
     std::mutex text_mutex;
     bool text_requested{}, text_active{};
-    int display_mode = -1; ///< applied SpartanSettings display mode (window thread)
-    int applied_output_res = -1; ///< applied SpartanSettings output resolution (window thread)
+    int display_mode = -1; ///< applied RatchetSettings display mode (window thread)
+    int applied_output_res = -1; ///< applied RatchetSettings output resolution (window thread)
     bool mouse_locked = false; ///< relative mouse mode on (window thread)
     bool cursor_shown = false; ///< the system cursor is visible (window thread)
     void ApplyDisplayMode(int mode);

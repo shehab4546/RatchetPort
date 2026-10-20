@@ -12,9 +12,9 @@
 #include "video_core/buffer_cache/buffer.h"
 #include "video_core/renderdoc.h"
 #include "video_core/renderer_vulkan/vk_platform.h"
-#include "spartanport_overlay.h"
-#include "spartanport_settings.h"
-#include "spartanport_graphics.h"
+#include "ratchet_overlay.h"
+#include "ratchet_settings.h"
+#include "ratchet_graphics.h"
 #include "video_core/renderer_vulkan/vk_temporal_upscaler.h"
 #include "video_core/renderer_vulkan/vk_presenter.h"
 #include "video_core/renderer_vulkan/vk_warmup_inbox.h"
@@ -264,7 +264,7 @@ void CaptureScreenshot(const Instance& instance, Scheduler& scheduler, vk::Comma
         vmaDestroyBuffer(allocator, buffer, allocation);
         if (!converted) {
             LOG_ERROR(Render_Vulkan, "Screenshot: unsupported format {}", vk::to_string(format));
-            SpartanOverlay::ShowNotice("Screenshot failed: unsupported image format");
+            RatchetOverlay::ShowNotice("Screenshot failed: unsupported image format");
             return;
         }
         size_t png_size = 0;
@@ -285,10 +285,10 @@ void CaptureScreenshot(const Instance& instance, Scheduler& scheduler, vk::Comma
         }
         if (saved) {
             std::printf("Screenshot: %s (%ux%u)\n", Common::FS::PathToUTF8String(path).c_str(), width, height);
-            SpartanOverlay::ShowNotice("Screenshot saved: " + Common::FS::PathToUTF8String(path.filename()));
+            RatchetOverlay::ShowNotice("Screenshot saved: " + Common::FS::PathToUTF8String(path.filename()));
         } else {
             LOG_ERROR(Render_Vulkan, "Screenshot: cannot write {}", Common::FS::PathToUTF8String(path));
-            SpartanOverlay::ShowNotice("Screenshot failed: cannot write the file");
+            RatchetOverlay::ShowNotice("Screenshot failed: cannot write the file");
         }
     });
 }
@@ -319,7 +319,7 @@ Presenter::Presenter(Frontend::WindowSDL& window_, AmdGpu::Liverpool* liverpool_
 
     fsr_pass.Create(device, instance.GetAllocator(), num_images);
     pp_pass.Create(device, swapchain.GetSurfaceFormat().format);
-    SpartanOverlay::Init(instance, swapchain.GetSurfaceFormat().format, num_images);
+    RatchetOverlay::Init(instance, swapchain.GetSurfaceFormat().format, num_images);
 
     const bool binary_cache = EmulatorSettingsImpl::Flag("SPARTAN_PIPELINE_BINARIES", true) &&
                               EmulatorSettings.IsPipelineCacheEnabled();
@@ -339,7 +339,7 @@ Presenter::Presenter(Frontend::WindowSDL& window_, AmdGpu::Liverpool* liverpool_
         rasterizer->GetPipelineCache().StartBackgroundWarmUp()) {
         return;
     }
-    SpartanOverlay::SetLoading(true, 0, 0);
+    RatchetOverlay::SetLoading(true, 0, 0);
     PresentLoadingFrame();
     auto last = std::chrono::steady_clock::now();
     rasterizer->GetPipelineCache().WarmUp([&](u32 done, u32 total) {
@@ -348,10 +348,10 @@ Presenter::Presenter(Frontend::WindowSDL& window_, AmdGpu::Liverpool* liverpool_
             return;
         }
         last = now;
-        SpartanOverlay::SetLoading(true, done, total);
+        RatchetOverlay::SetLoading(true, done, total);
         PresentLoadingFrame();
     });
-    SpartanOverlay::SetLoading(false, 0, 0);
+    RatchetOverlay::SetLoading(false, 0, 0);
 
 }
 
@@ -644,17 +644,17 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
     expected_ratio = static_cast<float>(image_size.width) / static_cast<float>(image_size.height);
 
     // spartanport: FSR 1, RCAS and its strength come from the in-game menu, every frame.
-    const auto& graphics = SpartanSettings::Get();
+    const auto& graphics = RatchetSettings::Get();
     fsr_settings.enable = graphics.fsr1;
     fsr_settings.use_rcas = graphics.rcas;
-    fsr_settings.rcas_attenuation = SpartanGraphics::RcasAttenuation(graphics.rcas_strength);
-    SpartanSettings::Get().image_width = int(image_size.width);
-    SpartanSettings::Get().image_height = int(image_size.height);
-    SpartanSettings::Get().window_width = int(frame->width);
-    SpartanSettings::Get().window_height = int(frame->height);
-    SpartanSettings::Get().rcas_applied =
+    fsr_settings.rcas_attenuation = RatchetGraphics::RcasAttenuation(graphics.rcas_strength);
+    RatchetSettings::Get().image_width = int(image_size.width);
+    RatchetSettings::Get().image_height = int(image_size.height);
+    RatchetSettings::Get().window_width = int(frame->width);
+    RatchetSettings::Get().window_height = int(frame->height);
+    RatchetSettings::Get().rcas_applied =
         fsr_settings.use_rcas &&
-        SpartanGraphics::FsrPassRuns(fsr_settings.enable, true, int(image_size.width), int(image_size.height),
+        RatchetGraphics::FsrPassRuns(fsr_settings.enable, true, int(image_size.width), int(image_size.height),
                                   int(frame->width), int(frame->height));
     image_view = fsr_pass.Render(cmdbuf, image_view, image_size, {frame->width, frame->height},
                                  fsr_settings, frame->is_hdr);
@@ -690,8 +690,8 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
     // bottleneck it finishes frames at an even rate; without this bound the command thread ran
     // ahead and then blocked wherever a resource ran out, so flips (and the guest's frame
     // timing) came in bursts: 12.5/25 ms alternation at 80 FPS. 0 turns it off.
-    // The in-game menu changes it live (SpartanSettings::frames_queued; SPARTAN_FRAMES_AHEAD at start).
-    const u32 frames_ahead = u32(std::max(0, SpartanSettings::Get().frames_queued.load()));
+    // The in-game menu changes it live (RatchetSettings::frames_queued; SPARTAN_FRAMES_AHEAD at start).
+    const u32 frames_ahead = u32(std::max(0, RatchetSettings::Get().frames_queued.load()));
     if (!frames_ahead) {
         recent_frame_ticks.clear();
     } else {
@@ -821,7 +821,7 @@ void Presenter::PresentLoadingFrame() {
                            range);
     barrier(vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eColorAttachmentOptimal,
             vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eColorAttachmentWrite);
-    SpartanOverlay::Render(cmdbuf, swapchain.ImageView(), extent);
+    RatchetOverlay::Render(cmdbuf, swapchain.ImageView(), extent);
     barrier(vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR,
             vk::AccessFlagBits::eColorAttachmentWrite, {});
     SubmitInfo info{};
@@ -939,7 +939,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
             CaptureScreenshot(instance, scheduler, cmdbuf, *frame);
         }
         // spartanport: the settings menu / FPS counter over the frame, at display resolution.
-        const bool overlay = SpartanOverlay::Visible();
+        const bool overlay = RatchetOverlay::Visible();
         const std::array post_barriers{
             vk::ImageMemoryBarrier{
                 .srcAccessMask = vk::AccessFlagBits::eTransferWrite,
@@ -969,7 +969,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
                                vk::PipelineStageFlagBits::eAllCommands,
                                vk::DependencyFlagBits::eByRegion, {}, {}, post_barriers);
         if (overlay) {
-            SpartanOverlay::Render(cmdbuf, swapchain.ImageView(), extent);
+            RatchetOverlay::Render(cmdbuf, swapchain.ImageView(), extent);
             const vk::ImageMemoryBarrier to_present{
                 .srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
                 .dstAccessMask = vk::AccessFlagBits::eNone,

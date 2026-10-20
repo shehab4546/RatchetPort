@@ -12,7 +12,7 @@
 
 #include "ffx_vk_fsr4_v07.h"
 #include "ffx_vk_fsr4_v07_assets.h"
-#include "spartanport_settings.h"
+#include "ratchet_settings.h"
 #include "video_core/renderer_vulkan/fsr411/fsr411.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
@@ -276,7 +276,7 @@ struct Fsr4Upscaler::Impl {
     }
 
     bool Record(const Frame& f) {
-        if (SpartanSettings::Get().upscaler == SpartanSettings::UpscalerFsr411) {
+        if (RatchetSettings::Get().upscaler == RatchetSettings::UpscalerFsr411) {
             return Record411(f);
         }
         if (fatal) {

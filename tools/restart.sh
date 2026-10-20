@@ -3,7 +3,7 @@
 # SPARTAN_TOGGLE_FILE (out/pad, out/toggles) and enters the level (title: cross, cross).
 cd -- "$(dirname -- "$0")/.."
 T=tools
-pkill -x spartanport-probe; sleep 2; pkill -9 -x spartanport-probe; sleep 1
+pkill -x ratchet-probe; sleep 2; pkill -9 -x ratchet-probe; sleep 1
 : > out/pad; echo ${BASE_MASK:-0} > out/toggles
 SPARTAN_PAD_FILE=$PWD/out/pad SPARTAN_FRAME_STATS=1 SPARTAN_TOGGLE_FILE=$PWD/out/toggles SPARTAN_FPS_LIMIT=0 \
     ${CPUS:+taskset -c $CPUS} setsid stdbuf -oL -eL bash run.sh "$@" > out/session.log 2>&1 < /dev/null &

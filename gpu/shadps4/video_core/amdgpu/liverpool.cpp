@@ -7,8 +7,8 @@
 #include <sys/resource.h>
 #endif
 #include <time.h>
-#include "spartanport_copy.h"
-#include "spartanport_toggles.h"
+#include "ratchet_copy.h"
+#include "ratchet_toggles.h"
 #include <cstdio>
 #include <boost/preprocessor/stringize.hpp>
 
@@ -23,7 +23,7 @@
 #include "core/memory.h"
 #include "core/platform.h"
 #include "video_core/amdgpu/liverpool.h"
-#include "spartanport_write_log.h"
+#include "ratchet_write_log.h"
 #include "video_core/amdgpu/pm4_cmds.h"
 #include "video_core/renderdoc.h"
 #include "video_core/renderer_vulkan/vk_rasterizer.h"
@@ -111,10 +111,10 @@ void Liverpool::Process(std::stop_token stoken) {
     Common::SetCurrentThreadName("shadPS4:GpuCommandProcessor");
 #ifndef _WIN32
     if (clockid_t clock; pthread_getcpuclockid(pthread_self(), &clock) == 0) {
-        SpartanStats::gpu_thread_clock.store(static_cast<int>(clock));
+        RatchetStats::gpu_thread_clock.store(static_cast<int>(clock));
     }
 #else
-    SpartanStats::gpu_thread_id.store(GetCurrentThreadId());
+    RatchetStats::gpu_thread_id.store(GetCurrentThreadId());
 #endif
     gpu_id = std::this_thread::get_id();
 #if defined(__linux__) || defined(_WIN32)
@@ -127,7 +127,7 @@ void Liverpool::Process(std::stop_token stoken) {
             std::unique_lock lk{submit_mutex};
             Common::CondvarWait(submit_cv, lk, stoken,
                                 [this] { return num_commands || num_submits || submit_done; });
-            SpartanStats::gpu_idle_ns.fetch_add(
+            RatchetStats::gpu_idle_ns.fetch_add(
                 std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::steady_clock::now() - idle_start).count(),
                 std::memory_order_relaxed);
@@ -253,7 +253,7 @@ void SignalEop(const PM4CmdEventWriteEop& eop) {
     eop.SignalFence(
         [](void* address, u64 data, u32 num_bytes) {
             auto* memory = Core::Memory::Instance();
-            SpartanWriteLog::Note(reinterpret_cast<u64>(address), &data, num_bytes, SpartanWriteLog::Fence);
+            RatchetWriteLog::Note(reinterpret_cast<u64>(address), &data, num_bytes, RatchetWriteLog::Fence);
             if (!memory->TryWriteBacking(address, &data, num_bytes)) {
                 memcpy(address, &data, num_bytes);
             }
@@ -275,7 +275,7 @@ void RunEventWriteEop(Vulkan::Rasterizer& rasterizer, const u8* data) {
         return env && env[0] == '1';
     }();
     if (async_fences && !SpartanToggle::Disabled(SpartanToggle::AsyncFences)) {
-        SpartanCopy::AfterCopies([eop] { SignalEop(eop); });
+        RatchetCopy::AfterCopies([eop] { SignalEop(eop); });
     } else if (Vulkan::DrawPipe::OnStageB() && !SpartanToggle::Disabled(SpartanToggle::RecorderFences)) {
         // The draw recording thread does not wait: the Vulkan recording thread signals the
         // fence after the copies queued before it.
@@ -334,8 +334,8 @@ void RunWriteData(Vulkan::Rasterizer& rasterizer, const u8* data) {
     // precede writes the guest sees.
     rasterizer.WaitHostCopies();
     rasterizer.WaitDeferredSignals();
-    SpartanWriteLog::Note(write_data->Address<u64>(), write_data->data,
-                     (header->type3.count.Value() - 2) * sizeof(u32), SpartanWriteLog::WriteData);
+    RatchetWriteLog::Note(write_data->Address<u64>(), write_data->data,
+                     (header->type3.count.Value() - 2) * sizeof(u32), RatchetWriteLog::WriteData);
     std::memcpy(write_data->Address<u64*>(), write_data->data,
                 (header->type3.count.Value() - 2) * sizeof(u32));
 }
@@ -348,7 +348,7 @@ void RunEventWriteEos(Vulkan::Rasterizer& rasterizer, const u8* data) {
     rasterizer.ProcessDownloadImages();
     event_eos.SignalFence([](void* address, u64 value, u32 num_bytes) {
         auto* memory = Core::Memory::Instance();
-        SpartanWriteLog::Note(reinterpret_cast<u64>(address), &value, num_bytes, SpartanWriteLog::Fence);
+        RatchetWriteLog::Note(reinterpret_cast<u64>(address), &value, num_bytes, RatchetWriteLog::Fence);
         if (!memory->TryWriteBacking(address, &value, num_bytes)) {
             memcpy(address, &value, num_bytes);
         }
@@ -369,8 +369,8 @@ void Liverpool::NotePendingFences(const auto& event) {
     }
     constexpr bool is_eop = requires { event.SignalFence([](void*, u64, u32) {}, [] {}); };
     const auto note = [&](void* address, u64 data, u32 num_bytes) {
-        SpartanWriteLog::NoteIntent(reinterpret_cast<u64>(address), &data, num_bytes,
-                               is_eop ? SpartanWriteLog::FenceIntent : SpartanWriteLog::EosIntent);
+        RatchetWriteLog::NoteIntent(reinterpret_cast<u64>(address), &data, num_bytes,
+                               is_eop ? RatchetWriteLog::FenceIntent : RatchetWriteLog::EosIntent);
         pending_fences.push_back({reinterpret_cast<VAddr>(address), data, num_bytes, position});
         rasterizer->NotePendingGpuWrite(reinterpret_cast<VAddr>(address), num_bytes);
     };
@@ -1178,9 +1178,9 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                 ASSERT(!write_data->wr_one_addr.Value());
                 if (rasterizer) {
                     // In order with the draws (on the draw recording thread when in use).
-                    SpartanWriteLog::NoteIntent(write_data->Address<u64>(), write_data->data,
+                    RatchetWriteLog::NoteIntent(write_data->Address<u64>(), write_data->data,
                                            (count - 2) * sizeof(u32),
-                                           SpartanWriteLog::WriteDataIntent);
+                                           RatchetWriteLog::WriteDataIntent);
                     if (rasterizer->RunInOrder(&RunWriteData, header, (count + 1) * sizeof(u32),
                                                SpartanToggle::PipelinedMemoryWrites)) {
                         NotePendingWrite(*write_data, (count - 2) * sizeof(u32));
@@ -1341,17 +1341,17 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
     if (draw_prep) {
         draw_prep->EndSubmission();
     }
-    if (seq != NoSeq && SpartanStats::enabled) {
-        SpartanStats::submissions.fetch_add(1, std::memory_order_relaxed);
+    if (seq != NoSeq && RatchetStats::enabled) {
+        RatchetStats::submissions.fetch_add(1, std::memory_order_relaxed);
 #ifndef _WIN32 // spartanport: per-thread rusage statistics are Linux-only
         if (rusage usage{}; getrusage(RUSAGE_THREAD, &usage) == 0) {
-            SpartanStats::gpu_user_us.store(u64(usage.ru_utime.tv_sec) * 1000000 + usage.ru_utime.tv_usec,
+            RatchetStats::gpu_user_us.store(u64(usage.ru_utime.tv_sec) * 1000000 + usage.ru_utime.tv_usec,
                                        std::memory_order_relaxed);
-            SpartanStats::gpu_sys_us.store(u64(usage.ru_stime.tv_sec) * 1000000 + usage.ru_stime.tv_usec,
+            RatchetStats::gpu_sys_us.store(u64(usage.ru_stime.tv_sec) * 1000000 + usage.ru_stime.tv_usec,
                                       std::memory_order_relaxed);
-            SpartanStats::gpu_invol_switches.store(usage.ru_nivcsw, std::memory_order_relaxed);
-            SpartanStats::gpu_vol_switches.store(usage.ru_nvcsw, std::memory_order_relaxed);
-            SpartanStats::gpu_minor_faults.store(usage.ru_minflt, std::memory_order_relaxed);
+            RatchetStats::gpu_invol_switches.store(usage.ru_nivcsw, std::memory_order_relaxed);
+            RatchetStats::gpu_vol_switches.store(usage.ru_nvcsw, std::memory_order_relaxed);
+            RatchetStats::gpu_minor_faults.store(usage.ru_minflt, std::memory_order_relaxed);
         }
 #endif
     }

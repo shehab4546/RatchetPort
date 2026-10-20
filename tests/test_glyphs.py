@@ -115,7 +115,7 @@ class GlyphTableTest(unittest.TestCase):
         self.assertEqual(glyphs.parse_gamepad('Gamepad: type=switchpro south=b east=a west=y north=x name=Pro')[0], 'nintendo')
         self.assertEqual(glyphs.parse_gamepad('Gamepad: type=standard south=a east=b west=x north=y name=')[0], 'xbox')
         self.assertIsNone(glyphs.parse_gamepad('Gamepad: none\n'))
-        self.assertIsNone(glyphs.parse_gamepad('Usage: spartanport-probe boot.bin\n'))  # a probe without --gamepad
+        self.assertIsNone(glyphs.parse_gamepad('Usage: ratchet-probe boot.bin\n'))  # a probe without --gamepad
 
     def test_resolve(self):
         pad = 'Gamepad: type=switchpro south=b east=a west=y north=x name=Pro Controller'

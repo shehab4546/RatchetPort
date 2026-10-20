@@ -73,7 +73,7 @@ struct ImageInfo {
     u32 num_bits{};
     u32 num_samples = 1;
     /// spartanport: the guest's sample count, for sizes in guest memory (SPARTAN_NO_MSAA makes
-    /// num_samples 1; see video_core/amdgpu/spartanport_msaa.h).
+    /// num_samples 1; see video_core/amdgpu/ratchet_msaa.h).
     u32 guest_samples = 1;
     u32 pitch{};
     AmdGpu::TileMode tile_mode = AmdGpu::TileMode::DisplayLinearAligned;

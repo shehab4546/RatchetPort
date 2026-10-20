@@ -119,7 +119,7 @@ class LegacyTest(unittest.TestCase):
         old_probe.write_bytes(b'old')
         legacy.remove_leftovers(port)
         self.assertTrue(old_probe.exists())  # no new probe: keep the old one
-        (port / 'bin' / 'spartanport-probe.exe').write_bytes(b'new')
+        (port / 'bin' / 'ratchet-probe.exe').write_bytes(b'new')
         legacy.remove_leftovers(port)
         self.assertFalse(old_probe.exists())
 

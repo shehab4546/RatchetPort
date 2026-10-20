@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-namespace SpartanGraphics {
+namespace RatchetGraphics {
 
 enum DisplayMode : int { Windowed = 0, Borderless = 1, Fullscreen = 2, DisplayModeCount };
 inline constexpr std::array<std::string_view, DisplayModeCount> DisplayModeKeys = {
@@ -64,7 +64,7 @@ inline std::pair<int, int> ResolutionSize(std::string_view name) {
     return ResolutionSizes[0].second;
 }
 /// Engine frame rates: 60 is the game's own (59.94). The launch takes the 240 FPS patch and the
-/// rate is written live (SpartanSettings::SyncEngineFps); 100, 144 and 180 fit common high-refresh displays.
+/// rate is written live (RatchetSettings::SyncEngineFps); 100, 144 and 180 fit common high-refresh displays.
 inline constexpr std::array<int, 6> EngineFps = {60, 100, 120, 144, 180, 240};
 
 template <typename T, std::size_t N>
@@ -144,4 +144,4 @@ inline int NextEngineFps(int current, int highest) {
     return EngineFps[0];
 }
 
-} // namespace SpartanGraphics
+} // namespace RatchetGraphics

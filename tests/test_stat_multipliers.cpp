@@ -9,7 +9,7 @@
 #include <vector>
 #include "../src/damage_hook.h"
 #include "../src/orb_hook.h"
-#include "spartanport_settings.h"
+#include "ratchet_settings.h"
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -131,12 +131,12 @@ int main(int argc, char** argv) {
 #else
     setenv("SPARTAN_CONFIG", path, 1);
 #endif
-    auto& v = SpartanSettings::Get();
-    SpartanSettings::Load();
+    auto& v = RatchetSettings::Get();
+    RatchetSettings::Load();
     assert(v.damage_dealt == 2.5f && v.damage_taken == 0.5f && v.green_orb_multiplier == 3.0f);
     assert(v.blue_orb_multiplier == 100.0f && v.gold_orb_multiplier == 0.1f);
     v.gold_orb_multiplier = 4.0f;
-    SpartanSettings::Save();
+    RatchetSettings::Save();
     const std::string saved = Read(path);
     for (const char* line : {"damage_dealt=2.500\n", "damage_taken=0.500\n", "green_orb_multiplier=3.000\n",
                              "blue_orb_multiplier=100.000\n", "gold_orb_multiplier=4.000\n"}) {

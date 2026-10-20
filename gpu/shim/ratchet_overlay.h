@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // spartanport: in-game settings menu (Dear ImGui), drawn by the presenter into the swapchain image
 // after the game frame, at display resolution. Insert (keyboard) or R3+L2 (gamepad) opens it;
-// while it is open the game gets no pad/keyboard input. Settings live in spartanport_settings.h.
+// while it is open the game gets no pad/keyboard input. Settings live in ratchet_settings.h.
 
 #pragma once
 
 #include <string>
 #include <vector>
 #include "common/types.h"
-#include "spartanport_png.h"
+#include "ratchet_png.h"
 #include "video_core/renderer_vulkan/vk_common.h"
 
 union SDL_Event;
@@ -18,7 +18,7 @@ namespace Vulkan {
 class Instance;
 }
 
-namespace SpartanOverlay {
+namespace RatchetOverlay {
 
 /// Present thread, once: the ImGui context and its Vulkan backend.
 void Init(const Vulkan::Instance& instance, vk::Format format, u32 image_count);
@@ -59,4 +59,4 @@ void BeginChoice(const std::string& title, const std::vector<std::string>& items
                  std::vector<SpartanPng::Image> pictures, int focus);
 int PollChoice();
 
-} // namespace SpartanOverlay
+} // namespace RatchetOverlay

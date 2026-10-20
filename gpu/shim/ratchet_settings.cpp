@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "spartanport_settings.h"
+#include "ratchet_settings.h"
 #include "spartanport_orbs.h"
-#include "spartanport_graphics.h"
+#include "ratchet_graphics.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-namespace SpartanSettings {
+namespace RatchetSettings {
 
 namespace {
 
@@ -94,11 +94,11 @@ void Set(Values& v, const std::string& key, const std::string& value) {
     } else if (key == "show_fps") {
         v.show_fps = i != 0;
     } else if (key == "display_mode") {
-        v.display_mode = SpartanGraphics::ParseDisplayMode(value);
+        v.display_mode = RatchetGraphics::ParseDisplayMode(value);
     } else if (key == "vsync") {
         v.vsync = i != 0;
     } else if (key == "fps_limit") {
-        v.fps_limit = SpartanGraphics::ParseFpsLimit(i);
+        v.fps_limit = RatchetGraphics::ParseFpsLimit(i);
     } else if (key == "async_shaders") {
         v.async_shaders = i != 0;
     } else if (key == "fsr1") {
@@ -108,19 +108,19 @@ void Set(Values& v, const std::string& key, const std::string& value) {
     } else if (key == "rcas") {
         v.rcas = i != 0;
     } else if (key == "rcas_strength") {
-        v.rcas_strength = SpartanGraphics::ParseRcasStrength(value.empty() ? -1 : i);
+        v.rcas_strength = RatchetGraphics::ParseRcasStrength(value.empty() ? -1 : i);
     } else if (key == "frames_queued") {
-        v.frames_queued = SpartanGraphics::ParseFramesQueued(value.empty() ? -1 : i);
+        v.frames_queued = RatchetGraphics::ParseFramesQueued(value.empty() ? -1 : i);
     } else if (key == "render_resolution") {
-        v.render_resolution = SpartanGraphics::ParseResolution(value);
+        v.render_resolution = RatchetGraphics::ParseResolution(value);
     } else if (key == "engine_fps") {
-        v.engine_fps = SpartanGraphics::ParseEngineFps(i);
+        v.engine_fps = RatchetGraphics::ParseEngineFps(i);
     } else if (key == "deferred_readback") {
         v.deferred_readback = i != 0;
     } else if (key == "stale_readback") {
         v.stale_readback = i != 0;
     } else if (key == "anisotropy") {
-        v.anisotropy = SpartanGraphics::ParseAnisotropy(i);
+        v.anisotropy = RatchetGraphics::ParseAnisotropy(i);
     } else if (key == "vibration") {
         v.vibration = value.empty() ? 100 : std::clamp(i, 0, 100);
     } else if (key == "mouse_prompt_distance") {
@@ -219,7 +219,7 @@ void Load() {
     v.startup_live_resolution = v.live_resolution;
     v.startup_render_resolution = v.render_resolution;
     const char* applied = std::getenv("SPARTAN_ENGINE_FPS");
-    v.applied_engine_fps = applied && applied[0] ? SpartanGraphics::ParseEngineFps(std::atoi(applied))
+    v.applied_engine_fps = applied && applied[0] ? RatchetGraphics::ParseEngineFps(std::atoi(applied))
                                                  : v.engine_fps.load();
     v.startup_deferred_readback = v.deferred_readback;
     v.startup_stale_readback = v.stale_readback;
@@ -255,7 +255,7 @@ int CycleEngineFps() {
     if (!v.engine_fps_global || v.applied_engine_fps <= 60) {
         return 0;
     }
-    v.engine_fps = SpartanGraphics::NextEngineFps(EngineFpsNow(), v.applied_engine_fps);
+    v.engine_fps = RatchetGraphics::NextEngineFps(EngineFpsNow(), v.applied_engine_fps);
     Save();
     return v.engine_fps;
 }
@@ -290,7 +290,7 @@ void ConfigureDlssSupport(bool available, const char* problem) {
     v.dlss_problem = available || kept.empty() ? nullptr : kept.c_str();
     if (v.upscaler == UpscalerDlss && !available) {
         std::printf("Upscaler: DLSS unavailable (%s); falling back to FSR 3.1\n",
-                    kept.empty() ? "spartanport_dlss.dll or nvngx_dlss.dll missing" : kept.c_str());
+                    kept.empty() ? "ratchet_dlss.dll or nvngx_dlss.dll missing" : kept.c_str());
         v.upscaler = UpscalerFsr3;
     }
 }
@@ -357,13 +357,13 @@ void Save() {
                  int(v.overlay_items >> 3 & 1), int(v.overlay_items >> 4 & 1), int(v.overlay_items >> 5 & 1),
                  int(v.overlay_items >> 6 & 1), v.overlay_scale.load(), v.overlay_corner.load(),
                  v.overlay_opacity.load(), v.overlay_layout.load(), v.menu_tab.load());
-    const std::vector<std::string> resolution_names = SpartanGraphics::ResolutionNames();
+    const std::vector<std::string> resolution_names = RatchetGraphics::ResolutionNames();
     std::fprintf(file,
                  "display_mode=%s\nvsync=%d\nfps_limit=%d\nasync_shaders=%d\n"
                  "fsr1=%d\nrcas=%d\nrcas_strength=%d\nframes_queued=%d\n"
                  "render_resolution=%s\nengine_fps=%d\ndeferred_readback=%d\nstale_readback=%d\n"
                  "restart_unconfirmed=%d\n",
-                 SpartanGraphics::DisplayModeKeys[std::clamp(v.display_mode.load(), 0, 2)].data(),
+                 RatchetGraphics::DisplayModeKeys[std::clamp(v.display_mode.load(), 0, 2)].data(),
                  int(v.vsync.load()), v.fps_limit.load(), int(v.async_shaders.load()),
                  int(v.fsr1.load()), int(v.rcas.load()), v.rcas_strength.load(), v.frames_queued.load(),
                  resolution_names[std::clamp(v.render_resolution.load(), 0, int(resolution_names.size()) - 1)].c_str(),
@@ -395,4 +395,4 @@ const char* UpscalerName(int upscaler) {
     return names[std::clamp(upscaler, 0, UpscalerCount - 1)];
 }
 
-} // namespace SpartanSettings
+} // namespace RatchetSettings

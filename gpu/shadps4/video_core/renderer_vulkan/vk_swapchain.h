@@ -88,7 +88,7 @@ public:
 
     void SetHDR(bool hdr);
 
-    /// spartanport: VSync from the in-game menu (SpartanSettings::vsync); recreates the swapchain when it
+    /// spartanport: VSync from the in-game menu (RatchetSettings::vsync); recreates the swapchain when it
     /// changed. Present thread only.
     void UpdateVsync();
 

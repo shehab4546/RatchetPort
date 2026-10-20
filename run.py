@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Prepares the game image and starts spartanport-probe (Windows and Linux; run.sh wraps it on Linux).
+"""Prepares the game image and starts ratchet-probe (Windows and Linux; run.sh wraps it on Linux).
 
 Environment variables (SPARTAN_GAME_DIR, SPARTAN_DATA_DIR, SPARTAN_PATCHES, SPARTAN_MODS_*,
-SPARTAN_USER_DIR, ...). Extra arguments go to spartanport-probe.
+SPARTAN_USER_DIR, ...). Extra arguments go to ratchet-probe.
 The in-game "Apply and restart" runs this script again through SPARTAN_RESTART_COMMAND;
 `--after PID` waits for the previous game process to end first (its GPU device and memory).
 """
@@ -56,7 +56,7 @@ def no_console():
 
 
 def parse_cpu_features(output):
-    """Instruction sets `spartanport-probe --cpu-features` reports missing ([] when complete)."""
+    """Instruction sets `ratchet-probe --cpu-features` reports missing ([] when complete)."""
     for line in output.splitlines():
         if line.startswith('CPU: missing '):
             return [name.strip() for name in line[len('CPU: missing '):].split(',') if name.strip()]
@@ -203,9 +203,9 @@ def main():
     if not env.get('SPARTAN_FSR411_DIR') and not (PORT / 'fsr4_411').is_dir() and (data / 'fsr4_411').is_dir():
         env['SPARTAN_FSR411_DIR'] = str(data / 'fsr4_411')
 
-    probe = Path(env['SPARTAN_PROBE']) if env.get('SPARTAN_PROBE') else find_executable('spartanport-probe' + EXE_SUFFIX)
+    probe = Path(env['SPARTAN_PROBE']) if env.get('SPARTAN_PROBE') else find_executable('ratchet-probe' + EXE_SUFFIX)
     if not probe or not probe.is_file():
-        fail(f'spartanport-probe{EXE_SUFFIX} not found: build it with build.sh or use a packaged build.')
+        fail(f'ratchet-probe{EXE_SUFFIX} not found: build it with build.sh or use a packaged build.')
     # Development builds run from the MSYS2 tree: its CLANG64 DLLs (SDL3, FFmpeg, ...).
     if WINDOWS and not (probe.parent / 'SDL3.dll').is_file():
         clang64 = Path(env.get('MSYS2_ROOT', r'C:\msys64')) / 'clang64' / 'bin'
@@ -306,7 +306,7 @@ def main():
             derived.append('SPARTAN_VBLANK_HZ')
         # The highest engine rate this launch allows (the menu picks a lower one live). Without the
         # frame rate patch the engine steps 1/60 s per frame: the present thread must not flip
-        # faster (spartanport_graphics.h PresentLimit), or the game speeds up.
+        # faster (ratchet_graphics.h PresentLimit), or the game speeds up.
         env['SPARTAN_ENGINE_FPS'] = str(engine_fps)
         derived.append('SPARTAN_ENGINE_FPS')
         print(f'Engine frame rate: {min(int(graphics["engine_fps"]), engine_fps)} FPS, live up to {engine_fps}'

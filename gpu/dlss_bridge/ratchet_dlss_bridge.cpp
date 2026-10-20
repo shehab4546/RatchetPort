@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 IFreemz (shadps4_dlss bridge), spartanport contributors
 // SPDX-License-Identifier: MIT
 //
-// spartanport_dlss.dll: the only part of the project that uses the NVIDIA DLSS (NGX) SDK. Built with
+// ratchet_dlss.dll: the only part of the project that uses the NVIDIA DLSS (NGX) SDK. Built with
 // MSVC (the SDK's libraries are MSVC only); the port loads it at run time.
 // Adapted from IFreemz/shadPS4-Bloodborne-DLSS-FSR (dlss_bridge).
 
@@ -10,7 +10,7 @@
 #include <cstdio>
 #include <string>
 
-#include "spartanport_dlss_bridge.h" // Vulkan first: the NGX headers expect its types
+#include "ratchet_dlss_bridge.h" // Vulkan first: the NGX headers expect its types
 
 #include <nvsdk_ngx_helpers.h>
 #include <nvsdk_ngx_vk.h>
