@@ -1,4 +1,9 @@
-# RatchetPort
+# RatchetPort — Ratchet & Clank (2016) PC Port for Windows
+
+RatchetPort is an **unofficial, experimental PC port project for Ratchet & Clank
+(2016), the PS4 game**, using a native Windows runtime. It targets **CUSA01047 USA
+v1.00** and requires a self-made dump of your own original disc. **Pre-Alpha:
+stable gameplay is not established.**
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
@@ -8,6 +13,7 @@ V1 is the first public experimental release, **not a stable or fully playable 1.
 See the [V1 release notes](docs/releases/V1.md) and [tested hardware and results](docs/TESTING.md).
 
 [Download V1 and its sources](https://github.com/shehab4546/RatchetPort/releases/tag/v1)
+· [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
 · [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
 
 A Windows-first, **Pre-Alpha** native runtime for **Ratchet & Clank (PS4), CUSA01047, USA, version 1.00**. RatchetPort is derived directly from [FelipePrado0/SpartanPort](https://github.com/FelipePrado0/SpartanPort) and uses renderer and shader-recompiler work from [shadPS4](https://github.com/shadps4-emu/shadPS4).
@@ -30,6 +36,10 @@ accordance with applicable law; this repository provides no bypass keys or game 
 **بالعربية:** يجب أن تمتلك قرص اللعبة الأصلي وأن تعمل dump بنفسك من قرصك باستخدام
 جهاز PS4 الخاص بك. المشروع لا يتضمن اللعبة أو ملفات نظام PS4 أو المفاتيح، ولا يوفر
 روابط لتنزيلها. إصدار V1 تجريبي؛ ظهور القائمة والمشهد الافتتاحي لا يعني أن اللعب مستقر.
+
+RatchetPort مشروع غير رسمي لنقل راتشت أند كلانك (Ratchet & Clank 2016) من PS4
+إلى الكمبيوتر بنظام Windows. هذه نسخة تجريبية تتطلب ملفات قرصك الخاص، وليست
+تنزيلًا للعبة كاملة. المشروع مخصص للعبة PS4 لعام 2016، وليس Ratchet & Clank: Rift Apart.
 
 ## What was actually tested
 

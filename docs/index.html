@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ratchet &amp; Clank (2016) PC Port — RatchetPort for Windows</title>
+  <meta name="description" content="RatchetPort is an unofficial Ratchet &amp; Clank (2016) PS4 PC port project for Windows. Pre-Alpha downloads, tested hardware and known issues. Your own disc dump required.">
+  <link rel="canonical" href="https://shehab4546.github.io/RatchetPort/">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#101e35">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="RatchetPort">
+  <meta property="og:title" content="RatchetPort — Ratchet &amp; Clank (2016) PC Port">
+  <meta property="og:description" content="An unofficial, experimental Windows runtime for the PS4 game. V1 Pre-Alpha. Requires a dump of your own original disc; no game files included.">
+  <meta property="og:url" content="https://shehab4546.github.io/RatchetPort/">
+  <meta property="og:image" content="https://shehab4546.github.io/RatchetPort/assets/ratchetport.png">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="assets/ratchetport.svg" type="image/svg+xml">
+  <link rel="sitemap" type="application/xml" href="sitemap.xml">
+  <style>
+    :root{color-scheme:dark;--bg:#0a1323;--panel:#101e35;--text:#eef5fc;--muted:#b6c5d9;--cyan:#38d9ea;--gold:#ffbf52;--line:#30445e}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font:17px/1.7 system-ui,-apple-system,"Segoe UI",sans-serif}
+    a{color:var(--cyan);text-underline-offset:4px}a:hover{color:white}a:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:5px}
+    .wrap{max-width:1100px;margin:auto;padding:0 28px}.skip{position:absolute;left:16px;top:-80px;background:var(--panel);padding:8px}.skip:focus{top:8px}
+    header{border-bottom:1px solid var(--line)}nav{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:20px 0;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:12px;color:white;text-decoration:none;font-size:22px;font-weight:750}.brand img{width:40px;height:40px}.links{display:flex;gap:24px;flex-wrap:wrap}.links a{font-size:15px;text-decoration:none}
+    .hero{display:grid;grid-template-columns:1fr 220px;gap:48px;align-items:center;padding:74px 0 48px}.hero img{width:220px;height:220px}
+    .eyebrow{color:var(--gold);font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase}h1{font-size:clamp(36px,5.1vw,60px);line-height:1.12;letter-spacing:-.035em;margin:16px 0 22px;max-width:800px}h1 span{display:block;color:var(--cyan)}h2{font-size:28px;line-height:1.3;margin:0 0 16px}h3{font-size:19px;margin:0 0 10px}p{margin:0 0 18px}.lead{font-size:20px;color:var(--muted);max-width:720px}
+    .actions{display:flex;gap:14px;flex-wrap:wrap;margin:28px 0 14px}.button{display:inline-block;padding:12px 22px;border:1px solid var(--line);border-radius:8px;font-weight:700;text-decoration:none;color:white}.primary{background:var(--cyan);color:var(--bg);border-color:var(--cyan)}.primary:hover{background:#9aeef6;color:var(--bg)}
+    .small{font-size:14px;color:var(--muted)}.notice{padding:24px 28px;border:1px solid #6d592e;border-left:4px solid var(--gold);border-radius:8px;background:#211e19}.notice strong{color:var(--gold)}.notice p:last-child{margin:0}
+    section{padding:48px 0;border-bottom:1px solid var(--line)}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.card{padding:24px;background:var(--panel);border:1px solid var(--line);border-radius:10px}.card p{color:var(--muted);margin:0}.card strong{color:white}.status{display:inline-block;font-size:12px;letter-spacing:.06em;font-weight:700;color:var(--gold);margin-bottom:12px;text-transform:uppercase}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:32px}ul,ol{padding-inline-start:24px;margin:10px 0 20px}li{margin:8px 0}.table-scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600}td:first-child{font-weight:650}details{border-bottom:1px solid var(--line);padding:18px 0}summary{cursor:pointer;font-weight:650}details p{margin:14px 0 0;color:var(--muted)}code{color:var(--gold);font-size:.93em}footer{padding:32px 0 42px;color:var(--muted);font-size:14px}.arabic{line-height:1.95}
+    @media(max-width:700px){.wrap{padding:0 20px}.hero{grid-template-columns:1fr;padding:42px 0 30px;gap:0}.hero>img{display:none}.grid,.two{grid-template-columns:1fr}.links{gap:16px}.notice{padding:20px}section{padding:32px 0}th,td{padding:10px 8px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  </style>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"RatchetPort","description":"Unofficial experimental Ratchet & Clank (2016) PS4 PC port project and native runtime for Windows. Pre-Alpha; requires your own original disc dump.","url":"https://shehab4546.github.io/RatchetPort/","codeRepository":"https://github.com/shehab4546/RatchetPort","license":"https://github.com/shehab4546/RatchetPort/blob/main/LICENSE","runtimePlatform":"Windows x64","programmingLanguage":["C","C++","Python"],"version":"1.0.0-prealpha","isBasedOn":"https://github.com/FelipePrado0/SpartanPort"}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header><div class="wrap"><nav aria-label="Main navigation">
+    <a class="brand" href="./"><img src="assets/ratchetport.svg" alt="" width="40" height="40">RatchetPort</a>
+    <div class="links"><a href="#status">Test status</a><a href="#setup">Get started</a><a href="#arabic" lang="ar">العربية</a><a href="https://github.com/shehab4546/RatchetPort">GitHub ↗</a></div>
+  </nav></div></header>
+  <main class="wrap" id="main">
+    <div class="hero"><div>
+      <div class="eyebrow">Unofficial project · V1 Pre-Alpha · Windows x64</div>
+      <h1>Ratchet &amp; Clank (2016)<span>PC port project.</span></h1>
+      <p class="lead">RatchetPort is an experimental native Windows runtime for the PS4 game. Follow its progress, review what has been tested, and try the public Pre-Alpha with your own disc dump.</p>
+      <div class="actions"><a class="button primary" href="https://github.com/shehab4546/RatchetPort/releases/download/v1/RatchetPort-Windows-PreAlpha.zip">Download V1 for Windows</a><a class="button" href="https://github.com/shehab4546/RatchetPort/releases/tag/v1">Release notes &amp; source</a></div>
+      <p class="small">CUSA01047 · USA · Version 1.00 only. No game files included.</p>
+    </div><img src="assets/ratchetport.svg" alt="Original RatchetPort application icon" width="220" height="220"></div>
+    <aside class="notice" aria-label="Experimental software and game ownership">
+      <p><strong>Pre-Alpha: stable gameplay is not established.</strong> Loading and the opening movie were reached, but freezing and GPU Device Lost remain unresolved.</p>
+      <p>You must own the original PS4 disc and make your own dump from that disc using your own PS4. This download contains the runtime, not the game. No proprietary PS4 modules, keys or game artwork are distributed.</p>
+    </aside>
+    <section id="status"><h2>What actually works so far?</h2>
+      <div class="grid">
+        <article class="card"><span class="status">Observed in earlier testing</span><h3>Menus &amp; opening movie</h3><p>The title screen, main menu and difficulty selection were reached. The tester confirmed loading and the opening movie with deferred GPU readbacks off.</p></article>
+        <article class="card"><span class="status">Still unresolved</span><h3>Gameplay stability</h3><p>A freeze occurred during an attempted movie skip after several button presses. <strong>Playable movement, reliable skipping, audio, physical controllers and save/load remain unverified.</strong></p></article>
+        <article class="card"><span class="status">Automated checks passed</span><h3>Build &amp; packaging</h3><p>46 native tests passed. Python: 399 passed, 51 skipped, no failures. The extracted Windows package passed a startup smoke test. These checks do not certify gameplay.</p></article>
+      </div>
+      <p class="small" style="margin-top:20px">Game observations predate the final LGPL FFmpeg packaging change. Full gameplay on the final V1 package has not been revalidated.</p>
+      <h3>Tested hardware</h3><div class="table-scroll"><table><caption class="small">Local test machine — not a minimum specification or compatibility guarantee</caption><tbody>
+        <tr><td>Operating system</td><td>Windows 11 Pro, build 26300</td></tr><tr><td>CPU / memory</td><td>Intel Core i5-12400 / 12 GB RAM</td></tr><tr><td>Graphics</td><td>Intel UHD Graphics 730, driver 32.0.101.7088</td></tr><tr><td>Initial settings</td><td>1280×720 output, 30 FPS cap, VSync on, upscaling off, zero-clear off</td></tr><tr><td>Readbacks</td><td>Linear on; deferred off</td></tr>
+      </tbody></table></div>
+      <p class="small" style="margin-top:16px">The 30 FPS cap is not a measured sustained frame rate. <code>VK_ERROR_DEVICE_LOST</code> and Windows memory allocation error 1450 have occurred. Other GPUs, Linux, 1080p and long sessions are not validated.</p>
+      <a href="https://github.com/shehab4546/RatchetPort/blob/main/docs/TESTING.md">Read the complete test record →</a>
+    </section>
+    <section id="setup"><div class="two"><div><h2>Try RatchetPort on Windows</h2><ol>
+      <li>Make a dump from your own original <strong>CUSA01047 USA v1.00</strong> PS4 disc using your own PS4.</li>
+      <li>Download and extract <code>RatchetPort-Windows-PreAlpha.zip</code> completely.</li>
+      <li>Open <code>RatchetPort.exe</code>, select your dump folder and save the settings.</li>
+      <li>Start with the defaults: 720p output, 30 FPS cap, VSync on and deferred readbacks off.</li>
+    </ol><p class="small">Windows x64, an AVX-capable CPU and Vulkan 1.3 graphics are required. Leave enough memory and Windows commit capacity for the guest pool and renderer.</p></div>
+    <div><h2>Controls &amp; reporting</h2><p>Keyboard mappings use PS4 buttons: <strong>Space = Cross</strong>, Left Shift = Circle, E = Square, Q = Triangle, and Enter = Options. WASD maps to the left stick.</p><p>If a test fails, report your CPU, GPU, driver, RAM and exact steps. Review logs for personal information before sharing. Never upload your game dump, proprietary modules or prepared game files.</p><a href="https://github.com/shehab4546/RatchetPort/issues">Report a reproducible issue →</a></div></div></section>
+    <section id="faq"><h2>About this Ratchet &amp; Clank PC port</h2>
+      <details><summary>Which Ratchet &amp; Clank game does this target?</summary><p>The 2016 PS4 game, CUSA01047 USA version 1.00. This project does not target Ratchet &amp; Clank: Rift Apart or the original PS2 game.</p></details>
+      <details><summary>Is this an official PC release?</summary><p>No. RatchetPort is an unofficial community project, unaffiliated with Sony or Insomniac Games. It is based directly on <a href="https://github.com/FelipePrado0/SpartanPort">SpartanPort</a> and uses renderer and shader-recompiler work from <a href="https://github.com/shadps4-emu/shadPS4">shadPS4</a>.</p></details>
+      <details><summary>Does the download include the game?</summary><p>No. You must own the original disc and make your own dump using your own PS4. The project provides no game downloads, proprietary modules, keys or game artwork. Do not use or share someone else's dump.</p></details>
+      <details><summary>Is V1 stable or fully playable?</summary><p>No. V1 is a Pre-Alpha milestone. Freezing, Device Lost and memory failures are documented; successful automated tests do not establish stable gameplay.</p></details>
+      <details><summary>Where are the source and licenses?</summary><p>The <a href="https://github.com/shehab4546/RatchetPort/releases/tag/v1">V1 release</a> includes RatchetPort sources with pinned submodules, the exact FFmpeg source archive and checksums. The project preserves GPL-2.0 and applicable per-file licenses; its bundled FFmpeg build uses LGPL-2.1-or-later. See <a href="https://github.com/shehab4546/RatchetPort/blob/main/CREDITS.md">credits</a> and <a href="https://github.com/shehab4546/RatchetPort/blob/main/docs/DISTRIBUTION.md">distribution notices</a>.</p></details>
+    </section>
+    <section class="arabic" id="arabic" lang="ar" dir="rtl"><h2>راتشت أند كلانك على الكمبيوتر — RatchetPort</h2><p>مشروع غير رسمي لنقل لعبة <bdi>Ratchet &amp; Clank (2016)</bdi> الخاصة بـPS4 إلى الكمبيوتر بنظام Windows. يستهدف النسخة الأمريكية <bdi>CUSA01047 v1.00</bdi> فقط. إصدار V1 تجريبي (Pre-Alpha)؛ تم الوصول إلى القائمة والتحميل والمشهد الافتتاحي، لكن استقرار اللعب والتخطي لم يثبتا بعد.</p><p><strong>يجب أن تمتلك قرص اللعبة الأصلي وأن تعمل dump بنفسك من قرصك باستخدام جهاز PS4 الخاص بك.</strong> التنزيل يحتوي على البرنامج فقط، ولا يتضمن اللعبة أو ملفات نظام PS4 أو المفاتيح. المشروع غير تابع لـSony أو Insomniac Games.</p><a href="https://github.com/shehab4546/RatchetPort/releases/tag/v1">تنزيل الإصدار وقراءة المشكلات المعروفة ←</a></section>
+  </main>
+  <footer class="wrap"><p>RatchetPort · An unofficial open-source project. Ratchet &amp; Clank, PlayStation and related names and game content belong to their respective rights holders. Original project icons; no game artwork used.</p><a href="https://github.com/shehab4546/RatchetPort">Source on GitHub</a> · <a href="https://github.com/shehab4546/RatchetPort/blob/main/CREDITS.md">Credits &amp; licenses</a> · <a href="sitemap.xml">Sitemap</a></footer>
+</body>
+</html>

@@ -8,6 +8,7 @@ pgo/
 *.png
 # Documentation pictures are part of the repository.
 !docs/images/*.png
+!docs/assets/ratchetport.png
 last_run.log
 dist/
 packaging/runtime-paths.nix
