@@ -5,8 +5,8 @@ import unittest
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_lang  # noqa: E402
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_lang  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 
 class PolishLanguageTest(unittest.TestCase):
@@ -36,7 +36,7 @@ class PolishLanguageTest(unittest.TestCase):
         }
         for lang, expected in expected_translations.items():
             with self.subTest(lang=lang):
-                self.assertEqual(spartanport_lang.table(lang).get('Polish'), expected)
+                self.assertEqual(ratchetport_lang.table(lang).get('Polish'), expected)
 
     def test_russian_and_english_fallbacks(self):
         saved = launcher.LANG
@@ -48,7 +48,7 @@ class PolishLanguageTest(unittest.TestCase):
         finally:
             launcher.LANG = saved
 
-    def test_system_service_contract_maps_parameter_1_to_spartanport_language(self):
+    def test_system_service_contract_maps_parameter_1_to_ratchetport_language(self):
         services_src = (ROOT / 'src' / 'runtime_services.c').read_text(encoding='utf-8')
         # SystemService system_param: case 1 returns language()
         self.assertRegex(services_src, r'case\s+1:\s*\*value\s*=\s*language\(\);')

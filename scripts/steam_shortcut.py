@@ -14,9 +14,8 @@ from pathlib import Path
 import shutil
 import struct
 import subprocess
-import legacy
 
-APP_NAME = 'SpartanPort'
+APP_NAME = 'RatchetPort'
 CAPSULE = (600, 900)    # vertical capsule: <id>p.png
 WIDE = (920, 430)       # horizontal capsule: <id>.png
 HERO = (1920, 620)      # library background: <id>_hero.png
@@ -187,13 +186,13 @@ def usable_emblem(image):
 
 
 def make_logo(emblem, width):
-    """Transparent logo: the emblem (when there is one) over SPARTANPORT, `width` px wide."""
+    """Transparent logo: the emblem (when there is one) over RATCHETPORT, `width` px wide."""
     from PIL import Image, ImageDraw, ImageFilter
     scale = 2
     w = width * scale
     emblem_size = round(w * 0.30) if emblem is not None else 0
     probe = ImageDraw.Draw(Image.new('RGBA', (1, 1)))
-    title_face, title_gap = fit_face(probe, 'SPARTANPORT', w * 0.94, 0.04)
+    title_face, title_gap = fit_face(probe, 'RATCHETPORT', w * 0.94, 0.04)
     title_y = emblem_size + (w * 0.03 if emblem is not None else 0)
     height = round(title_y + title_face.size * 1.5)
     canvas = Image.new('RGBA', (w, height), (0, 0, 0, 0))
@@ -203,7 +202,7 @@ def make_logo(emblem, width):
     shadow = Image.new('RGBA', canvas.size, (0, 0, 0, 0))
     for layer, fill, offset in ((shadow, (0, 0, 0, 220), 3 * scale), (canvas, GOLD + (255,), 0)):
         draw = ImageDraw.Draw(layer)
-        spaced(draw, w / 2 + offset, title_y + offset, 'SPARTANPORT', title_face, fill, title_gap)
+        spaced(draw, w / 2 + offset, title_y + offset, 'RATCHETPORT', title_face, fill, title_gap)
     blurred = shadow.filter(ImageFilter.GaussianBlur(2 * scale))
     blurred.alpha_composite(canvas)
     return blurred.resize((width, round(height / scale)), Image.LANCZOS)
@@ -287,7 +286,7 @@ def add_to_steam(game, command, icon, steam_root=None, running=None):
         tree = parse_vdf(file.read_bytes()) if file.is_file() and file.stat().st_size else {'shortcuts': {}}
         shortcuts = tree.setdefault('shortcuts', {})
         entry = shortcut_entry(app_id, exe, f'"{start_dir}"', options, icon_path)
-        slot = next((k for k, v in shortcuts.items() if v.get('appid') == app_id or v.get('AppName') in (APP_NAME, legacy.LEGACY_TITLE)), None)
+        slot = next((k for k, v in shortcuts.items() if v.get('appid') == app_id or v.get('AppName') == APP_NAME), None)
         if slot is None:
             slot = str(max((int(k) for k in shortcuts if k.isdigit()), default=-1) + 1)
         else:
@@ -296,6 +295,6 @@ def add_to_steam(game, command, icon, steam_root=None, running=None):
             entry['LastPlayTime'] = shortcuts[slot].get('LastPlayTime', 0)
         shortcuts[slot] = entry
         if file.is_file():
-            shutil.copy2(file, file.with_name('shortcuts.vdf.spartanport-backup'))
+            shutil.copy2(file, file.with_name('shortcuts.vdf.ratchetport-backup'))
         file.write_bytes(dump_vdf(tree))
     return {'accounts': len(accounts), 'updated': updated, 'app_id': app_id}

@@ -1,13 +1,9 @@
-# spartanport on Windows
+# Build RatchetPort on Windows
 
-The port builds and runs natively on 64-bit Windows 10 (1903+) / 11 with the same sources as
-on Linux. Players: see `README-Windows.txt` (it ships in the package).
+Use MSYS2 CLANG64 and a separate Windows Python 3.12+ with Tcl/Tk support.
+The runtime target is Windows x64. Linux build scripts are inherited and are not validated for this release.
 
-## Build
-
-Install [MSYS2](https://www.msys2.org) (`winget install MSYS2.MSYS2`), open the
-**MSYS2 CLANG64** shell and install the toolchain and libraries (the counterpart of
-`shell.nix`):
+In CLANG64 install dependencies:
 
 ```bash
 pacman -S --needed git patch \
@@ -15,79 +11,36 @@ pacman -S --needed git patch \
   mingw-w64-clang-x86_64-{vulkan-headers,vulkan-loader,vulkan-memory-allocator,glslang} \
   mingw-w64-clang-x86_64-{sdl3,fmt,boost,robin-map,xxhash,ffmpeg,zydis} \
   mingw-w64-clang-x86_64-{spirv-tools,spirv-headers,spirv-cross}
+git submodule update --init --recursive
+RATCHET_BUILD_DIR=out/ratchet-clean bash build.sh
 ```
 
-magic_enum, miniz and xbyak (not packaged by MSYS2) are submodules under `gpu/third_party/`.
-Before packaging, also install Windows Python 3.10+ from python.org with Tk support; the
-packaging script uses it to create its private Python environment.
-Then, in the repository, build with MSYS2 CLANG64:
+Use a previously nonexistent `RATCHET_BUILD_DIR` for a clean configure/build. Existing diagnostics and build directories are not deleted. The script applies `gpu/patches/fsr-vulkan/*.patch` only when not already applied; a conflicting submodule change stops the build. The resulting FSR submodule worktree is intentionally dirty, with its complete changes represented by those patches. No submodule commit is invented or pushed.
+
+For explicit CMake configuration after applying these patches:
 
 ```bash
-git submodule update --init --recursive
-bash build.sh                      # out/spartanport-probe.exe, out/spartanport-gpu-capabilities.exe
-bash packaging/windows/package.sh  # dist/spartanport-windows/ and .zip: SpartanPort.exe + DLLs
+cmake -S gpu -B out/ratchet-clean -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DRATCHET_LTO=OFF -DRATCHET_PGO=off
+cmake --build out/ratchet-clean --target ratchet-probe ratchet-gpu-capabilities ratchet-play --parallel 4
 ```
 
-For a source launcher, install Windows Python 3.10+ from python.org with Tk support. In
-PowerShell at the repository root:
+In PowerShell, create the packaging/testing environment with Windows Python:
 
 ```powershell
-python -m pip install pillow iced-x86==1.21.0
-python launcher/spartanport_launcher_win.py
+py -3.12 -m venv out/ratchet-tools
+out/ratchet-tools/Scripts/python.exe -m pip install -r packaging/windows/requirements.txt
+out/ratchet-tools/Scripts/python.exe -m unittest discover -s tests
+out/ratchet-tools/Scripts/python.exe tests/test_liverpool_commands.py
+out/ratchet-tools/Scripts/python.exe tests/run_native.py --build-dir out/ratchet-clean
+out/ratchet-tools/Scripts/python.exe packaging/windows/package.py --build-dir out/ratchet-clean
+powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-Windows-PreAlpha.zip
 ```
 
-Choose the game folder in the launcher. For platform-specific tests, see
-[Tests in the root README](https://github.com/FelipePrado0/SpartanPort#tests): Windows uses Ninja
-test targets; `bash build.sh --test` runs additional runtime tests only on Linux.
+Build the `*-test` targets listed in `gpu/CMakeLists.txt` before running the native suite. Pass `--zero-clear-shader` with your local captured shader to run that GPU check; otherwise the runner explicitly reports it skipped.
 
-`run.py` is the Windows `run.sh` (same variables; works from a plain Windows Python too).
-The package freezes the launcher with PyInstaller (a private venv in `out/pyenv`, from a
-python.org Python) into `SpartanPort.exe`, which also runs `run.py` (`--run`), the preparation
-scripts (`--script`) and the game without the window (`--play`): players need no Python.
-The venv also receives `iced-x86`, which `scripts/isa_rewrite.py` uses for CPUs without MOVBE,
-BMI1 or LZCNT.
-`Play SpartanPort.exe` (`packaging/windows/play.c`) is a small native program that runs
-`SpartanPort.exe --play` from its folder and waits for it, for players who want to start the
-game directly with the saved settings.
-`scripts/patches.py` identifies SpartanPort by title ID or title and finds built-in patch
-sites by signature, rather than requiring one `eboot.bin` hash. Each unmatched patch is skipped
-and reported; this is not a guarantee that every game build works. The startup black-screen
-fix is always requested, including with patch lists saved by older launchers. The resolution
-patch and texture fix are mutually exclusive. See the root README for tested builds.
-From a source tree, `run.py` adds `C:\msys64\clang64\bin` (or `$MSYS2_ROOT`) to `PATH` for DLLs.
+The ZIP is assembled in a new timestamped staging directory. Packaging preserves older ZIPs with a timestamp. It bundles the frozen launcher, runtime executables, recursively discovered CLANG64 DLL dependencies, preparation scripts, fonts and licenses. It rejects known game files, modules, caches, settings and logs. The smoke check extracts the ZIP to a new temporary directory and runs with a system-only PATH so an installed MSYS2 cannot mask missing packaged DLLs. Its logs are retained locally.
 
-FSR 1 and temporal upscaling (FSR 3.1, FSR 4, TAA and DLSS) are disabled in the current launcher
-and game settings path. RCAS sharpening remains available. The DLSS bridge and FSR asset tools
-remaining in the tree are experimental development code, not supported player setup steps.
-See [the historical research notes](../../docs/upscaler.md) for context.
+The package contains no game dump. Only the local owner can validate actual gameplay, audio, controller input and saves using their own CUSA01047 USA v1.00 files. No automated release is published by CI; publishing requires review of local game-test evidence as well as the source, build, test and package results.
 
-See the [feature availability table](https://github.com/FelipePrado0/SpartanPort#feature-availability)
-for differences between published packages and current source builds, including Discord Rich Presence.
-
-The launcher texts are written in English with the Russian beside them; the other languages
-are in `launcher/spartanport_lang.py` (one list per language in the order of `KEYS`; a missing or
-empty text falls back to English). The icon (`launcher/spartanport.ico`/`.png`) is made from the
-SP monogram (`packaging/icon/monogram.png`) by `packaging/windows/make_icon.py` and built into `SpartanPort.exe`, `spartanport-probe.exe` (the game
-window) and `spartanport-gpu-capabilities.exe`.
-
-## What is different from Linux
-
-| Linux | Windows |
-|---|---|
-| `mov rax, fs:[0]` rewritten to `gs:[0]`, GS base set with `arch_prctl` | GS is the TEB and cannot move. The loader rewrites the displacement to `gs:[0x1480 + 8*slot]` (the TEB's `TlsSlots[slot]`, same 9-byte instruction) and each guest thread keeps its TCB in that TLS slot. The slot is claimed first thing in `main` (Vulkan drivers take many). |
-| One memfd for direct + flexible memory, `mmap(MAP_FIXED)` views | A pagefile-backed section; the PS4 range 64 GiB–1 TiB is reserved as one placeholder and views replace placeholders (`VirtualAlloc2`/`MapViewOfFile3`, as in shadPS4). Partial unmaps split views and restore page protections (GPU tracking). |
-| `-no-pie`, heap below 1 TiB | `--disable-high-entropy-va`: heaps and thread stacks stay low and out of the PS4 range. |
-| SIGSEGV handler, `sigsetjmp` recovery | Vectored exception handler; `spartanport_setjmp`/`spartanport_longjmp` (`src/compat_win.c`) restore all Win64 callee-saved registers without SEH unwinding (guest frames have no unwind data; clang's `__builtin_longjmp` restores a wrong frame pointer on Win64). |
-| Guest thread stacks from `runtime_low_map` | Windows allocates them, fully committed (`pthread_attr_setstacksize`): guest code has no stack probes and would skip the guard page. The main thread stack is 16 MiB committed. |
-| glibc `nanosleep`, monotonic condition variables | High-resolution waitable timers (`compat_sleep_ns`; winpthreads' sleep rounds to 15.6 ms); semaphore deadlines use `CLOCK_REALTIME` (winpthreads rejects monotonic condition variables). |
-| `libspartanportgpu.so` | `libspartanportgpu.a`, linked into `spartanport-probe.exe` by CMake (`gpu/CMakeLists.txt`), with a manifest for UTF-8 paths and long paths. |
-| `execlp bash run.sh` (in-game restart) | `run.py` puts its command line in `RATCHET_RESTART_COMMAND`; the new launch waits for the old process (`--after PID`). The launcher keeps the game in a job object. |
-| Mod overlay with symlinks | Symlinks when allowed (Developer Mode), else junctions for folders and hard links for files. On a network share (SMB), which refuses junctions too, folders are mirrored with hard links so the game still reads real files through the view. |
-
-Diagnostics added on the way: `RATCHET_FRAME_DUMP_TRIGGER=<file>` writes the guest display buffer
-and the presented image of the next frame to `RATCHET_DUMP_DIR` (raw 32-bit pixels), which also
-works for menus and movies.
-
-Linux-specific features include watchdog/`--timeout` thread dumps (Linux signals), userfaultfd
-tracking (`RATCHET_UFFD`), MangoHud and PGO (GCC flags). Many Python and C/C++ tests run on Windows;
-some tests still require Linux APIs. See the root README and `gpu/CMakeLists.txt` for test commands.
+Python, source and native tests remain separate from packaged game data. Never stage `out/`, `dist/`, captures, prepared game binaries or private logs in Git.

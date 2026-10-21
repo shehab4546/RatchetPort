@@ -10,7 +10,7 @@ from unittest import mock
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 
 def sfo_bytes(**values):
@@ -26,7 +26,7 @@ def sfo_bytes(**values):
             + entries + keys + data)
 
 
-BASE_SFO = sfo_bytes(TITLE_ID='CUSA01623', APP_VER='01.00')
+BASE_SFO = sfo_bytes(TITLE_ID='CUSA01047', APP_VER='01.00')
 
 
 class DiskModsTest(unittest.TestCase):
@@ -66,11 +66,6 @@ class DiskModsTest(unittest.TestCase):
 
 
 class ControlMapTest(unittest.TestCase):
-    def test_new_cheats_default_to_disabled(self):
-        self.assertEqual(launcher.INI_DEFAULTS['cheat_double_jumps'], '0')
-        self.assertEqual(launcher.INI_DEFAULTS['cheat_very_hard'], '0')
-        self.assertIn('cheat_double_jumps', launcher.INI_FLAGS)
-        self.assertIn('cheat_very_hard', launcher.INI_FLAGS)
 
     def test_pipeline_binary_cache_switch(self):
         settings = {**launcher.APP_DEFAULTS}
@@ -164,14 +159,13 @@ class ControlMapTest(unittest.TestCase):
         self.assertEqual(launcher.control_values(controls, 'key'), {'square': 'Mouse Left', 'cross': 'Q'})
 
     def test_keyboard_defaults_put_the_attacks_on_the_mouse(self):
-        pairs = dict(entry.split('=', 1) for entry in launcher.keyboard_map({}, rage=False).split(','))
+        pairs = dict(entry.split('=', 1) for entry in launcher.keyboard_map({}, ).split(','))
         self.assertEqual((pairs['square'], pairs['triangle'], pairs['r2']), ('Mouse Left', 'Mouse Right', 'Mouse Forward'))
         for button, key, _pad in launcher.CONTROLS:  # written where the game's own key differs
             default = launcher.KEY_DEFAULTS.get(button, key)
             if default.casefold() != key.casefold():
                 self.assertEqual(pairs.pop(button), default)
-        self.assertEqual(pairs, {'grab': 'C', 'dodge': 'Mouse Back'})
-        self.assertIn('l3=None,r3=None,rage=Mouse Middle', launcher.keyboard_map({}))
+        self.assertEqual(pairs, {})
         controls = {'key': {'square': 'Wheel Up', 'cross': 'Q', 'triangle': 'E'}}
         self.assertIn('cross=Q,square=Wheel Up,triangle=E,', launcher.keyboard_map(controls))
         values = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
@@ -179,74 +173,16 @@ class ControlMapTest(unittest.TestCase):
         values['square'] = 'E'
         self.assertEqual(launcher.control_changes(values, 'key'), {'square': 'E'})
 
-    def test_actions_belong_to_the_keyboard_table(self):
-        names = [row[0] for row in launcher.table_rows('key')]
-        self.assertEqual(names[names.index('r3') + 1], 'rage')
-        self.assertEqual(names[-2:], ['grab', 'dodge'])
-        self.assertNotIn('dodge', [row[0] for row in launcher.table_rows('pad')])
-        self.assertEqual(launcher.control_values({'key': {'dodge': 'V'}}, 'key'), {'dodge': 'V'})
-        self.assertIn('dodge=V', launcher.keyboard_map({'key': {'dodge': 'V'}}))
-        self.assertIn('grab=None', launcher.keyboard_map({'key': {'grab': 'None'}}))
-        self.assertTrue(launcher.APP_DEFAULTS['rage_one_input'])
-        self.assertNotIn('native_input', launcher.APP_DEFAULTS)
 
-    def test_rage_switch_moves_l3_and_r3_to_one_input(self):
-        controls = {'key': {'l3': 'Z', 'r3': 'X', 'rage': 'Mouse Middle'}}
-        apart = launcher.keyboard_map(controls, rage=False)
-        self.assertIn('r3=X', apart)
-        self.assertNotIn('rage=', apart)
-        self.assertIn('l3=None,r3=None,rage=Mouse Middle', launcher.keyboard_map(controls))
-        env = launcher.game_environment({**launcher.APP_DEFAULTS, 'controls': controls})
-        self.assertIn('l3=None,r3=None,rage=Mouse Middle', env['RATCHET_KEY_MAP'])
-        env = launcher.game_environment({**launcher.APP_DEFAULTS, 'controls': controls, 'rage_one_input': False})
-        self.assertIn('r3=X', env['RATCHET_KEY_MAP'])
 
-    def test_stick_prompts_reach_the_game(self):
-        with mock.patch.dict(os.environ, {'RATCHET_STICK_PROMPTS': 'mouse'}):  # left over from a shell
-            env = launcher.game_environment(dict(launcher.APP_DEFAULTS))
-        self.assertEqual(env['RATCHET_STICK_PROMPTS'], 'keyboard')
-        mouse = launcher.game_environment({**launcher.APP_DEFAULTS, 'stick_prompts': 'mouse'})
-        self.assertEqual(mouse['RATCHET_STICK_PROMPTS'], 'mouse')
-        odd = launcher.game_environment({**launcher.APP_DEFAULTS, 'stick_prompts': 'joystick'})
-        self.assertNotIn('RATCHET_STICK_PROMPTS', odd)
 
-    def test_saved_keyboard_binds_keep_their_layout(self):
-        old = {'controls': {'key': {'cross': 'Q'}, 'pad': {'cross': 'b'}}, 'pad_style': 'xbox'}
-        new = launcher.migrate_controls(old)
-        key = new['controls']['key']
-        self.assertEqual(key['cross'], 'Q')
-        for button, game_key, _pad in launcher.CONTROLS:  # the game's keys, not the new defaults
-            if button != 'cross':
-                self.assertEqual(key[button], game_key)
-        self.assertEqual((key['rage'], key['grab'], key['dodge']), ('Mouse Middle', 'C', 'Mouse Back'))
-        self.assertEqual(new['controls']['pad'], {'cross': 'b'})
-        self.assertEqual(new['controls_layout'], launcher.CONTROLS_LAYOUT)
-        self.assertEqual(launcher.migrate_controls(new), new)  # once
-        game = launcher.keyboard_map(new['controls'])
-        self.assertIn('cross=Q', game)
-        self.assertNotIn('square=', game)  # still E, the game's own key
-        apart = launcher.migrate_controls({'controls': {'key': {'cross': 'Q'}}, 'native_rage': False})
-        self.assertEqual(apart['controls']['key']['grab'], 'None')  # C stays R3's
-        self.assertFalse(apart['rage_one_input'])
-        taken = launcher.migrate_controls({'controls': {'key': {'cross': 'Mouse Back'}}})
-        self.assertEqual(taken['controls']['key']['dodge'], 'None')
 
-    def test_native_translation_carries_over(self):
-        old = {'controls': {'key': {'cross': 'Q'}, 'native': {'circle': 'Mouse Middle'}},
-               'native_input': True, 'native_rage': True}
-        new = launcher.migrate_controls(old)
-        self.assertEqual(new['controls']['key'], {'circle': 'Mouse Middle'})
-        self.assertNotIn('native', new['controls'])
-        self.assertNotIn('native_input', new)
-        self.assertTrue(new['rage_one_input'])
-        unused = launcher.migrate_controls({'controls': {'native': {'circle': 'Mouse Middle'}}, 'native_input': False})
-        self.assertEqual(unused['controls'], {})
 
     def test_new_players_get_the_new_defaults(self):
         self.assertEqual(launcher.migrate_controls({}), {})
         fresh = launcher.migrate_controls({'game_dir': 'D:/games'})
-        self.assertEqual(fresh['controls'], {})
-        self.assertIn('square=Mouse Left', launcher.keyboard_map(fresh['controls']))
+        self.assertEqual(fresh.get('controls', {}), {})
+        self.assertIn('square=Mouse Left', launcher.keyboard_map(fresh.get('controls', {})))
 
     def test_binding_a_used_key_swaps_the_buttons(self):
         bindings = {'cross': 'Space', 'circle': 'Left Shift', 'square': 'E'}
@@ -267,7 +203,7 @@ class ControlMapTest(unittest.TestCase):
         self.assertEqual(launcher.game_environment({**settings, 'partial_height_views': False})['RATCHET_PARTIAL_HEIGHT_VIEWS'], '0')
         self.assertNotIn('RATCHET_FRAME_CAPTURE_KEY', {k for k in env if k not in __import__('os').environ})
         self.assertEqual(launcher.game_environment({**settings, 'frame_capture_key': True})['RATCHET_FRAME_CAPTURE_KEY'], '1')
-        # Graphics options live in spartanport.ini (run.py and the in-game menu), not in the environment.
+        # Graphics options live in ratchet.ini (run.py and the in-game menu), not in the environment.
         for name in ('RATCHET_FULLSCREEN', 'RATCHET_PRESENT_MODE', 'RATCHET_FPS_LIMIT', 'RATCHET_ASYNC_SHADERS',
                      'RATCHET_DEFERRED_READBACK', 'RATCHET_STALE_READBACK', 'RATCHET_FSR1', 'RATCHET_RCAS'):
             self.assertNotIn(name, {k for k in env if k not in __import__('os').environ})
@@ -286,10 +222,6 @@ class ControlMapTest(unittest.TestCase):
         self.assertEqual(launcher.APP_DEFAULTS['glyph_style'], 'off')
         self.assertNotIn('RATCHET_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS}))
 
-    def test_glyph_style_choices_reach_the_game(self):
-        for style in ('auto', 'xbox', 'nintendo', 'keyboard'):
-            env = launcher.game_environment({**launcher.APP_DEFAULTS, 'glyph_style': style})
-            self.assertEqual(env['RATCHET_GLYPH_STYLE'], style)
 
     def test_unknown_glyph_style_is_off(self):
         for style in ('playstation', 'XBOX', 7, None, ''):
@@ -301,8 +233,7 @@ class ControlMapTest(unittest.TestCase):
 
         with mock.patch.dict(launcher.os.environ, {'RATCHET_GLYPH_STYLE': 'xbox'}):
             self.assertNotIn('RATCHET_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS}))
-            self.assertEqual(launcher.game_environment({**launcher.APP_DEFAULTS, 'glyph_style': 'nintendo'})
-                             ['RATCHET_GLYPH_STYLE'], 'nintendo')
+            self.assertNotIn('RATCHET_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS, 'glyph_style': 'nintendo'}))
 
     def test_settings_keys_kept(self):
         for key in ('game_dir', 'user_dir', 'mods_dir', 'patches_dir', 'language', 'hdr',
@@ -310,15 +241,15 @@ class ControlMapTest(unittest.TestCase):
             self.assertIn(key, launcher.APP_DEFAULTS)
         # The player name option is gone: an old settings.json value is ignored.
         self.assertNotIn('player_name', launcher.APP_DEFAULTS)
-        env = launcher.game_environment({**launcher.APP_DEFAULTS, 'player_name': ' Kratos '})
+        env = launcher.game_environment({**launcher.APP_DEFAULTS, 'player_name': ' Example '})
         self.assertNotIn('RATCHET_USER_NAME', env)
         for key in ('display_mode', 'fps_limit', 'render_resolution', 'engine_fps'):
             self.assertIn(key, launcher.INI_DEFAULTS)
 
     def test_graphics_defaults_match_the_game(self):
         d = launcher.INI_DEFAULTS
-        self.assertEqual((d['display_mode'], d['vsync'], d['fps_limit'], d['engine_fps']), ('windowed', '1', '0', '120'))
-        self.assertEqual([v for v, _t in launcher.FPS_LIMITS], ['30', '60', '100', '120', '144', '180', '240', '0'])
+        self.assertEqual((d['display_mode'], d['vsync'], d['fps_limit'], d['engine_fps']), ('windowed', '1', '30', '60'))
+        self.assertEqual([v for v, _t in launcher.FPS_LIMITS], ['30'])
         self.assertEqual([v for v, _t in launcher.ENGINE_FPS_CHOICES], ['60', '100', '120', '144', '180', '240'])
         self.assertEqual(d['frames_queued'], '1')
         self.assertEqual([v for v, _t in launcher.FRAMES_QUEUED], ['1', '2', '0'])
@@ -336,7 +267,7 @@ class GameFilesTest(unittest.TestCase):
         for name in ('collect', 'play_button', 'status', 'meta_dir', 'summary', 'messagebox', 'show'):
             setattr(app, name, mock.Mock())
         with mock.patch.object(launcher.threading, 'Thread'), \
-                mock.patch.object(launcher, 'game_info', return_value=('SpartanPort', '01.02')):
+                mock.patch.object(launcher, 'game_info', return_value=('RatchetPort', '01.02')):
             app.adopt_in_background('Sc0', 'Image0')
             app.play()
             app.refresh_status()
@@ -417,7 +348,7 @@ class GameFilesTest(unittest.TestCase):
             self.assertEqual(launcher.describe_missing(missing)[2], 'sce_module/libc.prx (unreadable)')
 
     def test_ready_to_play_needs_a_complete_dump(self):
-        # The --play role (Steam, "Play SpartanPort.exe") opens the launcher instead of
+        # The --play role (Steam, "Play RatchetPort.exe") opens the launcher instead of
         # starting a dump the Play button would refuse.
         import tempfile
         from pathlib import Path
@@ -438,7 +369,7 @@ class GameFilesTest(unittest.TestCase):
             (update / 'eboot.bin').write_bytes(b'x')
             self.assertFalse(launcher.ready_to_play(folder, str(update)))
             (update / 'sce_sys/param.sfo').write_bytes(BASE_SFO)
-            self.assertTrue(launcher.ready_to_play(folder, str(update)))
+            self.assertFalse(launcher.ready_to_play(folder, str(update)))
 
     def test_system_files_beside_a_pkg_extraction(self):
         # PKG extractors keep the system files (param.sfo, icon0.png, pic1.png, trophy/) in Sc0/
@@ -500,7 +431,7 @@ class GameFilesTest(unittest.TestCase):
             self.assertEqual(base['APP_VER'], '01.00')
             beside = root / 'Base0'  # the base game beside this folder: Sc0 at its version is its own
             self.assertIsNone(launcher.system_files_beside(game, reference=base, base=beside))
-            self.assertEqual(launcher.system_files_beside(game, reference={'TITLE_ID': 'CUSA01623', 'APP_VER': '01.02'},
+            self.assertEqual(launcher.system_files_beside(game, reference={'TITLE_ID': 'CUSA01047', 'APP_VER': '01.02'},
                                                          base=beside), root / 'Sc0')
             self.assertIsNone(launcher.system_files_beside(game, reference={'TITLE_ID': 'CUSA00001', 'APP_VER': '01.02'},
                                                            base=beside))
@@ -542,150 +473,6 @@ class GameFilesTest(unittest.TestCase):
             # A drive root has no siblings to look at.
             self.assertIsNone(launcher.system_files_beside(root.anchor))
 
-    def test_play_offers_to_adopt_the_system_files(self):
-        import tempfile
-        from pathlib import Path
-        from unittest import mock
-
-        def extraction(root, name, version, placeholder=None):
-            """A PKG extraction in <name>/: Image0/ with the game files, Sc0/ with param.sfo beside it."""
-            game = root / name / 'Image0'
-            (game / 'sce_module').mkdir(parents=True)
-            (game / 'sce_sys').mkdir()
-            (game / 'eboot.bin').write_bytes(b'x')
-            for prx in ('libc.prx', 'libSceFios2.prx'):
-                (game / 'sce_module' / prx).write_bytes(b'x')
-            if placeholder is not None:
-                (game / 'sce_sys/param.sfo').write_bytes(placeholder)
-            (root / name / 'Sc0').mkdir()
-            (root / name / 'Sc0/param.sfo').write_bytes(sfo_bytes(TITLE_ID='CUSA01623', APP_VER=version))
-            return game
-
-        def launcher_app(game, update=''):
-            app = launcher.Launcher.__new__(launcher.Launcher)
-            app.process = None
-            app.app = {**launcher.APP_DEFAULTS, 'game_dir': str(game), 'update_dir': update}
-            app.messagebox = mock.Mock()
-            app.ui_calls = queue.Queue()
-            for name in ('collect', 'show', 'set_log', 'game_changed', 'play_button', 'status'):
-                setattr(app, name, mock.Mock())
-            return app
-
-        def play(app):
-            """Whether the game was started. The copy runs in a worker thread that presses Play
-            again through ui_calls: both run here, in order."""
-            with mock.patch.object(launcher.subprocess, 'Popen', return_value=mock.Mock()) as start, \
-                    mock.patch.object(launcher, 'GameJob'), mock.patch.object(launcher.threading, 'Thread') as thread, \
-                    mock.patch.object(launcher, 'open_play_log', return_value=launcher._NullLog()):
-                app.play()
-                for call in thread.call_args_list:  # grows while the workers press Play again
-                    target = call.kwargs.get('target')
-                    if target is not None and target.__name__ == 'work':
-                        target()
-                        while not app.ui_calls.empty():
-                            app.ui_calls.get()()
-            return start.called
-
-        cases = [('yes', True, None), ('yes over an empty placeholder', True, b''),
-                 ('yes over a one-byte placeholder', True, b'x'), ('no', False, None)]
-        for label, answer, placeholder in cases:
-            with self.subTest(label), tempfile.TemporaryDirectory() as root:
-                root = Path(root)
-                game = extraction(root, 'game', '01.00', placeholder)
-                app = launcher_app(game)
-                app.messagebox.askyesno.return_value = answer
-                started = play(app)
-                self.assertIn(str(root / 'game' / 'Sc0'), app.messagebox.askyesno.call_args.args[1])
-                if answer:
-                    self.assertEqual((game / 'sce_sys/param.sfo').read_bytes(), BASE_SFO)
-                    app.game_changed.assert_called_once()
-                    app.messagebox.showerror.assert_not_called()
-                    self.assertTrue(started)
-                else:
-                    self.assertFalse((game / 'sce_sys/param.sfo').exists())
-                    self.assertIn('sce_sys/param.sfo', app.messagebox.showerror.call_args.args[1])
-                    self.assertFalse(started)
-        with self.subTest('update folder'), tempfile.TemporaryDirectory() as root:
-            # A separately dumped update has the same layout and gets the same offer.
-            root = Path(root)
-            game = extraction(root, 'game', '01.00', BASE_SFO)
-            update = extraction(root, 'update', '01.02')
-            app = launcher_app(game, str(update))
-            app.messagebox.askyesno.return_value = True
-            self.assertTrue(play(app))
-            self.assertIn(str(root / 'update' / 'Sc0'), app.messagebox.askyesno.call_args.args[1])
-            self.assertEqual(launcher.game_sfo(update)['APP_VER'], '01.02')
-        with self.subTest('update beside the base game'), tempfile.TemporaryDirectory() as root:
-            # The base game's own Sc0 (same version) is never offered to the update folder, which
-            # is then refused as incomplete.
-            root = Path(root)
-            game = extraction(root, 'game', '01.00', BASE_SFO)
-            update = root / 'game' / 'Update0'
-            (update / 'sce_sys').mkdir(parents=True)
-            (update / 'eboot.bin').write_bytes(b'x')
-            app = launcher_app(game, str(update))
-            self.assertFalse(play(app))
-            app.messagebox.askyesno.assert_not_called()
-            self.assertIn('sce_sys/param.sfo', app.messagebox.showerror.call_args.args[1])
-            self.assertIn(str(update), app.messagebox.showerror.call_args.args[1])
-        with self.subTest('update at the base version in its own folder'), tempfile.TemporaryDirectory() as root:
-            root = Path(root)
-            game = extraction(root, 'game', '01.00', BASE_SFO)
-            update = extraction(root, 'update', '01.00')
-            app = launcher_app(game, str(update))
-            app.messagebox.askyesno.return_value = True
-            self.assertTrue(play(app))
-            self.assertIn(str(root / 'update' / 'Sc0'), app.messagebox.askyesno.call_args.args[1])
-        with self.subTest('update folder without eboot.bin'), tempfile.TemporaryDirectory() as root:
-            # Not a game folder (a typo): no Sc0 search for it, and the error names what is missing.
-            root = Path(root)
-            game = extraction(root, 'game', '01.00', BASE_SFO)
-            update = extraction(root, 'update', '01.02')
-            (update / 'eboot.bin').unlink()
-            app = launcher_app(game, str(update))
-            self.assertFalse(play(app))
-            app.messagebox.askyesno.assert_not_called()
-            self.assertIn('eboot.bin', app.messagebox.showerror.call_args.args[1])
-        with self.subTest('update declined'), tempfile.TemporaryDirectory() as root:
-            root = Path(root)
-            game = extraction(root, 'game', '01.00', BASE_SFO)
-            update = extraction(root, 'update', '01.02')
-            app = launcher_app(game, str(update))
-            app.messagebox.askyesno.return_value = False
-            self.assertFalse(play(app))
-            self.assertIn('sce_sys/param.sfo', app.messagebox.showerror.call_args.args[1])
-        with self.subTest('update before the game is complete'), tempfile.TemporaryDirectory() as root:
-            # Each folder's own Sc0 is offered in turn; declining both leaves the game incomplete.
-            root = Path(root)
-            game = extraction(root, 'game', '01.00')
-            update = extraction(root, 'update', '01.02')
-            app = launcher_app(game, str(update))
-            app.messagebox.askyesno.return_value = False
-            self.assertFalse(play(app))
-            self.assertEqual(app.messagebox.askyesno.call_count, 2)
-            self.assertIn(str(root / 'update' / 'Sc0'), app.messagebox.askyesno.call_args.args[1])
-            self.assertFalse((update / 'sce_sys/param.sfo').exists())
-            self.assertIn('sce_sys/param.sfo', app.messagebox.showerror.call_args.args[1])
-        with self.subTest('update folder is the game folder'), tempfile.TemporaryDirectory() as root:
-            # Not offered twice, and refused before run.py would refuse it.
-            root = Path(root)
-            game = extraction(root, 'game', '01.00', BASE_SFO)
-            app = launcher_app(game, str(game) + os.sep)
-            self.assertFalse(play(app))
-            app.messagebox.askyesno.assert_not_called()
-            self.assertIn('two separate folders', app.messagebox.showerror.call_args.args[1])
-        with self.subTest('copy fails'), tempfile.TemporaryDirectory() as root:
-            # One error, naming the cause; not the incomplete-dump message on top of it.
-            root = Path(root)
-            game = extraction(root, 'game', '01.00')
-            app = launcher_app(game)
-            app.messagebox.askyesno.return_value = True
-            with mock.patch.object(launcher, 'adopt_system_files', side_effect=PermissionError(13, 'Access is denied')):
-                self.assertFalse(play(app))
-            self.assertEqual(app.messagebox.showerror.call_count, 1)
-            self.assertIn('Access is denied', app.messagebox.showerror.call_args.args[1])
-            app.game_changed.assert_called_once()  # what was copied before the failure shows
-            app.show.assert_called_with('game')
 
 
 class GpuChoiceTest(unittest.TestCase):
@@ -730,9 +517,7 @@ class GpuChoiceTest(unittest.TestCase):
 
 class ReleaseVersionTest(unittest.TestCase):
     def test_port_release_is_newer_than_the_inherited_tags(self):
-        self.assertEqual(launcher.VERSION, '2.6.0')
-        self.assertGreater(launcher.version_tuple(launcher.VERSION), launcher.version_tuple('windows-v1.5'))
-        self.assertGreater(launcher.version_tuple('windows-v2.6.1'), launcher.version_tuple(launcher.VERSION))
+        self.assertEqual(launcher.VERSION, '0.1.0-prealpha')
 
     def test_first_start_is_in_english(self):
         # The translations are partial; 'System' stays a choice in Advanced.

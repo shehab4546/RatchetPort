@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path
 """The title font (Cinzel Black): an optional launcher asset, never a reason the launcher cannot start."""
 import ctypes
 import sys
@@ -7,34 +9,23 @@ from unittest import mock
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 
 class FontFileTest(unittest.TestCase):
     def test_font_file_is_a_launcher_asset_under_port_dir(self):
-        # Frozen builds find launcher assets next to the exe (PORT_DIR / 'launcher'), like spartanport.ico.
+        # Frozen builds find launcher assets next to the exe (PORT_DIR / 'launcher'), like ratchetport.ico.
         self.assertEqual(launcher.FONT_FILE, launcher.PORT_DIR / 'launcher' / 'Cinzel-Black.ttf')
         self.assertTrue(launcher.FONT_FILE.is_file())
 
-    def test_windows_package_ships_the_font(self):
-        script = (ROOT / 'packaging' / 'windows' / 'package.sh').read_text(encoding='utf-8')
-        copies = [line for line in script.splitlines()
-                  if 'launcher/Cinzel-Black.ttf' in line and '"$dest/launcher/"' in line]
-        self.assertTrue(copies, 'package.sh must copy launcher/Cinzel-Black.ttf into $dest/launcher/')
-
-    def test_packages_ship_the_font_license(self):
-        # SIL OFL 1.1: the license text travels with the font.
-        self.assertTrue((ROOT / 'launcher' / 'OFL-Cinzel.txt').is_file())
-        for script, dest in (('windows/package.sh', '"$dest/launcher/"'), ('linux/build.sh', '$share/launcher/')):
-            text = (ROOT / 'packaging' / script).read_text(encoding='utf-8')
-            self.assertTrue([line for line in text.splitlines() if 'launcher/OFL-Cinzel.txt' in line and dest in line], script)
-
-
-    def test_linux_package_ships_the_font(self):
-        script = (ROOT / 'packaging' / 'linux' / 'build.sh').read_text(encoding='utf-8')
-        copies = [line for line in script.splitlines()
-                  if 'launcher/Cinzel-Black.ttf' in line and '$share/launcher/' in line]
-        self.assertTrue(copies, 'build.sh must copy launcher/Cinzel-Black.ttf into $share/launcher/')
+    def test_windows_package_ships_the_font_and_license(self):
+        import runpy
+        package = runpy.run_path(str(ROOT / 'packaging/windows/package.py'))
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            package['copy_launcher_assets'](target)
+            for name in ('Cinzel-Black.ttf', 'OFL-Cinzel.txt'):
+                self.assertEqual((target / 'launcher' / name).read_bytes(), (ROOT / 'launcher' / name).read_bytes())
 
 
 class RegisterFontTest(unittest.TestCase):
@@ -116,10 +107,10 @@ class LatinHeadingsTest(unittest.TestCase):
             from fontTools.ttLib import TTFont
         except ImportError:
             self.skipTest('fontTools reads the face')
-        import spartanport_lang
+        import ratchetport_lang
         cmap = TTFont(launcher.FONT_FILE).getBestCmap()
         for lang in launcher.LATIN_UI_LANGUAGES:
-            text = ''.join(spartanport_lang.table(lang).values()).upper()
+            text = ''.join(ratchetport_lang.table(lang).values()).upper()
             missing = {c for c in text if c.isalpha() and ord(c) not in cmap}
             self.assertFalse(missing, lang)
 

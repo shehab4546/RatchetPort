@@ -231,6 +231,7 @@ class PresenceLifecycle(unittest.TestCase):
 
 class GameProcessPresence(unittest.TestCase):
     def setUp(self):
+        self.enterContext(mock.patch('ratchet_game.validate_game', return_value={}))
         sys.path.insert(0, str(ROOT))
         import run
         import patches
@@ -251,7 +252,7 @@ class GameProcessPresence(unittest.TestCase):
         self.factory = self.enterContext(mock.patch.object(dp, 'Presence', return_value=self.presence))
         self.enterContext(mock.patch.dict(os.environ, {
             'RATCHET_GAME_DIR': str(game), 'RATCHET_DATA_DIR': str(folder),
-            'RATCHET_CONFIG': str(folder / 'spartanport.ini'), 'RATCHET_DISCORD': '1',
+            'RATCHET_CONFIG': str(folder / 'ratchet.ini'), 'RATCHET_DISCORD': '1',
         }, clear=True))
         self.enterContext(mock.patch.object(run, 'PORT', folder))
         self.enterContext(mock.patch.object(run, 'find_executable', return_value=probe))
@@ -341,7 +342,7 @@ class WindowsPipeTransport(unittest.TestCase):
         self.ctypes = ctypes
         self.kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
         self.kernel32.CreateNamedPipeW.restype = ctypes.c_void_p
-        path = rf'\\.\pipe\spartanport-rpc-test-{uuid.uuid4()}'
+        path = rf'\\.\pipe\ratchetport-rpc-test-{uuid.uuid4()}'
         handle = self.kernel32.CreateNamedPipeW(ctypes.c_wchar_p(path), 3, 0, 1, 1024, 1024, 0, None)
         self.assertNotEqual(handle, ctypes.c_void_p(-1).value)
         self.pipe = ctypes.c_void_p(handle)
@@ -395,7 +396,7 @@ class WindowsPipeTransport(unittest.TestCase):
 class LauncherSwitch(unittest.TestCase):
     def setUp(self):
         sys.path.insert(0, str(ROOT / 'launcher'))
-        import spartanport_launcher_win as launcher
+        import ratchetport_launcher_win as launcher
         self.launcher = launcher
 
     def environment(self, **settings):
@@ -411,13 +412,13 @@ class LauncherSwitch(unittest.TestCase):
         self.assertEqual(self.environment(discord_rpc=True)['RATCHET_DISCORD'], '1')
 
     def test_label_is_translated(self):
-        import spartanport_lang
-        self.assertEqual(spartanport_lang.table('es')['Show Discord Rich Presence'], 'Mostrar Discord Rich Presence')
-        self.assertIn('Discord', spartanport_lang.table('pt')['Show Discord Rich Presence'])
-        self.assertEqual(spartanport_lang.table('es')[
+        import ratchetport_lang
+        self.assertEqual(ratchetport_lang.table('es')['Show Discord Rich Presence'], 'Mostrar Discord Rich Presence')
+        self.assertIn('Discord', ratchetport_lang.table('pt')['Show Discord Rich Presence'])
+        self.assertEqual(ratchetport_lang.table('es')[
             'Shows only the game name and the time played on your Discord profile.'],
             'Muestra en tu perfil de Discord solo el nombre del juego y el tiempo jugado.')
-        self.assertEqual(spartanport_lang.table('es')['Game multisampling'], 'Multisampling del juego')
+        self.assertEqual(ratchetport_lang.table('es')['Game multisampling'], 'Multisampling del juego')
 
 
 if __name__ == '__main__':

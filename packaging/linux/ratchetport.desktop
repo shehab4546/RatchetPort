@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=SpartanPort
+Name=RatchetPort
 Comment=Unofficial PC port (bring your own game dump)
 Exec=AppRun
-Icon=spartanport
+Icon=ratchetport
 Categories=Game;
 Terminal=false
-StartupWMClass=spartanport
+StartupWMClass=ratchetport

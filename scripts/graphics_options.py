@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Startup graphics options of spartanport.ini (gpu/shim/ratchet_graphics.h) for run.py.
+"""Startup graphics options of ratchet.ini (gpu/shim/ratchet_graphics.h) for run.py.
 
 The in-game menu and the launcher write them; run.py turns them into game patches and
 environment variables at every start, so "Apply and restart" uses the new values. After a
@@ -16,19 +16,17 @@ RESOLUTIONS = ('native', '480p', '720p', '900p', '1440p', '1800p', '4K',
                '1440x900', '1360x768',
                '1280x960', '1440x1080', '1920x1440', '2048x1536', '2560x1920',
                '5120x2160', '8K')
-# The ultrawide, 16:10 and 4:3 sizes of the Ultrawide mod (#202), built in: beta until more players confirm
-# them, except the ones tested in game. 8K remains beta pending full-game stability testing.
+# Generic size labels retained for settings parsing; not a claim of Ratchet gameplay support.
 TESTED_RESOLUTIONS = ('1280x800', '1440x900', '1360x768', '1280x960')
 BETA_RESOLUTIONS = tuple(r for r in RESOLUTIONS[7:] if r not in TESTED_RESOLUTIONS)
 SIZES = {'native': (1920, 1080), '480p': (854, 480), '720p': (1280, 720), '900p': (1600, 900),
          '1440p': (2560, 1440), '1800p': (3200, 1800), '4K': (3840, 2160), '8K': (7680, 4320)}
 ASPECTS = (('16:9', 16 / 9), ('16:10', 16 / 10), ('21:9', 2.37), ('32:9', 32 / 9), ('4:3', 4 / 3))
 ENGINE_FPS = (60, 100, 120, 144, 180, 240)
-DEFAULTS = {'render_resolution': 'native', 'engine_fps': '120', 'deferred_readback': '1',
+DEFAULTS = {'render_resolution': 'native', 'engine_fps': '60', 'deferred_readback': '1',
             'stale_readback': '1', 'async_shaders': '1'}
 RESOLUTION_PREFIX = 'Resolution Patch'
 FPS_PREFIX = 'Frame Rate Patch'
-TEXTURE_FIX = 'Bug Fix - Texture Corruption Fix'
 
 
 def read_ini(path):
@@ -50,7 +48,7 @@ def write_keys(path, updates):
     try:
         lines = path.read_text(encoding='utf-8').splitlines()
     except OSError:
-        lines = ['# spartanport settings (in-game menu: Insert / R3+L2)']
+        lines = ['# ratchetport settings (in-game menu: Insert / R3+L2)']
     done, out = set(), []
     for line in lines:
         key = line.split('=', 1)[0].strip() if '=' in line and not line.lstrip().startswith('#') else None
@@ -137,7 +135,7 @@ def startup_options(ini, extra=()):
     if options['render_resolution'] not in resolutions(extra):
         options['render_resolution'] = 'native'
     if options['engine_fps'] not in {str(f) for f in ENGINE_FPS}:
-        options['engine_fps'] = '120'
+        options['engine_fps'] = DEFAULTS['engine_fps']
     for key in ('deferred_readback', 'stale_readback', 'async_shaders'):
         options[key] = '0' if options[key] == '0' else '1'
     return options
@@ -168,18 +166,9 @@ def prepare(config, state_path, extra=()):
     return options, reverted
 
 
-def patch_names(names, options, texture_fix_available=True):
-    """The launcher's patch list with the resolution and frame rate patches of `options`."""
-    names = [n for n in names if not n.startswith(RESOLUTION_PREFIX) and not n.startswith(FPS_PREFIX)]
-    resolution = options['render_resolution']
-    if resolution != 'native':
-        names = [n for n in names if n != TEXTURE_FIX] + [f'{RESOLUTION_PREFIX} - {resolution}']
-    elif texture_fix_available and TEXTURE_FIX not in names:
-        names.insert(0, TEXTURE_FIX)
-    # The engine rate is chosen live (ratchet_settings.cpp SyncEngineFps): the highest patch gives
-    # the swing energy fix and a vblank every lower rate fits in.
-    names.append(f'{FPS_PREFIX} - {max(ENGINE_FPS)} FPS')
-    return names
+def patch_names(names, options, texture_fix_available=False):
+    """CUSA01047 has no verified binary patches; saved lists cannot enable them."""
+    return []
 
 
 def restrict_to_available(names, available):

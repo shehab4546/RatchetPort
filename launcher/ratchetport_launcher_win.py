@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""SpartanPort (spartanport) launcher for Windows and Linux (Tkinter).
+"""RatchetPort (ratchetport) launcher for Windows and Linux (Tkinter).
 
-Every setting of the port in one window: the game folder and saves, spartanport.ini (upscaler,
+Every setting of the port in one window: the game folder and saves, ratchet.ini (upscaler,
 preset, output, effects), start-up options passed to run.py as environment variables
 (frame rate, presentation, HDR, ...), mods, third-party patches and controls.
 Launcher options live in settings.json next to the executable (portable; migrated from AppData/XDG config).
 
-Frozen with PyInstaller (packaging/windows/package.sh) the same SpartanPort.exe also runs the
+Frozen with PyInstaller (packaging/windows/package.sh) the same RatchetPort.exe also runs the
 game without the window (`--play`), run.py (`--run`) and the preparation scripts (`--script`),
 so a packaged port needs no Python installation.
 """
@@ -45,33 +45,32 @@ FROZEN = getattr(sys, 'frozen', False)
 PORT_DIR = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PORT_DIR / 'scripts'))
 import graphics_options  # noqa: E402  (scripts/)
-import legacy  # noqa: E402  (scripts/)
+
 import save_backup  # noqa: E402  (scripts/)
 import steam_shortcut  # noqa: E402  (scripts/)
 from patches import game_profile, game_sfo  # noqa: E402  (scripts/)
 from prepare import load_sfo  # noqa: E402  (scripts/)
-legacy.forward_environment()  # before the folders below are read from the environment
+
 DATA_DIR = Path(os.environ.get('RATCHET_DATA_DIR', PORT_DIR))
 CONFIG_DIR = DATA_DIR
 CONFIG_FILE = CONFIG_DIR / 'settings.json'
-LEGACY_CONFIG_DIR = (Path(os.environ.get('APPDATA', Path.home())) if WINDOWS else
-                     Path(os.environ.get('XDG_CONFIG_HOME') or Path.home() / '.config')) / legacy.LEGACY_CONFIG_DIR
-LEGACY_CONFIG_FILE = LEGACY_CONFIG_DIR / 'settings.json'
+LEGACY_CONFIG_DIR = DATA_DIR
+LEGACY_CONFIG_FILE = CONFIG_FILE
 MOD_PRESETS = DATA_DIR / 'mods_presets.json'
-APP_NAME = 'SpartanPort'
+APP_NAME = 'RatchetPort'
 MAX_LOG_LINES = 6000
 NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # The game and everything it starts form one process group, ended together (GameJob).
 NEW_GROUP = {} if WINDOWS else {'start_new_session': True}
 UI_FONT, MONO_FONT, SERIF_FONT = 'Segoe UI', 'Consolas', 'Georgia'
 # This build; GitHub release tags are windows-v<VERSION>.
-VERSION = '2.6.0'
-RELEASES_API = 'https://api.github.com/repos/FelipePrado0/SpartanPort/releases/latest'
-RELEASES_PAGE = 'https://github.com/FelipePrado0/SpartanPort/releases/latest'
-UPDATE_DIR = Path(tempfile.gettempdir()) / 'spartanport-update'
+VERSION = '0.1.0-prealpha'
+RELEASES_API = ''
+RELEASES_PAGE = ''
+UPDATE_DIR = Path(tempfile.gettempdir()) / 'ratchetport-update'
 # Never copied over an installation by an update (the package does not hold them either).
-USER_FILES = ('user', 'out', 'mods', 'spartanport.ini', 'settings.json', 'game_icon.ico', 'mods.json', 'mods_presets.json', 'patches.json', 'last_run.log')
-# The title face (Cinzel Black), next to spartanport.ico; main() registers it for this process only.
+USER_FILES = ('user', 'out', 'mods', 'ratchet.ini', 'settings.json', 'game_icon.ico', 'mods.json', 'mods_presets.json', 'patches.json', 'last_run.log')
+# The title face (Cinzel Black), next to ratchetport.ico; main() registers it for this process only.
 FONT_FILE = PORT_DIR / 'launcher' / 'Cinzel-Black.ttf'
 FR_PRIVATE = 0x10
 
@@ -158,7 +157,7 @@ def find_tool(name):
 
 
 def parse_gpu_list(text):
-    """One tuple per line of `spartanport-gpu-capabilities --list`: index, name, type and, from the tools
+    """One tuple per line of `ratchet-gpu-capabilities --list`: index, name, type and, from the tools
     that print them, the game's multisampling default on that driver ('off' or 'on') and '1' on
     the GPU the game picks without RATCHET_GPU_ID. Other lines are skipped."""
     rows = [line.split('\t') for line in text.splitlines()]
@@ -183,7 +182,7 @@ def no_msaa_options(gpus, gpu_id):
 
 def list_gpus():
     """The Vulkan GPUs in the order the game numbers them, or [] when the tool cannot tell."""
-    tool = find_tool('spartanport-gpu-capabilities' + ('.exe' if WINDOWS else ''))
+    tool = find_tool('ratchet-gpu-capabilities' + ('.exe' if WINDOWS else ''))
     if not tool:
         return []
     try:
@@ -196,11 +195,11 @@ def list_gpus():
 
 # ---------------------------------------------------------------------------------------------
 # Languages: every text is written in English with the Russian next to it; the other
-# languages are in spartanport_lang.py, keyed by the English text.
+# languages are in ratchetport_lang.py, keyed by the English text.
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import button_icons  # noqa: E402
-import spartanport_lang  # noqa: E402
+import ratchetport_lang  # noqa: E402
 
 LANG = 'en'
 FONT_LOADED = False  # set by main() for the window; the command-line roles never need the font
@@ -331,7 +330,7 @@ def _(en, ru=None):
         return _(en[:-len(WARN)], ru and ru.removesuffix(WARN)) + WARN
     if LANG == 'ru':
         return ru or en
-    return spartanport_lang.table(LANG).get(en) or en
+    return ratchetport_lang.table(LANG).get(en) or en
 
 
 def environment_language():
@@ -349,7 +348,7 @@ def windows_language():
         primary = ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3ff
     except (AttributeError, OSError):
         return 'en'
-    return spartanport_lang.WINDOWS_LANGUAGES.get(primary, 'en')
+    return ratchetport_lang.WINDOWS_LANGUAGES.get(primary, 'en')
 
 
 def register_font(path):
@@ -387,28 +386,28 @@ def heading_font(size, fallback=None, every_language=False):
 
 
 # ---------------------------------------------------------------------------------------------
-# Settings. spartanport.ini keys (the game reads them, the in-game menu edits them) and the
+# Settings. ratchet.ini keys (the game reads them, the in-game menu edits them) and the
 # launcher's own settings.json (passed to run.py as environment variables).
 
-INI_FLAGS = {'cheat_double_jumps', 'cheat_very_hard', 'object_motion', 'show_fps', 'vsync', 'async_shaders', 'deferred_readback',
+INI_FLAGS = {'object_motion', 'show_fps', 'vsync', 'async_shaders', 'deferred_readback',
              'stale_readback'}
 # The graphics keys are also in the in-game menu (Insert / R3+L2); run.py reads the startup ones.
-INI_DEFAULTS = {'upscaler': 'fsr3', 'preset': '1',
-                'object_motion': '1', 'show_fps': '1', 'output_res': '1920x1080',
-                'live_resolution': 'auto', 'display_mode': 'windowed', 'vsync': '1', 'fps_limit': '0',
+INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
+                'object_motion': '1', 'show_fps': '1', 'output_res': '1280x720',
+                'live_resolution': 'auto', 'display_mode': 'windowed', 'vsync': '1', 'fps_limit': '30',
                 'async_shaders': '1', 'deferred_readback': '1', 'stale_readback': '1',
-                'render_resolution': 'native', 'engine_fps': '120',
-                'frames_queued': '1', 'cheat_very_hard': '0', 'cheat_double_jumps': '0',
-                'anisotropy': '0', 'vibration': '100', 'mouse_prompt_distance': '48', 'mouse_lock': '1',
+                'render_resolution': 'native', 'engine_fps': '60',
+                'frames_queued': '1',
+                'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
                 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
 DISPLAY_MODES = [('windowed', ('Windowed',)), ('borderless', ('Borderless',)), ('fullscreen', ('Fullscreen',))]
 ANISOTROPY = [('0', ('Game default',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
-FPS_LIMITS = [('30', ('30',)), ('60', ('60',)), ('100', ('100',)), ('120', ('120',)), ('144', ('144',)), ('180', ('180',)), ('240', ('240',)), ('0', ('Unlimited',))]
+FPS_LIMITS = [('30', ('30',))]
 # The sidebar's pages, top to bottom, and the methods that refresh a page's lists when it is shown.
 PAGES = ('home', 'graphics', 'performance', 'game', 'controls', 'mods', 'advanced')
 PAGE_REFRESH = {'home': ('refresh_status',), 'game': ('refresh_game_patches',), 'mods': ('refresh_lists',)}
 UI_SCALES = [('auto', ('Auto',)), ('1', ('1x',)), ('2', ('2x',))]
-APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('RATCHET_GAME_DIR', str(PORT_DIR.parent / 'CUSA01623') if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
+APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('RATCHET_GAME_DIR', str(PORT_DIR.parent / 'CUSA01047') if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
                 'video_backend': 'auto', 'gamemode': False, 'mangohud': False, 'desktop_integration': True, 'user_dir': '',
                 'mods_dir': '', 'mods_enabled': True, 'patches_dir': '', 'language': '1',
                 'hdr': False, 'draw_pipe': '', 'readbacks': '', 'no_msaa': '', 'stream_memory': 'cached',
@@ -416,11 +415,11 @@ APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.
                 'perf_diag': False, 'frame_capture_key': False, 'frame_stats': False, 'gpu_profile': False,
                 'vk_validation': False, 'close_on_play': False, 'discord_rpc': False,
                 'check_updates': False, 'game_patches': {}, 'controls': {}, 'pad_style': 'playstation',
-                'rage_one_input': True, 'stick_prompts': 'keyboard', 'controls_layout': 2,
+                'controls_layout': 2,
                 'glyph_style': 'off'}
 
 # PS4 button, default key, default gamepad button (SDL names; src/runtime_pad.c). L2/R2 come
-# from the analog triggers and the left touchpad click (photo mode) from L1 + the right click's
+# from the analog triggers and the left touchpad click from L1 + the right click's
 # button; neither is remapped on the gamepad.
 CONTROLS = [('cross', 'Space', 'a'), ('circle', 'Left Shift', 'b'), ('square', 'E', 'x'),
             ('triangle', 'Q', 'y'), ('l1', '1', 'leftshoulder'), ('r1', '3', 'rightshoulder'),
@@ -455,8 +454,8 @@ CONTROL_DEVICES = (('keyboard', 'Keyboard & mouse'), ('gamepad', 'Gamepad'))
 
 
 def connected_gamepad():
-    """Whether spartanport-probe sees a gamepad now; None when the probe is missing or fails."""
-    name = 'spartanport-probe.exe' if WINDOWS else 'spartanport-probe'
+    """Whether ratchet-probe sees a gamepad now; None when the probe is missing or fails."""
+    name = 'ratchet-probe.exe' if WINDOWS else 'ratchet-probe'
     probe = next((p for p in (PORT_DIR / 'bin' / name, PORT_DIR / 'out' / name) if p.is_file()), None)
     if not probe:
         return None
@@ -477,9 +476,8 @@ def connected_gamepad():
     return 'Gamepad: type=' in out
 
 
-# Keyboard & mouse: how the game's stick-rotation prompts (QTEs) are answered (runtime_pad.c).
-STICK_PROMPTS = [('keyboard', ('Keyboard (native)',)), ('mouse', ('Adaptive mouse (experimental)',))]
-# L2 aim with the mouse (Head of Helios, Bow of Apollo): spartanport.ini mouse_aim_style.
+
+# L2 aim with the mouse (right-stick movement): ratchet.ini mouse_aim_style.
 AIM_STYLES = [('0', ('Relative',)), ('1', ('Absolute',))]
 GLYPH_STYLES = [('off', ('Original (default)',)), ('auto', ('Match my controller',)), ('xbox', ('Xbox',)),
                 ('nintendo', ('Nintendo',)), ('keyboard', ('Keyboard',))]
@@ -555,26 +553,11 @@ KEY_DEFAULTS = {'cross': 'Space', 'circle': 'Left Shift', 'square': 'Mouse Left'
                 'l1': 'Q', 'r1': 'E', 'l2': 'R', 'r2': 'Mouse Forward', 'l3': 'Z', 'r3': 'X',
                 'options': 'Tab', 'touchpad_left': 'P', 'touchpad_right': 'Escape',
                 'up': '1', 'right': '2', 'down': '3', 'left': '4'}
-# Actions of the keyboard map only (runtime_pad.c's host-only sources), as CONTROLS rows. Rage of
-# Sparta (L3 + R3 on one input) follows R3; it is used instead of L3 and R3 while 'rage_one_input'
-# is on. "None" leaves a row without an input.
-RAGE_ROW, GRAB_ROW, DODGE_ROW = ('rage', 'Mouse Middle', None), ('grab', 'C', None), ('dodge', 'Mouse Back', None)
-KEY_ACTIONS = [RAGE_ROW, GRAB_ROW, DODGE_ROW]
-ACTION_NAMES = {'rage': 'Rage of Sparta', 'grab': 'Grab', 'dodge': 'Dodge'}
-RAGE_BUTTONS = ('l3', 'r3')
 CONTROLS_LAYOUT = 2  # settings layout: 2 = one keyboard & mouse table (migrate_controls)
 
 
 def table_rows(kind):
-    """CONTROLS rows of a table, in display order; the keyboard one adds its actions."""
-    if kind != 'key':
-        return CONTROLS
-    rows = []
-    for row in CONTROLS:
-        rows.append(row)
-        if row[0] == 'r3':
-            rows.append(RAGE_ROW)
-    return rows + [GRAB_ROW, DODGE_ROW]
+    return CONTROLS
 MOUSE_NAMES = {name.casefold() for name in (*TK_TO_MOUSE.values(), 'Wheel Up', 'Wheel Down')}
 
 
@@ -590,22 +573,13 @@ def default_input(row, kind):
     return KEY_DEFAULTS.get(button, key) if key else key
 
 
-def keyboard_map(controls, rage=True):
-    """RATCHET_KEY_MAP of the keyboard & mouse table: each button on its chosen input, written where
-    that differs from the game's own key. With `rage` (one input for Rage of Sparta) L3 and R3 get
-    none and the Rage row is used; otherwise the Rage row is left out."""
+def keyboard_map(controls):
     chosen = control_values(controls, 'key')
     entries = []
-    for row in table_rows('key'):
+    for row in CONTROLS:
         button, key, _pad = row
-        if not key or (button == 'rage' and not rage):
-            continue
-        if rage and button in RAGE_BUTTONS:
-            entries.append(f'{button}=None')
-            continue
         value = (chosen.get(button) or default_input(row, 'key')).strip()
-        game_default = key if row in CONTROLS else ''  # the game has no key of its own for an action
-        if value.casefold() != game_default.casefold() and not set(value) & set(',='):
+        if value.casefold() != key.casefold() and not set(value) & set(',='):
             entries.append(f'{button}={value}')
     return ','.join(entries)
 
@@ -638,31 +612,7 @@ def control_map(controls, kind):
 
 
 def migrate_controls(saved):
-    """Settings saved before the keyboard & mouse table (CONTROLS_LAYOUT). A player who saved keys
-    in Keyboard Mapping keeps the whole layout they had (the game's keys for the rest); one who
-    used Native Translation keeps that table. A new action whose default input is already taken
-    stays without one."""
-    if not isinstance(saved, dict) or not saved or saved.get('controls_layout') == CONTROLS_LAYOUT:
-        return saved
-    saved = dict(saved)
-    controls = dict(saved['controls']) if isinstance(saved.get('controls'), dict) else {}
-    native = controls.pop('native', None)
-    if saved.pop('native_input', False) and isinstance(native, dict):
-        controls['key'] = dict(native)  # its defaults are the new ones
-    elif controls.get('key'):
-        kept = control_values(controls, 'key')
-        layout = {button: kept.get(button) or key for button, key, _pad in CONTROLS if key}
-        rage = saved.get('native_rage', True)
-        taken = {value.strip().casefold() for button, value in layout.items()
-                 if not (rage and button in RAGE_BUTTONS)}
-        for button, default, _pad in KEY_ACTIONS:
-            layout[button] = 'None' if default.casefold() in taken else default
-        controls['key'] = layout
-    if 'native_rage' in saved:
-        saved['rage_one_input'] = saved.pop('native_rage')
-    saved['controls'] = controls
-    saved['controls_layout'] = CONTROLS_LAYOUT
-    return saved
+    return saved if isinstance(saved, dict) else {}
 
 UPSCALERS = [('fsr3', ('FSR 3.1 (every GPU)', 'FSR 3.1 (любая видеокарта)')),
              ('taa', ('TAA (native resolution anti-aliasing)', 'TAA (нативное сглаживание)')),
@@ -686,7 +636,7 @@ DRAW_PIPE = [('', ('Auto (8+ threads)', 'Авто (8+ потоков)')), ('1', 
 READBACKS = [('', ('Relaxed (default)', 'Relaxed (по умолчанию)')), ('0', ('Off', 'Выключены')),
              ('2', ('Precise',))]
 # RATCHET_NO_MSAA: '' leaves the game's own default, off on AMD's and Intel's Windows drivers
-# (video_core/amdgpu/spartanport_msaa_default.h); no_msaa_options names the chosen card in Automatic.
+# (video_core/amdgpu/ratchetport_msaa_default.h); no_msaa_options names the chosen card in Automatic.
 NO_MSAA = [('', ('Automatic',)), ('1', ('Off (fixes black lines)',)), ('0', ('On',))]
 NO_MSAA_HINT = ("The game's 2-sample depth buffer, read as a texture by its lighting. AMD's and Intel's Windows "
                 'drivers read it wrong and the lighting shows black lines, so Automatic turns multisampling off '
@@ -696,7 +646,7 @@ STREAM_MEMORY = [('cached', ('System RAM (cached, default)',)),
                  ('host', ('System RAM (uncached)',)),
                  ('device', ('GPU memory (previous behavior)',))]
 FRAMES_QUEUED = [('1', ('1 (lowest latency)',)), ('2', ('2',)), ('0', ('Unlimited',))]
-UI_LANGUAGES = spartanport_lang.LANGUAGE_NAMES
+UI_LANGUAGES = ratchetport_lang.LANGUAGE_NAMES
 
 def fsr4_folder():
     """Next to the port; in the data directory when the port is read-only (AppImage)."""
@@ -713,25 +663,7 @@ def load_json(path, default):
 
 
 def migrate_portable_settings(config_file=None, legacy_file=None):
-    """One-time migration: if settings.json does not exist in DATA_DIR, copy from legacy AppData/XDG."""
-    target = Path(config_file or CONFIG_FILE)
-    legacy = Path(legacy_file or LEGACY_CONFIG_FILE)
-    if target == legacy:
-        return
-    if not target.is_file() and legacy.is_file():
-        try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(legacy, target)
-        except OSError:
-            pass
-    target_ico = target.parent / 'game_icon.ico'
-    legacy_ico = legacy.parent / 'game_icon.ico'
-    if not target_ico.is_file() and legacy_ico.is_file():
-        try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(legacy_ico, target_ico)
-        except OSError:
-            pass
+    return None
 
 
 def load_app_settings(config_file=None):
@@ -741,7 +673,7 @@ def load_app_settings(config_file=None):
 
 
 def ini_path():
-    return Path(os.environ.get('RATCHET_CONFIG', DATA_DIR / 'spartanport.ini'))
+    return Path(os.environ.get('RATCHET_CONFIG', DATA_DIR / 'ratchet.ini'))
 
 
 def load_ini():
@@ -786,7 +718,7 @@ def save_ini(values, lines):
                 continue
         out.append(line)
     if not lines:
-        out.append('# spartanport settings (in-game menu: Insert / R3+L2)')
+        out.append('# ratchetport settings (in-game menu: Insert / R3+L2)')
     out += [f'{key}={value}' for key, value in values.items() if key not in written]
     atomic_write(ini_path(), '\n'.join(out) + '\n')
 
@@ -883,12 +815,12 @@ def describe_missing(missing):
 
 
 def ready_to_play(game_dir, update_dir=''):
-    """Whether --play (Steam, "Play SpartanPort.exe") may start the game at once; anything
-    the Play button would refuse opens the launcher window instead."""
-    if update_dir and same_folder(update_dir, game_dir or '.'):
+    from ratchet_game import validate_game
+    try:
+        validate_game(game_dir)
+        return not update_dir
+    except (OSError, ValueError):
         return False
-    return not (missing_game_files(game_dir)
-                or (update_dir and missing_game_files(update_dir, REQUIRED_UPDATE_FILES)))
 
 
 def same_folder(a, b):
@@ -899,7 +831,7 @@ def same_folder(a, b):
 def system_files_beside(folder, reference=None, base=None):
     """PKG extractors write the system files (param.sfo, icon0.png, pic1.png, trophy/) to Sc0/
     beside the game files (Image0/), while the port reads them from the folder's sce_sys/: the
-    Sc0 folder beside `folder` holding a SpartanPort param.sfo (patches.game_profile), while
+    Sc0 folder beside `folder` holding a RatchetPort param.sfo (patches.game_profile), while
     `folder` has none worth keeping (an unreadable one is a different problem). For an update
     folder the title must be that of `reference` (the base game's param.sfo values); an Sc0
     beside the base game itself (`base`) is the base game's own unless the base game's param.sfo
@@ -920,7 +852,7 @@ def system_files_beside(folder, reference=None, base=None):
     except (OSError, ValueError):
         return None
     title = values.get('TITLE')
-    if not game_profile(values.get('TITLE_ID'), title if isinstance(title, str) else None):
+    if values.get('TITLE_ID') != 'CUSA01047':
         return None
     if reference is not None and values.get('TITLE_ID') != reference.get('TITLE_ID'):
         return None
@@ -970,13 +902,13 @@ def adopt_system_files(source, game):
     return copied
 
 
-DESKTOP_MARKER = 'X-SPARTAN-Integration=true'
+DESKTOP_MARKER = 'X-RatchetPort-Integration=true'
 
 
 def desktop_entry(command, icon, marker=False):
     """The menu entry; its StartupWMClass is the application id of the launcher and of the game window."""
-    return ('[Desktop Entry]\nType=Application\nName=SpartanPort\n'
-            f'Exec={command}\nIcon={icon}\nTerminal=false\nCategories=Game;\nStartupWMClass=spartanport\n'
+    return ('[Desktop Entry]\nType=Application\nName=RatchetPort\n'
+            f'Exec={command}\nIcon={icon}\nTerminal=false\nCategories=Game;\nStartupWMClass=ratchetport\n'
             + (DESKTOP_MARKER + '\n' if marker else ''))
 
 
@@ -991,7 +923,7 @@ def other_desktop_entries(applications, appimage):
     except OSError:
         return found
     for entry in entries:
-        if entry.name == 'spartanport.desktop':
+        if entry.name == 'ratchetport.desktop':
             continue
         try:
             lines = entry.read_text(encoding='utf-8', errors='replace').splitlines()
@@ -1023,13 +955,13 @@ def integrated_by_other_tool(applications, appimage, environment=None):
 
 
 def integrate_desktop(enabled, appimage, icon_source, data_dir, home=None, environment=None):
-    """AppImage on Linux: the menu entry the desktop matches the windows (application id spartanport) to,
+    """AppImage on Linux: the menu entry the desktop matches the windows (application id ratchetport) to,
     which is what shows their icon in the dock. The entry is ours while it carries the marker; one
     without it was written by hand (the Desktop shortcut button) and is left alone. When another
     tool already integrated this AppImage (an entry that starts it, or DESKTOPINTEGRATION in the
     environment, which Gear Lever sets), ours would be a duplicate: it is not made, and removed."""
     applications = Path(home or Path.home()) / '.local' / 'share' / 'applications'
-    entry = applications / 'spartanport.desktop'
+    entry = applications / 'ratchetport.desktop'
     try:
         ours = entry.is_file() and DESKTOP_MARKER in entry.read_text(encoding='utf-8', errors='replace')
         if not enabled:
@@ -1042,7 +974,7 @@ def integrate_desktop(enabled, appimage, icon_source, data_dir, home=None, envir
             if ours:
                 entry.unlink()
             return None
-        icon = Path(data_dir) / 'spartanport.png'
+        icon = Path(data_dir) / 'ratchetport.png'
         icon.parent.mkdir(parents=True, exist_ok=True)
         if not icon.is_file() or icon.read_bytes() != Path(icon_source).read_bytes():
             shutil.copyfile(icon_source, icon)
@@ -1061,12 +993,12 @@ def write_linux_shortcut(command, appimage, icon_source, desktop, home=None, env
     show the game twice). Returns the files written."""
     home = Path(home or Path.home())
     icon_dir = home / '.local' / 'share' / 'icons'
-    icon = icon_dir / 'spartanport.png'
+    icon = icon_dir / 'ratchetport.png'
     try:
         icon_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(icon_source, icon)
     except OSError:
-        icon = 'spartanport'
+        icon = 'ratchetport'
     entry = desktop_entry(command, icon)
     applications = home / '.local' / 'share' / 'applications'
     folders = [] if integrated_by_other_tool(applications, appimage, environment) else [applications]
@@ -1077,7 +1009,7 @@ def write_linux_shortcut(command, appimage, icon_source, desktop, home=None, env
             continue
         folder.mkdir(parents=True, exist_ok=True)
         # In the applications menu the file is named after the window's application id.
-        target = folder / ('spartanport.desktop' if folder == applications else 'SpartanPort.desktop')
+        target = folder / ('ratchetport.desktop' if folder == applications else 'RatchetPort.desktop')
         target.write_text(entry, encoding='utf-8')
         target.chmod(0o755)
         created.append(str(target))
@@ -1086,7 +1018,7 @@ def write_linux_shortcut(command, appimage, icon_source, desktop, home=None, env
 
 def steam_icon(game):
     """Picture of the Steam shortcut's icon: the port's own."""
-    return PORT_DIR / 'launcher' / 'spartanport.png'
+    return PORT_DIR / 'launcher' / 'ratchetport.png'
 
 
 def steam_launch_command():
@@ -1108,13 +1040,15 @@ def game_profile_of(folder):
 
 def game_environment(s):
     env = dict(os.environ)
+    for removed in ('RATCHET_GLYPH_STYLE', 'RATCHET_STICK_PROMPTS'):
+        env.pop(removed, None)
     env['RATCHET_GAME_DIR'] = s['game_dir']
     env.pop('RATCHET_PATCH_DIR', None)
     # Temporal upscaling is parked (build_graphics): a switch saved on by 2.1.8 has no control left to
     # turn it off, so it is ignored until the upscaler section comes back.
     env['RATCHET_EXPERIMENTAL_UPSCALER'] = '0'
-    if s.get('update_dir'):
-        env['RATCHET_PATCH_DIR'] = s['update_dir']
+    env.setdefault('RATCHET_ZERO_CLEAR', '0')
+
     if not WINDOWS:
         backend = s.get('video_backend', 'auto')
         if backend in ('wayland', 'x11'):
@@ -1160,17 +1094,10 @@ def game_environment(s):
         if s[key]:
             env[name] = '1'
     controls = s.get('controls', {})
-    if value := keyboard_map(controls, bool(s.get('rage_one_input', True))):
+    if value := keyboard_map(controls):
         env['RATCHET_KEY_MAP'] = value
     if value := control_map(controls, 'pad'):
         env['RATCHET_PAD_MAP'] = value
-    env.pop('RATCHET_STICK_PROMPTS', None)
-    if s.get('stick_prompts') in dict(STICK_PROMPTS):
-        env['RATCHET_STICK_PROMPTS'] = s['stick_prompts']
-    glyph_style = s.get('glyph_style')
-    env.pop('RATCHET_GLYPH_STYLE', None)
-    if glyph_style in ('auto', 'xbox', 'nintendo', 'keyboard'):
-        env['RATCHET_GLYPH_STYLE'] = glyph_style
     env['PYTHONUNBUFFERED'] = '1'
     env['PYTHONIOENCODING'] = 'utf-8'
     return env
@@ -1179,9 +1106,9 @@ def game_environment(s):
 # ---------------------------------------------------------------------------------------------
 # The window.
 
-# SpartanPort's own colors: near black, ash and blood red (no gold or orange).
-BG, PANEL, CARD, LINE = '#0d0b0b', '#161212', '#1d1717', '#2a2222'
-TEXT, MUTED, ACCENT, ACCENT_HI = '#e6e0d8', '#8a817a', '#a4161a', '#c81e25'
+# RatchetPort launcher colors.
+BG, PANEL, CARD, LINE = '#091522', '#102235', '#18324a', '#28465d'
+TEXT, MUTED, ACCENT, ACCENT_HI = '#e6e0d8', '#8a817a', '#168da6', '#33c7db'
 CONFLICT = '#e0a0a0'
 def pad_labels(style):
     """SDL gamepad button name -> its label in this naming style, in the launcher's language."""
@@ -1255,7 +1182,7 @@ class Launcher:
         if sys.platform == 'win32':
             try:  # the taskbar shows this window's icon, not Python's
                 import ctypes
-                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('spartanport.launcher')
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('ratchetport.launcher')
             except (AttributeError, OSError):
                 pass
         # Again once the window shows: under pythonw the taskbar kept Tk's feather from the first call.
@@ -1329,8 +1256,8 @@ class Launcher:
         self.root.minsize(min(self.px(980), window_width), min(self.px(660), window_height))
 
     def set_icon(self):
-        self.icon = window_icon(self.root, self.tk, PORT_DIR / 'launcher' / 'spartanport.ico',
-                                PORT_DIR / 'launcher' / 'spartanport.png')
+        self.icon = window_icon(self.root, self.tk, PORT_DIR / 'launcher' / 'ratchetport.ico',
+                                PORT_DIR / 'launcher' / 'ratchetport.png')
 
     # ---- look --------------------------------------------------------------------------------
     def check_images(self):
@@ -1689,31 +1616,19 @@ class Launcher:
             getattr(self, method)()
 
     def build_home(self):
-        tk, ttk = self.tk, self.ttk
-        page = tk.Frame(self.content, bg=PANEL)
-        self.pages['home'] = page
-        self.banner = tk.Canvas(page, height=self.px(330), bg=BG, highlightthickness=0, bd=0)
-        self.banner.pack(fill='x')
+        f = self.scrolled_page('home', 'RatchetPort — Pre-Alpha',
+                               'Ratchet & Clank PS4 · CUSA01047 · USA · v1.00')
+        self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
+        self.folder(f, 'game_dir', 'Game folder', 'Select the folder containing eboot.bin',
+                    'Requires sce_sys/param.sfo and sce_module.', on_change=self.game_changed)
+        self.row(f, 'Output resolution', self.choice(f, 'output_res', 'ini', OUTPUTS))
+        self.row(f, 'Display mode', self.choice(f, 'display_mode', 'ini', DISPLAY_MODES))
+        self.row(f, 'FPS', self.choice(f, 'fps_limit', 'ini', FPS_LIMITS))
+        self.check(f, 'vsync', 'ini', 'VSync')
+        self.banner = self.tk.Canvas(f, height=self.px(160), bg=BG, highlightthickness=0)
+        self.banner.grid(row=self.next_row(f), column=0, columnspan=2, sticky='we')
+        self.banner_button = self.ttk.Button(self.banner, text='Choose game folder', command=lambda: self.show('game'))
         self.banner.bind('<Configure>', lambda _e: self.draw_banner())
-        self.banner_button = ttk.Button(self.banner, text=_('Choose the game folder'),
-                                        command=lambda: self.show('game'))
-        quick = ttk.Frame(page, padding=self.px((28, 14, 28, 8)))
-        quick.pack(fill='x')
-        ttk.Label(quick, text=_('Quick settings', 'Основное').upper(), style='Section.TLabel').grid(
-            row=0, column=0, columnspan=4, sticky='w')
-        tk.Frame(quick, bg=LINE, height=self.px(1)).grid(row=1, column=0, columnspan=4, sticky='we', pady=self.px((2, 6)))
-        # Left: display and frame rate; right: Aspect ratio above the Render resolution it filters.
-        items = ((0, 0, _('Display mode'), 'display_mode', DISPLAY_MODES),
-                 (1, 0, _('Frame rate limit'), 'fps_limit', FPS_LIMITS),
-                 (2, 0, _('Engine frame rate'), 'engine_fps', ENGINE_FPS_CHOICES),
-                 (0, 2, _('Aspect ratio'), None, self.aspect_options),
-                 (1, 2, _('Render resolution'), 'render_resolution', self.aspect_resolution_options))
-        for row, c, title, key, options in items:
-            r = 2 + row
-            ttk.Label(quick, text=title).grid(row=r, column=c, sticky='w', pady=self.px(6), padx=self.px((0, 12)))
-            box = (self.choice(quick, key, 'ini', options, width=18) if key else
-                   self.choice(quick, None, None, options, width=18, var=self.aspect_var()))
-            box.grid(row=r, column=c + 1, sticky='w', padx=self.px((0, 40)))
 
     def draw_banner(self):
         """The cover art of the selected dump (sce_sys/pic1.png) under the title."""
@@ -1722,7 +1637,7 @@ class Launcher:
         w, h, bar = max(c.winfo_width(), self.px(400)), int(c['height']), self.px(44)
         folder = self.meta_dir()
         info = game_info(folder)
-        art = self.artwork_file('pic1.png')
+        art = self.artwork_file('icon0.png')
         if self.banner_source != art:
             self.banner_source, self.banner_image, self.banner_size = art, None, None
             try:
@@ -1809,6 +1724,7 @@ class Launcher:
         self.section(f, _('Window', 'Окно'), top=4)
         self.row(f, _('Display mode'), self.choice(f, 'display_mode', 'ini', DISPLAY_MODES),
                  _('Borderless covers the screen without changing the display mode.'))
+        self.row(f, 'Output resolution', self.choice(f, 'output_res', 'ini', OUTPUTS))
         self.check(f, 'vsync', 'ini', _('VSync'), _('Off allows tearing for the lowest latency.'))
         self.check(f, 'hdr', 'app', _('Allow HDR output', 'Разрешить HDR'),
                    _('When HDR is on in Windows and the display supports it.',
@@ -1828,54 +1744,19 @@ class Launcher:
                  _("Saves the game's image, without the overlay, as a PNG in the screenshots folder of the saves."))
 
     def build_performance(self):
-        f = self.scrolled_page('performance', _('Performance'), _('Frame rate and speed options.'))
-        self.section(f, _('Frame rate', 'Частота кадров'), top=4)
-        self.row(f, _('Frame rate limit'), self.choice(f, 'fps_limit', 'ini', FPS_LIMITS),
-                 _('The engine frame rate (below) is the highest it can go.'))
-        self.row(f, _('Frames queued'), self.choice(f, 'frames_queued', 'ini', FRAMES_QUEUED),
-                 _('1 is the lowest input latency; more can raise FPS when the graphics card is the limit.'))
-        self.row(f, _('Engine frame rate'), self.choice(f, 'engine_fps', 'ini', ENGINE_FPS_CHOICES),
-                 _('The highest frame rate the game itself runs at (a game patch).'))
-        self.row(f, _('Aspect ratio'), self.choice(f, None, None, self.aspect_options, var=self.aspect_var()),
-                 _('Shows the render resolutions of this shape only.'))
-        self.row(f, _('Render resolution'), self.choice(f, 'render_resolution', 'ini', self.aspect_resolution_options),
-                 _('The size the game draws at; higher is sharper and slower. A resolution patch replaces the '
-                   'texture fix and reserves the memory it needs.'), restart=True)
-        self.section(f, _('Shaders'))
-        self.check(f, 'pipeline_binary_cache', 'app', _('Use pipeline binary cache (A/B test)'),
-                   _('Reuse saved Vulkan pipelines. Disable to compare FPS with normal compilation. '
-                     'Takes effect on the next launch; saved caches are preserved.'))
-        self.check(f, 'background_warmup', 'app', _('Load shader cache in the background'),
-                   _('The game opens at once and the saved shaders load while you play; a small note in the '
-                     'corner shows the progress. Switch it off to wait on the loading screen instead.'))
-        self.check(f, 'async_shaders', 'ini', _('Compile new shaders in the background'),
-                   _('Fewer stutters in new areas: the game keeps running while new shaders compile. An object '
-                     'or effect may appear a moment later. Switch it off if something stays missing.'))
-        self.check(f, 'parallel_warmup', 'app', _('Fast shader cache loading (parallel)'),
-                   _('Loading screen only: builds the cached pipelines on several CPU threads.'))
-        self.section(f, _('GPU data'))
+        f = self.scrolled_page('performance', 'Performance', 'Conservative defaults; higher frame rates are unverified.')
+        self.row(f, 'FPS', self.choice(f, 'fps_limit', 'ini', FPS_LIMITS))
+        self.row(f, 'Frames queued', self.choice(f, 'frames_queued', 'ini', FRAMES_QUEUED))
+        self.check(f, 'async_shaders', 'ini', 'Compile shaders in the background')
+        self.check(f, 'background_warmup', 'app', 'Load shader cache in the background')
+        self.check(f, 'parallel_warmup', 'app', 'Parallel shader cache loading')
+        self.check(f, 'pipeline_binary_cache', 'app', 'Use pipeline binary cache')
+        self.check(f, 'deferred_readback', 'ini', 'Deferred GPU readbacks')
+        self.check(f, 'stale_readback', 'ini', 'Allow stale GPU readbacks')
         gpus = list_gpus()
-        cards = [('', ('Automatic',))] + [(row[0], (row[1],)) for row in gpus]
-        self.row(f, _('Graphics card'), self.choice(f, 'gpu_id', 'app', cards),
-                 _('The GPU the game runs on. Choose your dedicated card if the game uses the integrated one.'),
-                 restart=True)
-        self.row(f, _('Stream buffer memory'), self.choice(f, 'stream_memory', 'app', STREAM_MEMORY),
-                 _('System RAM can improve FPS on NVIDIA laptops. Choose GPU memory to restore the previous '
-                   'behavior. Applies on the next game launch.'), restart=True)
-        self.check(f, 'stale_readback', 'ini', _('Game reads GPU data without waiting (big FPS gain)'),
-                   _('About 40 to 66 FPS in a heavy scene. Needs deferred GPU readbacks. Switch it off if lighting '
-                     'or objects look wrong.'), restart=True)
-        self.check(f, 'deferred_readback', 'ini', _('Deferred GPU readbacks'),
-                   _('Fewer waits for the GPU. Switch it off if textures or shadows look wrong.'), restart=True)
-        self.check(f, 'partial_height_views', 'app', _('Fast screen effects (Rage of Sparta, weapons)'),
-                   _('Keeps powers and weapon effects at full FPS. Switch it off if a screen effect '
-                     '(blur, distortion, the color change of a power) looks stretched, shifted or wrong.'),
-                   restart=True)
-        self.row(f, _('Two-stage GPU pipeline', 'Двухстадийный конвейер GPU'), self.choice(f, 'draw_pipe', 'app', DRAW_PIPE),
-                 _('20–30% faster; switch it off if the game is unstable.', 'Быстрее на 20–30%; при нестабильности выключите.'))
-        self.row(f, _('GPU readbacks', 'Чтение данных GPU'), self.choice(f, 'readbacks', 'app', READBACKS),
-                 _('How exactly data the GPU writes is copied back for the game.',
-                   'Насколько точно данные, записанные GPU, возвращаются игре.'))
+        self.row(f, 'Graphics card', self.choice(f, 'gpu_id', 'app', [('', ('Automatic',))] + [(r[0], (r[1],)) for r in gpus]))
+        self.row(f, 'Stream buffer memory', self.choice(f, 'stream_memory', 'app', STREAM_MEMORY))
+
         card = self.var('gpu_id', 'app')
         box = self.choice(f, 'no_msaa', 'app', no_msaa_options(gpus, card.get()), width=46)
         self.row(f, _('Game multisampling'), box, _(NO_MSAA_HINT), restart=True)
@@ -1887,34 +1768,13 @@ class Launcher:
         card.trace_add('write', relabel)
 
     def build_game(self):
-        f = self.scrolled_page('game', _('Game', 'Игра'), _('Your game dump, saves and the game patches.'))
-        self.section(f, _('Cheats'), top=4)
-        self.check(f, 'cheat_double_jumps', 'ini', _('Infinite Double Jumps'),
-                   _('Repeat air jumps without landing. Also available in the in-game Cheats menu.'))
-        self.check(f, 'cheat_very_hard', 'ini', _('Unlock Very Hard'),
-                   _('Select Very Hard without completing the game. Does not change existing save difficulty. '
-                     'In-game: enable before opening New Game.'))
-        self.section(f, _('Folders'))
-        self.folder(f, 'game_dir', _('Game folder', 'Папка игры'),
-                    _('Choose the folder with eboot.bin', 'Выберите папку с eboot.bin'),
-                    _('Your own dump of the game (eboot.bin, sce_module, sce_sys): SpartanPort, '
-                      'any region and version.',
-                      'Ваш дамп игры (eboot.bin, sce_module, sce_sys): SpartanPort, '
-                      'любой регион и версия.'), on_change=self.game_changed)
-        self.folder(f, 'update_dir', _('Update folder (optional)'),
-                    _('Choose the folder of the update (eboot.bin, sce_sys)'),
-                    _('Only if the update is dumped apart from the game: it is laid over the game folder '
-                      'without changing either. Leave empty when the game folder already has the update.'),
-                    on_change=self.game_changed)
-        self.folder(f, 'user_dir', _('Saves folder', 'Папка сохранений'),
-                    _('Choose the saves folder', 'Выберите папку сохранений'),
-                    _('Empty: {} (shader caches are kept there too).',
-                      'Пусто: {} (там же кэш шейдеров).').format(DATA_DIR / 'user'), on_change=self.refresh_status)
-        self.section(f, _('Saves'))
+        f = self.scrolled_page('game', 'Game and saves', 'CUSA01047 USA version 1.00 only.')
+        self.folder(f, 'game_dir', 'Game folder', 'Select your game folder',
+                    'eboot.bin, sce_sys/param.sfo and sce_module', on_change=self.game_changed)
+        self.folder(f, 'user_dir', 'Saves folder', 'Choose the saves folder',
+                    'Empty uses the portable user folder.', on_change=self.refresh_status)
         self.build_save_backups(f)
-        self.section(f, _('Language'))
-        self.row(f, _('Game language', 'Язык игры'), self.choice(f, 'language', 'app', LANGUAGES))
-        self.build_patches(f)
+        self.game_patch_title, self.game_patch_vars = None, {}
 
     def user_dir(self):
         return Path(self.var('user_dir', 'app').get() or DATA_DIR / 'user')
@@ -1959,7 +1819,7 @@ class Launcher:
 
     def build_patches(self, f):
         """Community patches of the selected game's built-in XML, on the Game page. Resolution and
-        frame rate patches follow Performance (spartanport.ini; run.py adds them)."""
+        frame rate patches follow Performance (ratchet.ini; run.py adds them)."""
         self.section(f, _('Game patches', 'Патчи игры'))
         self.game_patch_frame = self.ttk.Frame(f)
         self.game_patch_frame.grid(row=self.next_row(f), column=0, columnspan=2, sticky='we')
@@ -1972,40 +1832,11 @@ class Launcher:
         self.patches_frame.grid(row=self.next_row(f), column=0, columnspan=2, sticky='we', pady=self.px((6, 0)))
 
     def refresh_game_patches(self):
-        import xml.etree.ElementTree as ET
-        from patches import ALWAYS_ON, EXCLUSIVE_PREFIX
-        tk, f = self.tk, self.game_patch_frame
-        self.store_game_patches()
-        for widget in f.winfo_children():
-            widget.destroy()
-        f.columnconfigure(1, weight=1)
-        folder = self.meta_dir()
-        title_id, profile = game_profile_of(folder)
         self.game_patch_title, self.game_patch_vars = None, {}
-        if not profile:
-            self.note(f, _('No built-in patches for this game.', 'Для этой игры нет встроенных патчей.'), top=0)
-            return
-        _ids, xml, version = profile[:3]
-        metas = [m for m in ET.parse(xml).getroot().iter('Metadata') if m.get('AppVer') == version]
-        chosen = self.app.get('game_patches', {}).get(title_id)
-        on = set(chosen) if chosen is not None else {m.get('Name') for m in metas
-                                                         if m.get('isEnabled', 'false').lower() == 'true'}
-        self.note(f, _('{} · version {} · {}. Resolution and frame rate patches follow Performance.',
-                       '{} · версия {} · {}.').format(title_id, version, xml.name), top=0)
-        for meta in metas:
-            name = meta.get('Name')
-            if name.startswith(EXCLUSIVE_PREFIX) or name.startswith('Frame Rate Patch') or name in ALWAYS_ON:
-                continue
-            var = tk.BooleanVar(value=name in on)
-            self.game_patch_vars[name] = var
-            author = meta.get('Author')
-            self.check(f, None, None, name + (f'  ({author})' if author else ''), meta.get('Note') and _(meta.get('Note')),
-                       var=var)
-        self.game_patch_title = title_id
 
     def store_game_patches(self):
         """The page's selection into settings (the whole list for this game, without the resolution
-        and frame rate patches: run.py adds those from spartanport.ini)."""
+        and frame rate patches: run.py adds those from ratchet.ini)."""
         if not self.game_patch_title:
             return
         self.app.setdefault('game_patches', {})[self.game_patch_title] = \
@@ -2091,11 +1922,7 @@ class Launcher:
             game_icon.grid(row=r, column=0, sticky='w', pady=self.px(3))
             if button in button_icons.GAME_BUTTONS:
                 button_icons.draw(game_icon, button_icons.GAME_BUTTONS[button], 'playstation', size)
-            elif button in ('rage', 'grab'):  # two buttons together
-                button_icons.draw(game_icon, 'label:L3+R3' if button == 'rage' else 'label:L1+O', 'playstation', size)
-            else:  # an action of the right stick (dodge): the stick icon labelled RS
-                button_icons.draw(game_icon, 'rightstick', 'xbox', size)
-            title = _(PS_BUTTON_NAMES.get(button) or ACTION_NAMES[button])
+            title = _(PS_BUTTON_NAMES[button])
             ttk.Label(table, text=title, width=-14).grid(row=r, column=1, sticky='w', padx=self.px((0, 12)))
 
         def slider(key, low, high, unit, parent=None):
@@ -2113,10 +1940,6 @@ class Launcher:
 
         # The in-game icons first, then the device: its section is shown, the other hidden (show_device).
         page = f
-        self.row(page, _('In-game button icons'), self.choice(page, 'glyph_style', 'app', GLYPH_STYLES),
-                 hint=_('Replaces the PlayStation button icons inside the game with the ones of your controller. '
-                        'Works on a copy of two game files in the port\'s data folder (about 70 MB); your game folder '
-                        'is never changed. Applied when the game starts.'))
         saved_device = self.app.get('controls_device')
         self.device = tk.StringVar(value=saved_device if saved_device in dict(CONTROL_DEVICES) else 'keyboard')
         self.device_chosen = saved_device in dict(CONTROL_DEVICES)
@@ -2141,11 +1964,6 @@ class Launcher:
         for row in table_rows('key'):
             button = row[0]
             r += 1
-            if button == 'rage':
-                ttk.Checkbutton(table, text=_('Rage of Sparta on one input (L3 + R3 together)'),
-                                variable=self.var('rage_one_input', 'app')).grid(
-                    row=r, column=0, columnspan=4, sticky='w', pady=self.px((6, 6)))
-                r += 1
             default = default_input(row, 'key')
             game_button(table, r, button)
             var = tk.StringVar(value=saved['key'].get(button) or default)
@@ -2156,25 +1974,11 @@ class Launcher:
                                command=lambda b=button, d=default: self.assign_key('key', b, d))
             arrow.grid(row=r, column=3, sticky='w', padx=self.px((6, 0)))
             self.key_rows[button] = (box, arrow)
-        self.var('rage_one_input', 'app').trace_add('write', lambda *_a: self.grey_rage_rows())
-        self.grey_rage_rows()
-        self.note(f, _('Click a box, then press a key, click a mouse button or turn the wheel (it gives up after '
-                       '{} seconds). An input already used by another button swaps with it; the arrow puts one '
-                       'button back on its default. Rage of Sparta presses L3 and R3 together: tick the box above '
-                       'it to use one input instead of two. Grab presses L1 and Circle together. Dodge evades the '
-                       'way you are moving (WASD), or back when standing still. Touchpad right opens the game\'s '
-                       'pause menu. Insert always opens the port\'s menu and cannot be bound. Applied when the '
-                       'game starts.').format(CAPTURE_SECONDS))
+        self.note(f, 'Select a box and press a key or mouse button. WASD moves the left stick; hold L2 for mouse aiming. Insert opens the port menu.')
         ttk.Button(f, text=_('Reset keyboard & mouse to defaults'), command=lambda: self.reset_controls('key')).grid(
             row=self.next_row(f), column=0, sticky='w', pady=self.px((14, 0)))
-        self.row(f, _('Joystick prompts'), self.choice(f, 'stick_prompts', 'app', STICK_PROMPTS),
-                 hint=_('How the stick-rotation prompts are answered. Keyboard: type the turn instead, half turns '
-                        'from the top D S A (clockwise) or A S D, from the bottom A W D or D W A, full turns D S A W '
-                        'or A S D W; a key out of turn starts again. Adaptive mouse: draw the turn with the mouse.'))
-        self.row(f, _('Mouse prompt distance'), slider('mouse_prompt_distance', 16, 200, ' px'),
-                 _('Adaptive mouse: how far the mouse moves for one step of a rotation. Also in the in-game menu.'))
         self.row(f, _('Right stick style'), self.choice(f, 'mouse_aim_style', 'ini', AIM_STYLES),
-                 hint=_('Aiming with the mouse while L2 is held (Head of Helios, Bow of Apollo). Relative: the stick '
+                 hint=_('Aiming with the mouse while L2 is held (right-stick movement). Relative: the stick '
                         'follows the movement and goes back to neutral when the mouse stops. Absolute: where the mouse '
                         'was when L2 was pressed is the centre, and the stick points from it to the mouse. Also in '
                         'the in-game menu.'))
@@ -2222,8 +2026,8 @@ class Launcher:
                 box = ttk.Label(table, text=fixed, style='Muted.TLabel')
             box.grid(row=r, column=3, sticky='w')
             self.draw_pad_icon(button)
-        self.note(f, _('L2/R2 stay on the triggers. Touchpad right opens the game\'s pause menu; Touchpad left '
-                       '(photo mode) is L1 + Touchpad right. R3+L2 always opens the port\'s menu. '
+        self.note(f, _('L2/R2 stay on the triggers. Touchpad buttons are passed through; left touchpad '
+                       'uses L1 + Touchpad right. R3+L2 always opens the port\'s menu. '
                        'Applied when the game starts.'))
         ttk.Button(f, text=_('Reset gamepad to defaults'), command=lambda: self.reset_controls('pad')).grid(
             row=self.next_row(f), column=0, sticky='w', pady=self.px((14, 0)))
@@ -2300,14 +2104,6 @@ class Launcher:
         box.configure(command=capture)
         return box
 
-    def grey_rage_rows(self):
-        """Rage of Sparta on one input greys L3 and R3; off, it greys the Rage row."""
-        combined = bool(self.var('rage_one_input', 'app').get())
-        for button in (*RAGE_BUTTONS, 'rage'):
-            enabled = combined if button == 'rage' else not combined
-            for widget in self.key_rows.get(button, ()):
-                widget.state(['!disabled'] if enabled else ['disabled'])
-
     def assign_key(self, kind, button, name):
         """Binds `name` to `button` in a table; a button that had it takes the old one (bind_key)."""
         table = self.control_vars[kind]
@@ -2356,7 +2152,7 @@ class Launcher:
         tools = linux_tools()
         self.section(f, _('Linux'), top=4)
         self.check(f, 'desktop_integration', 'app', _('Menu entry and icon (AppImage)'),
-                   _('Creates spartanport.desktop in ~/.local/share/applications so the launcher and the game show their '
+                   _('Creates ratchetport.desktop in ~/.local/share/applications so the launcher and the game show their '
                      'icon in the dock and the menu. Turning it off removes the entry.'))
         self.row(f, _('Window system'), self.choice(f, 'video_backend', 'app', VIDEO_BACKENDS), restart=True,
                  hint=_('Automatic lets SDL choose. Pick X11 if the window misbehaves on Wayland (it runs through '
@@ -2383,7 +2179,7 @@ class Launcher:
                    _('Shows only the game name and the time played on your Discord profile.',
                      'Показывает в профиле Discord только название игры и время в игре.'))
         self.check(f, 'close_on_play', 'app', _('Close the launcher when the game starts', 'Закрывать лаунчер при запуске игры'))
-        if WINDOWS:
+        if False:
             self.check(f, 'check_updates', 'app', _('Check for updates when the launcher opens',
                                                     'Проверять обновления при открытии лаунчера'))
         holder = ttk.Frame(f)
@@ -2401,7 +2197,7 @@ class Launcher:
         holder = ttk.Frame(f)
         holder.grid(row=self.next_row(f), column=0, columnspan=2, sticky='w', pady=self.px((6, 0)))
         ttk.Button(holder, text=_('Port folder', 'Папка порта'), command=lambda: self.open_path(DATA_DIR)).pack(side='left')
-        ttk.Button(holder, text='spartanport.ini', command=lambda: self.open_path(ini_path())).pack(side='left', padx=self.px(6))
+        ttk.Button(holder, text='ratchet.ini', command=lambda: self.open_path(ini_path())).pack(side='left', padx=self.px(6))
         holder = ttk.Frame(f)
         holder.grid(row=self.next_row(f), column=0, columnspan=2, sticky='w', pady=self.px((10, 0)))
         ttk.Button(holder, text=_('Clear shader cache', 'Очистить кэш шейдеров'), command=self.clear_cache).pack(side='left')
@@ -2474,19 +2270,7 @@ class Launcher:
                                                                      'Сначала выберите папку игры.'), fg=MUTED)
 
     def summary(self):
-        self.store_game_patches()
-        title_id, _profile = game_profile_of(self.meta_dir())
-        names = self.app.get('game_patches', {}).get(title_id) or []
-        resolution = dict((v, _(*t)) for v, t in self.resolution_options()).get(self.var('render_resolution', 'ini').get(), '?')
-        from patches import game_patchable, patch_status
-        if not game_patchable(self.meta_dir()):
-            return _('{} · 60 FPS engine · no patches for this game').format(resolution)
-        text = _('{} · {} FPS engine · {} patches').format(resolution, self.var('engine_fps', 'ini').get(), len(names))
-        # Which patches the game's eboot.bin had is known once the game has started (patches.py).
-        status = patch_status(DATA_DIR / 'out')
-        if status and status.get('skipped'):
-            text += ' · ' + _('{} not found in this eboot.bin at the last start (see Log)').format(len(status['skipped']))
-        return text
+        return 'Pre-Alpha · CUSA01047 USA v1.00 · 30 FPS · no binary patches'
 
     def refresh_lists(self):
         if not hasattr(self, 'patches_frame'):
@@ -2719,7 +2503,7 @@ class Launcher:
             self.refresh_lists()
 
     def gather(self):
-        """What collect() writes, as data: settings.json, the spartanport.ini values, the mods selection and
+        """What collect() writes, as data: settings.json, the ratchet.ini values, the mods selection and
         the third-party patches selection. Reads the window and changes nothing."""
         app, ini = dict(self.app), dict(self.ini)
         if self.game_patch_title:
@@ -2746,7 +2530,7 @@ class Launcher:
         return {'app': app, 'ini': ini, 'mods': mods, 'patches': patches}
 
     def collect(self):
-        """Writes settings.json, spartanport.ini, mods.json and patches.json."""
+        """Writes settings.json, ratchet.ini, mods.json and patches.json."""
         state = self.gather()
         _disk, lines = load_ini()
         persisted = {line.split('=', 1)[0].strip() for line in lines
@@ -2883,31 +2667,15 @@ class Launcher:
         if not self.collect():
             return
         if not game_info(self.app['game_dir']):
-            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01623).',
-                                                  'Выберите папку игры с eboot.bin (CUSA01623).'))
+            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01047).',
+                                                  'Выберите папку игры с eboot.bin (CUSA01047).'))
             self.show('game')
             return
-        if not self.offer_system_files():
-            return
-        missing = missing_game_files(self.app['game_dir'])
-        if missing:
-            self.messagebox.showerror(APP_NAME, _('The game dump is incomplete. Missing or empty files:\n\n{}\n\n'
-                                                  'Dump the game again, or copy these files from a complete dump.')
-                                      .format('\n'.join(describe_missing(missing))))
-            self.show('game')
-            return
-        update_dir = self.app.get('update_dir') or ''
-        if update_dir and same_folder(update_dir, self.app['game_dir'] or '.'):
-            self.messagebox.showerror(APP_NAME, _('Choose two separate folders for the game and its update, '
-                                                  'or leave the update folder empty.'))
-            self.show('game')
-            return
-        missing = missing_game_files(update_dir, REQUIRED_UPDATE_FILES) if update_dir else []
-        if missing:
-            self.messagebox.showerror(APP_NAME, _('The update folder {} is incomplete. Missing or empty files:\n\n{}\n\n'
-                                                  'Choose the folder of the update (eboot.bin, sce_sys), or leave it empty.')
-                                      .format(update_dir, '\n'.join(describe_missing(missing))))
-            self.show('game')
+        from ratchet_game import validate_game
+        try:
+            validate_game(self.app['game_dir'])
+        except (OSError, ValueError) as error:
+            self.messagebox.showerror(APP_NAME, str(error))
             return
         self.set_log('')
         self.exit_hint = None
@@ -3024,23 +2792,8 @@ class Launcher:
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # ---- updates -------------------------------------------------------------------------------
-    def check_update(self, manual=False):
-        """Helper thread: asks GitHub for the newest release and offers it when it is newer."""
-        try:
-            version, url, page = latest_release()
-        except (OSError, ValueError, KeyError) as failure:
-            if manual:
-                self.ui_calls.put(lambda error=failure: self.messagebox.showerror(
-                    APP_NAME, _('Could not check for updates: {}', 'Не удалось проверить обновления: {}').format(error)))
-            return
-
-        def show():
-            if version_tuple(version) > version_tuple(VERSION):
-                self.offer_update(version, url, page)
-            elif manual:
-                self.messagebox.showinfo(APP_NAME, _('You have the latest version ({}).',
-                                                         'У вас последняя версия ({}).').format(VERSION))
-        self.ui_calls.put(show)
+    def check_update(self):
+        return
 
     def offer_update(self, version, url, page):
         if self.update_box:
@@ -3087,7 +2840,7 @@ class Launcher:
                 shutil.rmtree(UPDATE_DIR, ignore_errors=True)
                 UPDATE_DIR.mkdir(parents=True, exist_ok=True)
                 archive = UPDATE_DIR / 'update.zip'
-                request = urllib.request.Request(url, headers={'User-Agent': 'spartanport-launcher'})
+                request = urllib.request.Request(url, headers={'User-Agent': 'ratchetport-launcher'})
                 with urllib.request.urlopen(request, timeout=60) as response, open(archive, 'wb') as out:
                     total, done, shown = int(response.headers.get('Content-Length') or 0), 0, -1
                     while chunk := response.read(1 << 20):
@@ -3100,11 +2853,11 @@ class Launcher:
                 with zipfile.ZipFile(archive) as package:
                     package.extractall(UPDATE_DIR / 'new')
                 archive.unlink()
-                new = next((p.parent for p in (UPDATE_DIR / 'new').rglob('SpartanPort.exe')), None)
+                new = next((p.parent for p in (UPDATE_DIR / 'new').rglob('RatchetPort.exe')), None)
                 if not new:
-                    raise OSError('SpartanPort.exe is missing from the download')
+                    raise OSError('RatchetPort.exe is missing from the download')
                 # The new launcher copies itself over this installation once this one has closed.
-                subprocess.Popen([str(new / 'SpartanPort.exe'), '--install-update', str(PORT_DIR), str(os.getpid())],
+                subprocess.Popen([str(new / 'RatchetPort.exe'), '--install-update', str(PORT_DIR), str(os.getpid())],
                                  cwd=str(new), stdin=subprocess.DEVNULL, creationflags=NO_WINDOW)
                 self.ui_calls.put(self.root.destroy)
             except (OSError, zipfile.BadZipFile) as failure:
@@ -3127,7 +2880,7 @@ class Launcher:
                                                  'минут будет подтормаживать, пока кэш собирается заново.'))
 
     def shortcut(self):
-        """SpartanPort.lnk on the desktop (a .desktop entry in the menu and on the desktop on Linux)."""
+        """RatchetPort.lnk on the desktop (a .desktop entry in the menu and on the desktop on Linux)."""
         if not WINDOWS:
             self.linux_shortcut()
             return
@@ -3136,9 +2889,9 @@ class Launcher:
         else:  # a source tree: the launcher script with the windowless Python
             pythonw = Path(sys.executable).with_name('pythonw.exe')
             target = str(pythonw if pythonw.exists() else sys.executable)
-            arguments, icon = Path(__file__).resolve(), PORT_DIR / 'launcher' / 'spartanport.ico'
+            arguments, icon = Path(__file__).resolve(), PORT_DIR / 'launcher' / 'ratchetport.ico'
         script = ('$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath("Desktop")'
-                  '+"\\SpartanPort.lnk");'
+                  '+"\\RatchetPort.lnk");'
                   f'$s.TargetPath="{target}";$s.WorkingDirectory="{PORT_DIR}";$s.IconLocation="{icon}";'
                   + (f"$s.Arguments='\"{arguments}\"';" if arguments else '') + '$s.Save()')
         result = subprocess.run(['powershell', '-NoProfile', '-Command', script], capture_output=True,
@@ -3157,7 +2910,7 @@ class Launcher:
         except OSError:
             desktop = ''
         try:
-            created = write_linux_shortcut(command, launcher, PORT_DIR / 'launcher' / 'spartanport.png',
+            created = write_linux_shortcut(command, launcher, PORT_DIR / 'launcher' / 'ratchetport.png',
                                            Path(desktop) if desktop else Path.home() / 'Desktop')
         except OSError as error:
             self.messagebox.showerror(APP_NAME, str(error))
@@ -3170,8 +2923,8 @@ class Launcher:
             return
         game = self.var('game_dir', 'app').get()
         if not game_info(game):
-            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01623).',
-                                                  'Выберите папку игры с eboot.bin (CUSA01623).'))
+            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01047).',
+                                                  'Выберите папку игры с eboot.bin (CUSA01047).'))
             return
         self.root.configure(cursor='watch')
         self.root.update_idletasks()
@@ -3201,7 +2954,7 @@ class Launcher:
 
 
 class GameJob:
-    """A Windows job holding run.py and everything it starts: spartanport-probe.exe and the launches made
+    """A Windows job holding run.py and everything it starts: ratchet-probe.exe and the launches made
     by the in-game restart (no longer descendants of the first process)."""
 
     def __init__(self, process):
@@ -3315,15 +3068,7 @@ def version_tuple(text):
 
 
 def latest_release():
-    """(version, zip URL, page URL) of the newest GitHub release."""
-    request = urllib.request.Request(RELEASES_API, headers={'Accept': 'application/vnd.github+json',
-                                                            'User-Agent': 'spartanport-launcher'})
-    with urllib.request.urlopen(request, timeout=15) as response:
-        release = json.load(response)
-    version = '.'.join(re.findall(r'\d+', release['tag_name']))
-    url = next((asset['browser_download_url'] for asset in release.get('assets', [])
-                if asset.get('name', '').lower().endswith('.zip')), None)
-    return version, url, release.get('html_url') or RELEASES_PAGE
+    return None
 
 
 def install_update(target, wait_pid):
@@ -3349,21 +3094,12 @@ def install_update(target, wait_pid):
             'Не удалось установить обновление. Скачайте его со страницы релизов.'), APP_NAME, 0x10)
         open_url(RELEASES_PAGE)
         return 1
-    subprocess.Popen([str(target / 'SpartanPort.exe')], cwd=str(target))
+    subprocess.Popen([str(target / 'RatchetPort.exe')], cwd=str(target))
     return 0
 
 
 def move_from_legacy_name():
-    """Settings, saves and shortcuts from before the rename (scripts/legacy.py). Never stops the
-    launcher: a failed copy is tried again at the next start."""
-    try:
-        for line in legacy.migrate(DATA_DIR, windows=WINDOWS):
-            print(f'Rename: {line}', flush=True)
-        if WINDOWS and FROZEN and UPDATE_DIR not in PORT_DIR.parents:
-            legacy.remove_leftovers(PORT_DIR)
-            legacy.retarget_desktop_shortcut(PORT_DIR)
-    except OSError as error:
-        print(f'Rename: {error}', flush=True)
+    pass
 
 
 def main():
@@ -3377,7 +3113,7 @@ def main():
     LANG = settings.get('ui_language') or windows_language()
     if not WINDOWS:
         integrate_desktop(settings.get('desktop_integration', True), os.environ.get('APPIMAGE'),
-                          PORT_DIR / 'launcher' / 'spartanport.png', DATA_DIR)
+                          PORT_DIR / 'launcher' / 'ratchetport.png', DATA_DIR)
     if WINDOWS and args[:1] == ['--install-update'] and len(args) == 3:
         sys.exit(install_update(args[1], args[2]))
     if WINDOWS and FROZEN and UPDATE_DIR not in PORT_DIR.parents:
@@ -3393,7 +3129,7 @@ def main():
     FONT_LOADED = register_font(FONT_FILE)  # titles keep the usual serif without it
     import tkinter as tk
     from tkinter import filedialog, font, messagebox, ttk
-    root = tk.Tk() if WINDOWS else tk.Tk(className='spartanport')
+    root = tk.Tk() if WINDOWS else tk.Tk(className='ratchetport')
     if root.tk.call('tk', 'windowingsystem') == 'x11':
         root.configure(cursor=ARROW)
         for window in ('Toplevel', 'Dialog', 'TkFDialog', 'TkChooseDir'):  # dialogs: tk_messageBox, file pickers

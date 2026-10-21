@@ -9,8 +9,8 @@ from unittest import mock
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_lang  # noqa: E402
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_lang  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 # `ratchet-gpu-capabilities --list`: index, name, type, multisampling default, the game's pick.
 ARC_LAPTOP = [('0', 'Intel(R) Arc(TM) Graphics', 'integrated', 'off', '0'),
@@ -72,7 +72,7 @@ class ChosenGpuTest(unittest.TestCase):
                              ('Automático (NVIDIA GeForce RTX 4060 Laptop GPU: ligado)',))
 
     def test_portuguese_texts(self):
-        table = spartanport_lang.table('pt')
+        table = ratchetport_lang.table('pt')
         texts = ('Game multisampling', 'Automatic ({}: off)', 'Automatic ({}: on)', launcher.NO_MSAA_HINT)
         for text in texts + tuple(text[0] for _value, text in launcher.NO_MSAA):
             with self.subTest(text=text[:40]):
@@ -115,7 +115,7 @@ class NoMsaaLauncherTest(unittest.TestCase):
         app = build()
         def multisampling_boxes(page, off_label):
             return [widget for widget in widgets(page)
-                    if isinstance(widget, ttk.Combobox) and widget['values'][1] == off_label]
+                    if isinstance(widget, ttk.Combobox) and len(widget['values']) > 1 and widget['values'][1] == off_label]
 
         boxes = multisampling_boxes(app.pages['performance'], 'Off (fixes black lines)')
         self.assertEqual(len(boxes), 1)
@@ -141,7 +141,7 @@ class NoMsaaLauncherTest(unittest.TestCase):
         self.assertEqual(boxes[0]['values'][0], 'Automatic (Intel(R) Arc(TM) Graphics: off)')
 
         # The Portuguese page shows the translated title, label and hint.
-        table = spartanport_lang.table('pt')
+        table = ratchetport_lang.table('pt')
         app = build('pt')
         texts = {widget.cget('text') for widget in widgets(app.pages['performance'])
                  if isinstance(widget, ttk.Label)}

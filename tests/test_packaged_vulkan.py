@@ -7,13 +7,13 @@ import sys
 import tempfile
 import unittest
 
-spec = importlib.util.spec_from_file_location("spartanport_vulkan", ROOT / "launcher/spartanport_vulkan.py")
+spec = importlib.util.spec_from_file_location("ratchetport_vulkan", ROOT / "launcher/ratchetport_vulkan.py")
 vulkan = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(vulkan)
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"),
-                     "spartanport_vulkan is the Linux AppImage entry point")
+                     "ratchetport_vulkan is the Linux AppImage entry point")
 class PackagedVulkanTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

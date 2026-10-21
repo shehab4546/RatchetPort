@@ -9,14 +9,14 @@ from pathlib import Path
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 try:
     import tkinter as tk
 except ImportError:  # pragma: no cover
     tk = None
-OWN_ICO = ROOT / 'launcher' / 'spartanport.ico'
-OWN_PNG = ROOT / 'launcher' / 'spartanport.png'
+OWN_ICO = ROOT / 'launcher' / 'ratchetport.ico'
+OWN_PNG = ROOT / 'launcher' / 'ratchetport.png'
 WM_GETICON, ICON_SMALL, ICON_BIG = 0x7F, 0, 1
 
 
@@ -26,6 +26,11 @@ class WindowIconTest(unittest.TestCase):
         self.root = tk.Tk()
         self.root.geometry('200x100+0+0')
         self.tmp = Path(tempfile.mkdtemp())
+        from PIL import Image
+        self.ico, self.png = self.tmp / 'fixture.ico', self.tmp / 'fixture.png'
+        image = Image.new('RGBA', (256, 256), (20, 120, 180, 255))
+        image.save(self.png)
+        image.save(self.ico, sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
 
     def tearDown(self):
         self.root.destroy()
@@ -41,19 +46,19 @@ class WindowIconTest(unittest.TestCase):
         return user32.SendMessageW(hwnd, WM_GETICON, ICON_BIG, 0), user32.SendMessageW(hwnd, WM_GETICON, ICON_SMALL, 0)
 
     def test_own_ico_is_the_window_icon(self):
-        self.assertIsNone(launcher.window_icon(self.root, tk, OWN_ICO, OWN_PNG))
+        self.assertIsNone(launcher.window_icon(self.root, tk, self.ico, self.png))
         big, small = self.window_icons()
         self.assertTrue(big and small, (big, small))
 
     def test_own_png_when_the_ico_is_missing(self):
-        kept = launcher.window_icon(self.root, tk, self.tmp / 'missing.ico', OWN_PNG)
+        kept = launcher.window_icon(self.root, tk, self.tmp / 'missing.ico', self.png)
         self.assertIsNotNone(kept)  # the PhotoImage the window must keep alive
         big, small = self.window_icons()
         self.assertTrue(big and small, (big, small))
 
     def test_icon_has_every_windows_size(self):
-        sizes = [int.from_bytes(OWN_ICO.read_bytes()[6 + 16 * i:7 + 16 * i], 'little') or 256
-                 for i in range(int.from_bytes(OWN_ICO.read_bytes()[4:6], 'little'))]
+        sizes = [int.from_bytes(self.ico.read_bytes()[6 + 16 * i:7 + 16 * i], 'little') or 256
+                 for i in range(int.from_bytes(self.ico.read_bytes()[4:6], 'little'))]
         self.assertEqual(sorted(sizes), [16, 24, 32, 48, 64, 128, 256])
 
 

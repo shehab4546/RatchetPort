@@ -9,7 +9,7 @@ from unittest import mock
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 try:
     import tkinter as tk
@@ -129,7 +129,7 @@ class LauncherScalingTest(unittest.TestCase):
                                 DATA_DIR=folder / 'data', LANG='en', UI_FONT=launcher.UI_FONT,
                                 MONO_FONT=launcher.MONO_FONT, SERIF_FONT=launcher.SERIF_FONT,
                                 FONT_LOADED=launcher.FONT_LOADED),
-            mock.patch.dict(os.environ, {'RATCHET_CONFIG': str(folder / 'spartanport.ini'),
+            mock.patch.dict(os.environ, {'RATCHET_CONFIG': str(folder / 'ratchet.ini'),
                                         'GDK_SCALE': '', 'XDG_CURRENT_DESKTOP': '', 'DESKTOP_SESSION': ''}),
             mock.patch.object(launcher, 'monitor_under_pointer', return_value=(0, 0, 3840, 2160)),
         ]

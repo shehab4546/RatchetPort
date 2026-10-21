@@ -4,7 +4,7 @@ import unittest
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_launcher_win as launcher
+import ratchetport_launcher_win as launcher
 
 
 class UpscalerSettingsTest(unittest.TestCase):

@@ -23,7 +23,7 @@ class ModTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()  # the long name: build_overlay resolves the game folder
-        self.game = self.root / 'CUSA01623'
+        self.game = self.root / 'CUSA01047'
         self.assets = self.game / 'dvdroot_ps4' / 'data'
         self.assets.mkdir(parents=True)
         (self.game / 'eboot.bin').write_bytes(b'original executable')
@@ -341,7 +341,7 @@ class GameLayout(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
-        self.game = self.root / 'CUSA01623'
+        self.game = self.root / 'CUSA01047'
         for folder in ('EXEC/WAD/PS4_LE', 'PORTUGUESE/SOUNDS', 'sce_sys'):
             (self.game / folder).mkdir(parents=True)
         (self.game / 'eboot.bin').write_bytes(b'original executable')
@@ -445,11 +445,11 @@ class ModInfo(unittest.TestCase):
 
     def test_mod_json_fields(self):
         (self.mod / 'mod.json').write_text(json.dumps({
-            'name': 'Kratos Gold Armor', 'author': 'someone', 'version': '1.2',
+            'name': 'Example Gold Armor', 'author': 'someone', 'version': '1.2',
             'description': 'Golden armor.', 'url': 'https://example.com/mod'}), encoding='utf-8')
         info = mods.mod_info(self.mod)
         self.assertEqual((info['name'], info['author'], info['version'], info['description'], info['url']),
-                         ('Kratos Gold Armor', 'someone', '1.2', 'Golden armor.', 'https://example.com/mod'))
+                         ('Example Gold Armor', 'someone', '1.2', 'Golden armor.', 'https://example.com/mod'))
         self.assertIsNone(info['image'])
 
     def test_without_mod_json_the_folder_name_and_readme_are_used(self):

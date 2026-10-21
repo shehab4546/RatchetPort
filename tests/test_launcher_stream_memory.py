@@ -9,10 +9,13 @@ from unittest import mock
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 
 class StreamMemoryEnvironmentTest(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(mock.patch('ratchet_game.validate_game', return_value={}))
+
     def test_legacy_settings_and_invalid_values_use_cached_memory(self):
         legacy = dict(launcher.APP_DEFAULTS)
         legacy.pop('stream_memory')
@@ -49,6 +52,9 @@ class StreamMemoryEnvironmentTest(unittest.TestCase):
 
 
 class StreamMemoryLauncherTest(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(mock.patch('ratchet_game.validate_game', return_value={}))
+
     def test_ui_selection_persists_reopens_and_reverts_on_next_launch(self):
         # Exercise the real Tk combobox event and collect/play methods using temporary settings.
         # The process is mocked so this never opens or changes a game installation.
@@ -65,7 +71,7 @@ class StreamMemoryLauncherTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder, \
                 mock.patch.object(launcher, 'CONFIG_DIR', Path(folder)), \
                 mock.patch.object(launcher, 'CONFIG_FILE', Path(folder) / 'settings.json'), \
-                mock.patch.dict(os.environ, {'RATCHET_CONFIG': str(Path(folder) / 'spartanport.ini')}):
+                mock.patch.dict(os.environ, {'RATCHET_CONFIG': str(Path(folder) / 'ratchet.ini')}):
             app = launcher.Launcher.__new__(launcher.Launcher)
             app.tk, app.ttk, app.root, app.dpi = tk, ttk, root, 1.0
             app.fonts = {}
@@ -109,7 +115,7 @@ class StreamMemoryLauncherTest(unittest.TestCase):
                     app.process = None
                     app.play_button, app.status = mock.Mock(), mock.Mock()
                     process = mock.Mock()
-                    with mock.patch.object(launcher, 'game_info', return_value=('SpartanPort', '01.02')), \
+                    with mock.patch.object(launcher, 'game_info', return_value=('RatchetPort', '01.02')), \
                             mock.patch.object(launcher, 'missing_game_files', return_value=[]), \
                             mock.patch.object(launcher.subprocess, 'Popen', return_value=process) as start, \
                             mock.patch.object(launcher, 'GameJob'), \

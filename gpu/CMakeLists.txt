@@ -10,6 +10,12 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 # Frame pointers keep the loader's thread dumps (watchdog, SIGUSR2 sampling) walkable.
 add_compile_options(-fno-omit-frame-pointer)
+# Keep developer checkout paths out of distributed diagnostics and __FILE__ strings.
+get_filename_component(RATCHET_SOURCE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/.." ABSOLUTE)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    add_compile_options("-ffile-prefix-map=${RATCHET_SOURCE_ROOT}=.")
+endif()
+
 
 # ratchetport: link-time optimization (RATCHET_LTO, default on) and profile-guided optimization
 # (RATCHET_PGO: off, generate = instrumented build writing into RATCHET_PGO_DIR, use = build with that

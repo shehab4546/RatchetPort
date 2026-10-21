@@ -11,9 +11,9 @@ if [[ ${1:-} == --software ]]; then
     if [[ -z ${VK_DRIVER_FILES:-} ]]; then echo 'Lavapipe not found; set VK_DRIVER_FILES.' >&2; exit 1; fi
     export VK_LOADER_LAYERS_DISABLE='~implicit~'
 fi
-# RATCHET_PREBUILT=1 (packaged builds, the AppImage): bin/spartanport-probe and its GPU library are installed
+# RATCHET_PREBUILT=1 (packaged builds, the AppImage): bin/ratchet-probe and its GPU library are installed
 # next to this script; nothing is built and no nix-shell is needed.
-# RATCHET_DATA_DIR: writable directory for the generated files (out/), saves (user/) and spartanport.ini;
+# RATCHET_DATA_DIR: writable directory for the generated files (out/), saves (user/) and ratchet.ini;
 # by default this directory. The preparation itself is in run.py.
 data=${RATCHET_DATA_DIR:-.}
 if [[ -z ${RATCHET_PREBUILT:-} && -z ${RATCHET_IN_NIX_SHELL:-} ]] && ! { command -v pkg-config >/dev/null && pkg-config --exists vulkan sdl3; } && command -v nix-shell >/dev/null; then

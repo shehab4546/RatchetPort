@@ -1,18 +1,18 @@
-# Opens dist/spartanport-windows.zip as a player gets it, on a Windows without MSYS2: no game or player
-# file ships, spartanport-probe.exe finds every DLL it links, the frozen launcher imports what the
+# Opens dist/RatchetPort-Windows-PreAlpha.zip as a player gets it, on a Windows without MSYS2: no game or player
+# file ships, ratchet-probe.exe finds every DLL it links, the frozen launcher imports what the
 # preparation scripts need and its window stays open (.github/workflows/windows-zip.yml).
-# Usage: powershell -File smoke-test.ps1 path\to\spartanport-windows.zip
+# Usage: powershell -File smoke-test.ps1 path\to\RatchetPort-Windows-PreAlpha.zip
 param([Parameter(Mandatory)][string]$Package)
 $ErrorActionPreference = 'Stop'
 # A player's PATH: a DLL found only in MSYS2 or another toolchain must not hide a missing one.
 $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot;$env:SystemRoot\System32\WindowsPowerShell\v1.0"
-$work = Join-Path ([IO.Path]::GetTempPath()) ("spartanport-smoke-" + [guid]::NewGuid())
+$work = Join-Path ([IO.Path]::GetTempPath()) ("ratchetport-smoke-" + [guid]::NewGuid())
 Expand-Archive -LiteralPath $Package -DestinationPath $work
-$tree = Join-Path $work 'spartanport-windows'
+$tree = Join-Path $work 'RatchetPort'
 $failed = @()
 
 # The same names package.sh refuses to ship: game files and anything a player makes.
-$forbidden = 'eboot.bin', 'sce_module', 'sce_sys', 'savedata', 'user', 'cache', '*.log', 'spartanport.ini',
+$forbidden = 'eboot.bin', 'sce_module', 'sce_sys', 'savedata', 'user', 'cache', '*.log', 'ratchet.ini',
     'settings.json', 'game_icon.ico', 'mods.json', 'patches.json', 'fsr4_shaders', 'nvngx_dlss*.dll', '*.spv', '*.pkg',
     '*.sprx', '*.prx'
 $found = Get-ChildItem -LiteralPath $tree -Recurse -Force |
@@ -20,19 +20,19 @@ $found = Get-ChildItem -LiteralPath $tree -Recurse -Force |
 if ($found) { $failed += "files that must not ship: $($found.FullName -join ', ')" }
 
 # A missing DLL stops the probe before main (0xC0000135).
-$probe = Start-Process -FilePath (Join-Path $tree 'bin\spartanport-probe.exe') -ArgumentList '--cpu-features' `
-    -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $work 'probe.log')
+$probe = Start-Process -FilePath (Join-Path $tree 'bin\ratchet-probe.exe') -ArgumentList '--cpu-features' `
+    -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $work 'probe.log')
 $null = $probe.Handle  # without it ExitCode stays empty after WaitForExit(timeout)
 if (-not $probe.WaitForExit(60000)) {
     Stop-Process -Id $probe.Id -Force
     $probe.WaitForExit()
-    $failed += 'spartanport-probe.exe --cpu-features did not finish in 60 s'
+    $failed += 'ratchet-probe.exe --cpu-features did not finish in 60 s'
 } elseif ($probe.ExitCode -ne 0) {
-    $failed += ('spartanport-probe.exe --cpu-features exited 0x{0:X}' -f $probe.ExitCode)
+    $failed += ('ratchet-probe.exe --cpu-features exited 0x{0:X}' -f $probe.ExitCode)
 }
 Get-Content (Join-Path $work 'probe.log')
 
-$launcher = Join-Path $tree 'SpartanPort.exe'
+$launcher = Join-Path $tree 'RatchetPort.exe'
 $check = Join-Path $work 'imports.py'
 # An exception left to the windowed launcher opens an error dialog that waits for a click: the
 # check reports it and exits instead, and a launcher still running after a minute is stopped.
@@ -45,15 +45,15 @@ except Exception:
     sys.exit(1)
 print('imports: PIL', PIL.__version__, 'iced_x86')
 '@
-$script = Start-Process -FilePath $launcher -ArgumentList '--script', "`"$check`"" -PassThru `
+$script = Start-Process -FilePath $launcher -WindowStyle Hidden -ArgumentList '--script', "`"$check`"" -PassThru `
     -RedirectStandardOutput (Join-Path $work 'script.log') -RedirectStandardError (Join-Path $work 'script.err')
 $null = $script.Handle
 if (-not $script.WaitForExit(60000)) {
     Stop-Process -Id $script.Id -Force
     $script.WaitForExit()
-    $failed += 'SpartanPort.exe --script did not finish in 60 s'
+    $failed += 'RatchetPort.exe --script did not finish in 60 s'
 } elseif ($script.ExitCode -ne 0) {
-    $failed += "SpartanPort.exe --script could not import PIL or iced_x86 ($($script.ExitCode))"
+    $failed += "RatchetPort.exe --script could not import PIL or iced_x86 ($($script.ExitCode))"
 }
 Get-Content (Join-Path $work 'script.log'), (Join-Path $work 'script.err')
 
@@ -66,7 +66,7 @@ if ($window.HasExited) {
     $window.WaitForExit()
 }
 
-Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "Smoke evidence retained in $work"
 if ($failed) {
     $failed | ForEach-Object { Write-Host "FAIL: $_" }
     exit 1

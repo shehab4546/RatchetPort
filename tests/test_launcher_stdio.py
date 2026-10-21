@@ -9,7 +9,7 @@ from unittest.mock import patch
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
 sys.path.insert(0, str(ROOT))
-import spartanport_launcher_win as launcher
+import ratchetport_launcher_win as launcher
 import run
 
 

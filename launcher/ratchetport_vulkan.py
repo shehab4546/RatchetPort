@@ -78,7 +78,7 @@ def configure(env, manifest_dirs=MANIFEST_DIRS, library_dirs=LIBRARY_DIRS):
     # cache. exec preserves process/signal behavior; the cache survives launch.
     key = hashlib.sha256(f"{driver}:{driver.stat().st_mtime_ns}".encode()).hexdigest()[:16]
     data_dir = Path(env.get("RATCHET_DATA_DIR") or
-                    str(Path(env.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))) / "spartanport"))
+                    str(Path(env.get("XDG_DATA_HOME", str(Path.home() / ".local/share"))) / "ratchetport"))
     cache = data_dir / "vulkan" / "nvidia" / key
     libraries = cache / "lib"
     libraries.mkdir(parents=True, exist_ok=True)
@@ -109,14 +109,14 @@ def configure(env, manifest_dirs=MANIFEST_DIRS, library_dirs=LIBRARY_DIRS):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: spartanport_vulkan.py <program> [args...]", file=sys.stderr)
+        print("Usage: ratchetport_vulkan.py <program> [args...]", file=sys.stderr)
         return 1
     try:
         print(configure(os.environ), file=sys.stderr, flush=True)
     except OSError as error:
         # Startup diagnostics should identify driver/cache failures rather than
         # falling through to an unrelated Vulkan assertion.
-        print(f"spartanport: cannot prepare NVIDIA driver: {error}", file=sys.stderr)
+        print(f"ratchetport: cannot prepare NVIDIA driver: {error}", file=sys.stderr)
         return 1
     if "--vulkan-info" in sys.argv[1:]:
         tool = os.environ.get("RATCHET_VULKANINFO", "vulkaninfo")

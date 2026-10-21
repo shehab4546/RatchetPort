@@ -4,8 +4,8 @@ import unittest
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_lang  # noqa: E402
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_lang  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 
 class GameLanguageTest(unittest.TestCase):
@@ -18,8 +18,8 @@ class GameLanguageTest(unittest.TestCase):
         self.assertEqual(env['RATCHET_LANGUAGE'], '17')
 
     def test_brazilian_portuguese_label_is_translated_in_portuguese_and_spanish(self):
-        self.assertEqual(spartanport_lang.EXTRA['pt']['Portuguese (Brazil)'], 'Português (Brasil)')
-        self.assertEqual(spartanport_lang.EXTRA['es']['Portuguese (Brazil)'], 'Portugués (Brasil)')
+        self.assertEqual(ratchetport_lang.EXTRA['pt']['Portuguese (Brazil)'], 'Português (Brasil)')
+        self.assertEqual(ratchetport_lang.EXTRA['es']['Portuguese (Brazil)'], 'Portugués (Brasil)')
 
 
 if __name__ == '__main__':

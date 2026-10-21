@@ -11,7 +11,7 @@ import graphics_options as g
 class GraphicsOptionsTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.ini = Path(self.temp.name) / 'spartanport.ini'
+        self.ini = Path(self.temp.name) / 'ratchet.ini'
         self.state = Path(self.temp.name) / 'state.json'
 
     def tearDown(self):
@@ -28,7 +28,7 @@ class GraphicsOptionsTest(unittest.TestCase):
             options,
             {
                 'render_resolution': 'native',
-                'engine_fps': '120',
+                'engine_fps': '60',
                 'deferred_readback': '1',
                 'stale_readback': '1',
                 'async_shaders': '1',
@@ -63,10 +63,7 @@ class GraphicsOptionsTest(unittest.TestCase):
         self.assertEqual(options['render_resolution'], '8K')
         self.assertEqual(g.SIZES['8K'], (7680, 4320))
         self.assertEqual(g.resolution_label('8K'), '8K · 7680 × 4320 · 16:9 (beta)')
-        names = g.patch_names(['Resolution Patch - 4K', g.TEXTURE_FIX], options)
-        self.assertEqual([n for n in names if n.startswith(g.RESOLUTION_PREFIX)],
-                         ['Resolution Patch - 8K'])
-        self.assertNotIn(g.TEXTURE_FIX, names)
+        self.assertEqual(g.patch_names([], options), [])
 
     def test_write_keys_keeps_other_lines(self):
         self.ini.write_text(
@@ -126,39 +123,10 @@ class GraphicsOptionsTest(unittest.TestCase):
             '240',
         )
 
-    def test_patch_names(self):
-        launcher = [
-            'Bug Fix - Texture Corruption Fix',
-            'Frame Rate Patch - 120 FPS',
-            'Skip Any Video With X Button',
-        ]
-        options = g.startup_options(
-            {'render_resolution': '1440p', 'engine_fps': '240'}
-        )
-        self.assertEqual(
-            g.patch_names(launcher, options),
-            [
-                'Skip Any Video With X Button',
-                'Resolution Patch - 1440p',
-                'Frame Rate Patch - 240 FPS',
-            ],
-        )
-
-        # The engine rate changes live (in-game menu, R3 + L1 + R1): every launch takes the
-        # highest frame rate patch, even for 60 or 100 FPS.
-        native = g.startup_options({'engine_fps': '60'})
-        self.assertEqual(
-            g.patch_names(
-                ['Resolution Patch - 4K', 'Skip Any Video With X Button'],
-                native,
-            ),
-            [
-                'Bug Fix - Texture Corruption Fix',
-                'Skip Any Video With X Button',
-                'Frame Rate Patch - 240 FPS',
-            ],
-        )
-        self.assertEqual(g.startup_options({'engine_fps': '100'})['engine_fps'], '100')
+    def test_no_binary_patches_are_enabled_for_ratchet(self):
+        for resolution in g.RESOLUTIONS:
+            options = g.startup_options({'render_resolution': resolution})
+            self.assertEqual(g.patch_names(['old saved patch'], options), [])
 
     def test_resolution_labels_show_the_size_and_aspect_ratio(self):
         self.assertEqual(g.resolution_label('native'), 'Native · 1920 × 1080 · 16:9')
@@ -177,19 +145,12 @@ class GraphicsOptionsTest(unittest.TestCase):
         self.assertEqual([r for r in g.RESOLUTIONS if g.resolution_label(r).endswith('(beta)')],
                          list(g.BETA_RESOLUTIONS))
 
-    def test_every_built_in_resolution_has_a_patch(self):
-        import patches
-        xml = Path(__file__).resolve().parent.parent / 'patches' / 'CUSA01623.xml'
-        self.assertEqual(sorted(r for r in g.RESOLUTIONS if r != 'native'), sorted(patches.resolution_names([xml])))
 
     def test_900p_is_the_built_in_size_between_720p_and_1440p(self):
         # #238: 900p (1600x900) sits between 720p and 1440p, with its own resolution patch.
         self.assertEqual(g.RESOLUTIONS.index('900p'), 3)
         self.assertEqual(g.SIZES['900p'], (1600, 900))
         import xml.etree.ElementTree as ET
-        xml = Path(__file__).resolve().parent.parent / 'patches' / 'CUSA01623.xml'
-        names = {m.get('Name') for m in ET.parse(xml).getroot().iter('Metadata')}
-        self.assertIn('Resolution Patch - 900p', names)
 
     def test_resolutions_of_enabled_mods(self):
         # A mod's "Resolution Patch - <size>" is a render resolution only while its mod is on.
@@ -199,12 +160,11 @@ class GraphicsOptionsTest(unittest.TestCase):
         self.assertEqual(g.startup_options(ini)['render_resolution'], 'native')
         options = g.startup_options(ini, ['3840x1080'])
         self.assertEqual(options['render_resolution'], '3840x1080')
-        self.assertEqual(g.patch_names(['Bug Fix - Texture Corruption Fix'], options),
-                         ['Resolution Patch - 3840x1080', 'Frame Rate Patch - 240 FPS'])
+        self.assertEqual(g.patch_names([], options), [])
 
     def test_a_confirmed_mod_resolution_is_restored_while_its_mod_is_on(self):
         with tempfile.TemporaryDirectory() as folder:
-            ini, state = Path(folder) / 'spartanport.ini', Path(folder) / 'state.json'
+            ini, state = Path(folder) / 'ratchet.ini', Path(folder) / 'state.json'
             g.write_keys(ini, {'render_resolution': '3840x1080', 'engine_fps': '60'})
             tried, _ = g.prepare(ini, state, ['3840x1080'])
             self.assertEqual(tried['render_resolution'], '3840x1080')
@@ -219,22 +179,20 @@ class GraphicsOptionsTest(unittest.TestCase):
         options = g.startup_options({'render_resolution': 'native', 'engine_fps': '100'})
         self.assertEqual(options['engine_fps'], '100')
         # 100 is written live over the 240 FPS patch (ratchet_settings.cpp SyncEngineFps).
-        self.assertEqual(g.patch_names(['Bug Fix - Texture Corruption Fix'], options),
-                         ['Bug Fix - Texture Corruption Fix', 'Frame Rate Patch - 240 FPS'])
-        self.assertEqual(g.startup_options({'engine_fps': '90'})['engine_fps'], '120')  # not a choice: the default
+        self.assertEqual(g.patch_names([], options), [])
+        self.assertEqual(g.startup_options({'engine_fps': '90'})['engine_fps'], '60')  # not a choice: the default
 
     def test_engine_rate_180_for_high_refresh_displays(self):
         self.assertEqual(g.ENGINE_FPS, (60, 100, 120, 144, 180, 240))
         options = g.startup_options({'render_resolution': 'native', 'engine_fps': '180'})
         self.assertEqual(options['engine_fps'], '180')
-        self.assertIn('Frame Rate Patch - 240 FPS', g.patch_names([], options))
+        self.assertEqual(g.patch_names([], options), [])
 
     def test_engine_rate_144_for_144hz_displays(self):
         self.assertIn(144, g.ENGINE_FPS)
         options = g.startup_options({'render_resolution': 'native', 'engine_fps': '144'})
         self.assertEqual(options['engine_fps'], '144')
-        self.assertEqual(g.patch_names(['Bug Fix - Texture Corruption Fix'], options),
-                         ['Bug Fix - Texture Corruption Fix', 'Frame Rate Patch - 240 FPS'])
+        self.assertEqual(g.patch_names([], options), [])
 
     def test_applied_engine_fps(self):
         self.assertEqual(

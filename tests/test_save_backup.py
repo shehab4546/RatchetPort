@@ -16,7 +16,7 @@ class SaveBackupTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.user = Path(self.temp.name)
-        self.save = self.user / 'savedata' / '1' / 'CUSA01623' / 'AUTOSAVE' / 'data.bin'
+        self.save = self.user / 'savedata' / '1' / 'CUSA01047' / 'AUTOSAVE' / 'data.bin'
         self.clock = datetime.datetime(2026, 10, 9, 18, 0, 0)
 
     def tearDown(self):

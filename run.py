@@ -114,51 +114,6 @@ def find_executable(name):
     return None
 
 
-def glyph_mounts(env, probe, game, out):
-    """(probe arguments, style) of the controller glyphs: patched copies of the WADs that hold the
-    game's button icons, mounted over them (scripts/glyphs.py). Opt-in: unless RATCHET_GLYPH_STYLE is
-    auto, xbox, nintendo or keyboard nothing is asked, drawn or mounted, and old copies are removed.
-    The keyboard keys follow RATCHET_KEY_MAP; auto shows them when no gamepad is connected. The game
-    folder is never written."""
-    choice = env.get('RATCHET_GLYPH_STYLE', 'off')
-    if choice not in ('auto', 'xbox', 'nintendo', 'keyboard'):
-        shutil.rmtree(Path(out) / 'glyphs', ignore_errors=True)
-        return [], None
-    try:
-        import glyphs
-        pad = ''
-        if choice == 'auto':
-            pad = subprocess.run([str(probe), '--gamepad'], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                 text=True, timeout=15, creationflags=no_console()).stdout
-        style, faces, name = glyphs.resolve(choice, pad)
-        mounts = glyphs.build(game, out, style, faces, env.get('RATCHET_PAD_MAP', ''), env.get('RATCHET_KEY_MAP', ''))
-    except Exception as error:  # noqa: BLE001  (icons only: whatever fails, the game still starts)
-        print(f'Glyphs: {error}; the game keeps its own button icons', flush=True)
-        return [], None
-    if not mounts:
-        print('Glyphs: a PlayStation controller, the game keeps its own button icons' if style == 'playstation'
-              else 'Glyphs: no button icons found in this game folder', flush=True)
-        return [], None
-    print(f'Glyphs: {style}{f" ({name})" if name else ""}, on copies in {Path(out) / "glyphs"}; game files untouched',
-          flush=True)
-    return [part for guest, path in mounts.items() for part in ('--mount', f'{guest}={path}')], style
-
-
-def pause_menu_args(game, out, mounts, language=None):
-    """Probe arguments for the copy of R_UI.WAD with the pause menu's Exit to Desktop row
-    (scripts/pause_menu.py), made from the glyphs' copy when `mounts` has one. The probe mounts it
-    over both once its hook is in (src/menu_hook.h). The game folder is never written."""
-    import pause_menu
-    guest = '/app0/' + pause_menu.WAD
-    source = next((part.split('=', 1)[1] for part in mounts if part.startswith(guest + '=')), None)
-    try:
-        made = pause_menu.build(game, out, source, language=language)
-    except OSError as error:
-        print(f'Pause menu: {error}; no Exit to Desktop row', flush=True)
-        return []
-    return [part for path in made.values() for part in ('--pause-menu', str(path))]
-
-
 def main():
     args = sys.argv[1:]
     if len(args) >= 2 and args[0] == '--after':
@@ -168,13 +123,10 @@ def main():
     os.chdir(PORT)
     env = os.environ
     sys.path.insert(0, str(PORT / 'scripts'))
-    import legacy
-    legacy.forward_environment(env)
     data = Path(env.get('RATCHET_DATA_DIR', PORT))
-    legacy.copy_game_settings(data)
     out = data / 'out'
     out.mkdir(parents=True, exist_ok=True)
-    env.setdefault('RATCHET_CONFIG', str(data / 'spartanport.ini'))
+    env.setdefault('RATCHET_CONFIG', str(data / 'ratchet.ini'))
     # Values this script derived on the previous start ("Apply and restart" inherits them) are
     # derived again from the new options.
     for key in env.pop('RATCHET_DERIVED', '').split(','):
@@ -187,15 +139,7 @@ def main():
         discord_presence = None
     import mods
     import patches
-    # The enabled mods' patch files: their "Resolution Patch - <size>" entries are render resolutions too
-    # (the launcher and the in-game menu list them; RATCHET_EXTRA_RESOLUTIONS tells the game).
-    mod_patch_files = mods.enabled_patch_files(env.get('RATCHET_MODS_DIR', data / 'mods'),
-                                               env.get('RATCHET_MODS_CONFIG', data / 'mods.json'),
-                                               env.get('RATCHET_MODS_ENABLED', '1') != '0',
-                                               env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01623'))
-    extra_resolutions = [s for s in patches.resolution_names(mod_patch_files) if s not in graphics_options.RESOLUTIONS]
-    env['RATCHET_EXTRA_RESOLUTIONS'] = ';'.join(extra_resolutions)
-    derived.append('RATCHET_EXTRA_RESOLUTIONS')
+    extra_resolutions = []
     graphics, reverted = graphics_options.prepare(env['RATCHET_CONFIG'], out / 'graphics_state.json', extra_resolutions)
     if reverted:
         print('Graphics: the last restart never reached the game; previous options restored', flush=True)
@@ -220,18 +164,16 @@ def main():
         sys.exit(20)
     missing = parse_cpu_features(features.stdout)
 
-    game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01623'))
+    game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
     if not (game / 'eboot.bin').is_file():
         fail(f'No eboot.bin in {game} (set RATCHET_GAME_DIR).')
-    update_view = None
+    from ratchet_game import validate_game
+    try:
+        validate_game(game)
+    except (OSError, ValueError) as error:
+        fail(str(error))
     if env.get('RATCHET_PATCH_DIR'):
-        import game_update
-        try:
-            update_view = game_update.create_view(game, env['RATCHET_PATCH_DIR'], out)
-        except (ValueError, OSError) as error:
-            fail(str(error))
-        game = update_view
-        print(f'Game and update combined from {env["RATCHET_PATCH_DIR"]}', flush=True)
+        fail('Separate game updates are not supported: use CUSA01047 USA v1.00.')
     original_game = game.resolve()
     game = Path(run_script('mods.py', game, '--out', out,
                            '--mods-dir', env.get('RATCHET_MODS_DIR', data / 'mods'),
@@ -252,72 +194,29 @@ def main():
                 isa_args = ['--isa-rewrite', str(out / 'isa-rewrite.bin')]
         run_script('content_profile.py', game, '--out', out, '--sku', env.get('RATCHET_CONTENT_SKU', 'full'))
 
-        from patches import game_profile_for, patch_requirements, patch_status, selected_patches
-        profile = game_profile_for(game)
-        engine_fps = 60
-        # The window shows the port's own icon (BMP: the format SDL loads without extra libraries); on
-        # Linux also an application id the desktop entry matches, so the shell shows the same icon.
-        icon_file = PORT / 'launcher' / 'spartanport.png'
-        if not WINDOWS:
-            env.setdefault('SDL_APP_ID', 'spartanport')
+        # No verified Ratchet patches are shipped. Never apply patches from another title.
+        patches.write_patches(out, [])
+        (out / 'patch_status.json').write_text('{"applied": [], "skipped": {}}')
+        print('Patches: none (CUSA01047 v1.00)', flush=True)
+        icon_file = game / 'sce_sys' / 'icon0.png'
         try:
             from PIL import Image
             with Image.open(icon_file) as icon:
-                icon.convert('RGBA').resize((64, 64), Image.LANCZOS).save(out / 'window_icon.bmp')
+                icon.convert('RGBA').resize((64, 64)).save(out / 'window_icon.bmp')
             env.setdefault('RATCHET_WINDOW_ICON', str(out / 'window_icon.bmp'))
         except (ImportError, OSError):
             pass
-        # The temporal upscalers and motion vectors are not calibrated for this game yet: they stay
-        # off unless the launcher's experimental switch is on (then spartanport.ini decides); linear
-        # image readbacks fix its corrupted textures.
-        if env.get('RATCHET_EXPERIMENTAL_UPSCALER') != '1':
-            env.setdefault('RATCHET_UPSCALER', 'none')
+        env.setdefault('RATCHET_UPSCALER', 'none')
         env.setdefault('RATCHET_READBACK_LINEAR', '1')
-        patch_xml = profile[1] if profile else None
-        if profile and mod_patch_files:
-            # The built-in patches plus the enabled mods' (the same file for the selection and the notes).
-            patch_xml = patches.merge_patch_files(profile[1], mod_patch_files, out / 'patches-merged.xml')
-        if profile:
-            names = selected_patches(patch_xml, profile[2], env.get('RATCHET_PATCHES', ''), env.get('RATCHET_PATCHES_ONLY') == '1')
-            # A mod's patches that are on by default (isEnabled) stay on when the launcher chose the list.
-            names += [n for n in patches.default_enabled(mod_patch_files, profile[2]) if n not in names]
-            # spartanport.ini decides the resolution and frame rate patches (in-game menu, launcher).
-            names = graphics_options.patch_names(names, graphics)
-            names = graphics_options.restrict_to_available(names, patches.available_patches(patch_xml, profile[2]))
-            env['RATCHET_PATCHES'] = ';'.join(names)
-            env['RATCHET_PATCHES_ONLY'] = '1'
-        (out / 'patch_status.json').unlink(missing_ok=True)
-        run_script('patches.py', '--out', out, '--extra', env.get('RATCHET_PATCHES', ''), '--game-dir', game,
-                   '--patches-dir', env.get('RATCHET_PATCHES_DIR', data / 'patches'),
-                   '--patches-config', env.get('RATCHET_PATCHES_CONFIG', data / 'patches.json'),
-                   *[arg for f in mod_patch_files for arg in ('--mod-patches', f)])
-        if profile:
-            # Only the patches found in this eboot.bin count: a frame rate patch that was skipped
-            # leaves the engine at 60 FPS, and the notes' memory and VBlank needs follow the same list.
-            applied = (patch_status(out) or {}).get('applied', [])
-            engine_fps = graphics_options.applied_engine_fps(applied)
-            dmem, vblank = patch_requirements(patch_xml, applied, profile[2])
-            for key, value in (('RATCHET_DMEM_MB', dmem), ('RATCHET_VBLANK_HZ', vblank)):
-                if value and key not in env:
-                    env[key] = str(value)
-                    derived.append(key)
-        if 'RATCHET_VBLANK_HZ' not in env:
-            env['RATCHET_VBLANK_HZ'] = '60'
-            derived.append('RATCHET_VBLANK_HZ')
-        # The highest engine rate this launch allows (the menu picks a lower one live). Without the
-        # frame rate patch the engine steps 1/60 s per frame: the present thread must not flip
-        # faster (ratchet_graphics.h PresentLimit), or the game speeds up.
-        env['RATCHET_ENGINE_FPS'] = str(engine_fps)
-        derived.append('RATCHET_ENGINE_FPS')
-        print(f'Engine frame rate: {min(int(graphics["engine_fps"]), engine_fps)} FPS, live up to {engine_fps}'
-              + ('' if engine_fps > 60 or graphics['engine_fps'] == '60' else
-                 ' (the frame rate patch was not found in this eboot.bin)'), flush=True)
-        glyph_args, glyph_style = glyph_mounts(env, probe, game, out)
-        if glyph_style:  # the in-game menu names the buttons the same way
-            env['RATCHET_GLYPHS'] = glyph_style
-            derived.append('RATCHET_GLYPHS')
-        mount_args = glyph_args + pause_menu_args(game, out, glyph_args, env.get('RATCHET_LANGUAGE'))
+        env.setdefault('RATCHET_ZERO_CLEAR', '0')
+        env.setdefault('RATCHET_FPS_LIMIT', '30')
+        env.setdefault('RATCHET_VSYNC', '1')
+        env.setdefault('RATCHET_OUTPUT_RES', '1280x720')
+        # Retain the guest display clock. This is not an engine FPS patch.
+        env.setdefault('RATCHET_VBLANK_HZ', '60')
+        env['RATCHET_ENGINE_FPS'] = '60'
         env['RATCHET_DERIVED'] = ','.join(derived)
+        mount_args = []
         # The guest memory pool is committed in full at start: a resolution patch above 1080p
         # can need more than 16 GB of RAM, and the game then closes when the page file cannot grow.
         import guest_memory
@@ -361,8 +260,6 @@ def main():
     finally:
         if mod_view:
             shutil.rmtree(mod_view, ignore_errors=True)
-        if update_view:
-            game_update.remove_view(update_view)
 
 
 if __name__ == '__main__':

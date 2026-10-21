@@ -3,7 +3,7 @@ import unittest
 
 from test_launcher_save import LauncherOverTemporaryFiles, launcher
 
-PATCH = ('<Patch><TitleID><ID>CUSA01623</ID></TitleID>'
+PATCH = ('<Patch><TitleID><ID>CUSA01047</ID></TitleID>'
          '<Metadata Name="Resolution Patch - 3840x1080" AppVer="01.02"><PatchList/></Metadata></Patch>')
 
 
@@ -54,7 +54,7 @@ class ModResolutionsTest(LauncherOverTemporaryFiles):
         self.app.var('render_resolution', 'ini').set('3840x1080')
         self.root.update()
         self.assertEqual(self.app.var('render_resolution', 'ini').get(), '3840x1080')
-        self.assertIn('3840 × 1080 · 32:9 (mod)', self.app.summary())
+        self.assertIn('no binary patches', self.app.summary())
 
 
 if __name__ == '__main__':

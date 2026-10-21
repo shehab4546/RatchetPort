@@ -9,7 +9,7 @@ from unittest import mock
 
 from paths import ROOT
 sys.path.insert(0, str(ROOT / 'launcher'))
-import spartanport_launcher_win as launcher  # noqa: E402
+import ratchetport_launcher_win as launcher  # noqa: E402
 
 try:
     import tkinter as tk
@@ -21,7 +21,7 @@ except ImportError:  # pragma: no cover
 @unittest.skipUnless(sys.platform == 'win32' and tk, 'needs Windows and Tk')
 class LauncherOverTemporaryFiles(unittest.TestCase):
     """A real launcher window over a temporary settings folder: the user's files are never touched."""
-    INI = None  # spartanport.ini the launcher opens over, when a test needs one
+    INI = None  # ratchet.ini the launcher opens over, when a test needs one
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -32,9 +32,9 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
         launcher.DATA_DIR = self.tmp / 'data'
         launcher.DATA_DIR.mkdir()
         launcher.LANG = 'en'
-        os.environ['RATCHET_CONFIG'] = str(self.tmp / 'spartanport.ini')
+        os.environ['RATCHET_CONFIG'] = str(self.tmp / 'ratchet.ini')
         if self.INI:
-            (self.tmp / 'spartanport.ini').write_text(self.INI, encoding='utf-8')
+            (self.tmp / 'ratchet.ini').write_text(self.INI, encoding='utf-8')
         self.root = tk.Tk()
         self.app = launcher.Launcher(self.root, tk, ttk, filedialog, messagebox)
         self.root.update()
@@ -90,8 +90,8 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
 
     def test_save_preserves_external_changes_and_refreshes_the_controls(self):
         self.app.save()
-        path = self.tmp / 'spartanport.ini'
-        path.write_text(path.read_text(encoding='utf-8').replace('fps_limit=0', 'fps_limit=60') +
+        path = self.tmp / 'ratchet.ini'
+        path.write_text(path.read_text(encoding='utf-8').replace('fps_limit=30', 'fps_limit=60') +
                         'external_runtime_key=keep\n', encoding='utf-8')
         self.app.var('vsync', 'ini').set(False)
         self.app.save()
@@ -104,7 +104,7 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
 
     def test_failed_replace_keeps_files_and_changes_pending(self):
         self.app.save()
-        path = self.tmp / 'spartanport.ini'
+        path = self.tmp / 'ratchet.ini'
         before = path.read_bytes(), launcher.CONFIG_FILE.read_bytes()
         self.app.var('vsync', 'ini').set(False)
         with mock.patch.object(launcher.os, 'replace', side_effect=PermissionError('locked')), \
@@ -128,7 +128,7 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
     def test_saving_writes_the_files_and_disables_the_button(self):
         self.app.var('vsync', 'ini').set(False)
         self.app.save()
-        self.assertIn('vsync=0', (self.tmp / 'spartanport.ini').read_text(encoding='utf-8').splitlines())
+        self.assertIn('vsync=0', (self.tmp / 'ratchet.ini').read_text(encoding='utf-8').splitlines())
         self.assertTrue(launcher.CONFIG_FILE.is_file())
         self.assertEqual(self.save_state(), 'disabled')
 
@@ -156,7 +156,7 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
     def test_nothing_is_written_before_saving(self):
         self.app.var('vsync', 'ini').set(False)
         self.save_state()
-        self.assertFalse((self.tmp / 'spartanport.ini').exists())
+        self.assertFalse((self.tmp / 'ratchet.ini').exists())
 
 
 class HiddenUpscalingTest(LauncherOverTemporaryFiles):
@@ -166,7 +166,7 @@ class HiddenUpscalingTest(LauncherOverTemporaryFiles):
     def test_hidden_settings_are_preserved_without_migration(self):
         before, _lines = launcher.load_ini()
         for key in ('upscaler', 'preset', 'fsr1', 'sharpen', 'sharpness', 'rcas',
-                    'rcas_strength', 'object_motion', 'output_res', 'live_resolution',
+                    'rcas_strength', 'object_motion', 'live_resolution',
                     'experimental_upscaler'):
             self.assertNotIn(key, self.app.vars)
         self.assertEqual(self.save_state(), 'disabled')

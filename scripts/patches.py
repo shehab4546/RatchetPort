@@ -14,7 +14,6 @@ import struct
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-import legacy
 
 EBOOT_BASE=0x400000
 
@@ -158,13 +157,9 @@ def compile_patches(xml, names, app_version, segments, image=None, skipped=None)
 
 
 PATCHES_DIR=Path(__file__).resolve().parent.parent/'patches'
-# Built-in patch file per game: its title IDs, the AppVer its metadata is tagged with and the
-# title that also recognizes a release under an ID not listed. The signatures find the sites in
-# any region or version whose code matches, so the eboot.bin build is not checked.
-GAMES=[({'CUSA01623','CUSA01715','CUSA01720'},PATCHES_DIR/'CUSA01623.xml','01.02',
-        'SpartanPort')]
-# The build the built-in Address values and third-party patch files are written for.
-REFERENCE_SHA256='d85c8135d330c3b601bf5dc3f1dd86bd6119fb8a9fce372bed2c9785f9a79299'
+# No verified binary patches are available for the supported Ratchet build.
+GAMES = []
+REFERENCE_SHA256 = None
 DMEM_RETAIL_MB=5056  # runtime_memory.c POOL_SIZE default
 
 
@@ -185,8 +180,8 @@ def game_title_id(game):
 
 def game_profile(title_id, title=None):
     """(title IDs, built-in XML, metadata AppVer, title) for a known game, else None."""
-    title=(title or '').replace('®','').replace('™','')
-    return next((g for g in GAMES if title_id in g[0] or (title and g[3] in title)),None)
+    title=(title or '').replace('آ®','').replace('â„¢','')
+    return next((g for g in GAMES if title_id in g[0]),None)
 
 
 def game_profile_for(game):
@@ -226,13 +221,13 @@ def available_patches(xml, app_version):
     return {m.get('Name') for m in ET.parse(xml).getroot().iter('Metadata') if m.get('AppVer')==app_version}
 
 
-# SpartanPort notes: the texture fix and the resolution patches both resize the video arena;
+# RatchetPort notes: the texture fix and the resolution patches both resize the video arena;
 # enable one, never both. A chosen resolution patch replaces the default texture fix.
 EXCLUSIVE_PREFIX='Resolution Patch'
 REPLACED_BY_EXCLUSIVE={'Bug Fix - Texture Corruption Fix'}
 # Fixes with nothing to choose: not offered in the launcher and applied even with its saved list,
 # which predates them (the startup black screen fix sets a value the game overwrites at once).
-ALWAYS_ON={'Bug Fix - Startup Black Screen'}
+ALWAYS_ON=set()
 
 
 def selected_patches(xml, app_version, extra, only=False):
@@ -330,7 +325,7 @@ def external_patches(directory, app_version, exclude, ids):
     directory=Path(directory)
     for path in sorted(directory.glob('*.xml')) if directory.is_dir() else []:
         if (path.resolve()==Path(exclude).resolve() or path.resolve() in {g[1].resolve() for g in GAMES}
-                or path.name==legacy.LEGACY_PATCH_FILE):
+                ):
             continue  # built-in files (patches/ in a checkout, or an older build's left by an update) are not external
         try:
             root=ET.parse(path).getroot()
@@ -392,7 +387,7 @@ def main():
                    help='patch file of an enabled mod (repeat; in load order)')
     p.add_argument('--extra',default='',help='additional patch names, separated by ";"')
     p.add_argument('--out',type=Path,default=Path(__file__).resolve().parent.parent/'out')
-    p.add_argument('--game-dir',type=Path,default=Path(os.environ.get('RATCHET_GAME_DIR','../CUSA01623')))
+    p.add_argument('--game-dir',type=Path,default=Path(os.environ.get('RATCHET_GAME_DIR','../CUSA01047')))
     a=p.parse_args()
     title=game_title_id(a.game_dir)
     profile=game_profile_for(a.game_dir)
