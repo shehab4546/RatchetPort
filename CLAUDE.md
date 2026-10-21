@@ -1,13 +1,7 @@
-## Agent skills
+# RatchetPort development context
 
-### Issue tracker
+Read the repository state and README before continuing. Preserve existing Ratchet rendering fixes and local diagnostics. Target CUSA01047 USA v1.00 only; no automatic game patches are verified.
 
-GitHub Issues on `FelipePrado0/SpartanPort` (`origin`); always pass `-R FelipePrado0/SpartanPort` to `gh`. See `docs/agents/issue-tracker.md`.
+Resolve the user's own repository from `origin` before any GitHub action. Never assume a username. The direct upstream is FelipePrado0/SpartanPort; never push or open maintenance issues there on the user's behalf without explicit authorization. Inherited issue-tracker documents use OWNER as a placeholder, not a configured destination.
 
-### Triage labels
-
-Canonical roles mapped to this repo's labels (`needs-info` → `question`, `ready-for-agent` → `ready-to-implement`, others 1:1). See `docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: one `CONTEXT.md` plus `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Windows build/package instructions are in packaging/windows/README.md. Keep game-derived files and personal diagnostics out of commits. Applied FSR submodule changes must match gpu/patches/fsr-vulkan exactly.
