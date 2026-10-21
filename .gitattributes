@@ -1,2 +1,3 @@
 # git apply needs the patches byte-exact with the LF sources they change, on any core.autocrlf.
 *.patch text eol=lf
+*.sh text eol=lf

@@ -15,6 +15,19 @@ git submodule update --init --recursive
 RATCHET_BUILD_DIR=out/ratchet-clean bash build.sh
 ```
 
+Before making a public Windows package, build its isolated LGPL FFmpeg dependency:
+
+```bash
+pacman -S --needed make nasm
+bash packaging/windows/build-ffmpeg.sh
+```
+
+This does not replace the installed MSYS2 libraries. The packager selects these
+shared DLLs ahead of the MSYS2 versions and verifies their license/configuration.
+They use the same FFmpeg 9.0.2 ABI as the CLANG64 build; test the final package with
+these libraries. The generated diagnostic configuration string redacts the local
+checkout path. The complete actual build command is retained in the script.
+
 Use a previously nonexistent `RATCHET_BUILD_DIR` for a clean configure/build. Existing diagnostics and build directories are not deleted. The script applies `gpu/patches/fsr-vulkan/*.patch` only when not already applied; a conflicting submodule change stops the build. The resulting FSR submodule worktree is intentionally dirty, with its complete changes represented by those patches. No submodule commit is invented or pushed.
 
 For explicit CMake configuration after applying these patches:
@@ -32,7 +45,7 @@ py -3.12 -m venv out/ratchet-tools
 out/ratchet-tools/Scripts/python.exe -m pip install -r packaging/windows/requirements.txt
 out/ratchet-tools/Scripts/python.exe -m unittest discover -s tests
 out/ratchet-tools/Scripts/python.exe tests/test_liverpool_commands.py
-out/ratchet-tools/Scripts/python.exe tests/run_native.py --build-dir out/ratchet-clean
+out/ratchet-tools/Scripts/python.exe tests/run_native.py --build-dir out/ratchet-clean --runtime-dir out/ffmpeg-lgpl/bin
 out/ratchet-tools/Scripts/python.exe packaging/windows/package.py --build-dir out/ratchet-clean
 powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-Windows-PreAlpha.zip
 ```
@@ -44,3 +57,9 @@ The ZIP is assembled in a new timestamped staging directory. Packaging preserves
 The package contains no game dump. Only the local owner can validate actual gameplay, audio, controller input and saves using their own CUSA01047 USA v1.00 files. No automated release is published by CI; publishing requires review of local game-test evidence as well as the source, build, test and package results.
 
 Python, source and native tests remain separate from packaged game data. Never stage `out/`, `dist/`, captures, prepared game binaries or private logs in Git.
+
+After committing the release changes, run `python packaging/windows/source_archive.py`
+to create the explicit source ZIP, which includes the pinned submodules. Attach it
+and `out/release-sources/ffmpeg-9.0.2.tar.xz` alongside the Windows ZIP and checksums.
+See [distribution notes](../../docs/DISTRIBUTION.md). V1 remains a Pre-Alpha even
+when these automated checks pass.

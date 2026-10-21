@@ -11,3 +11,9 @@ Dependencies include FSR-Vulkan/FidelityFX and AMD's upstream work; Vulkan-Heade
 See each dependency's source and license for its complete author list and terms. The Windows package includes dependency notices under `licenses/` and the font license beside the font. No proprietary PS4 module, game file or game artwork is redistributed. Optional proprietary DLSS binaries are not bundled.
 
 The project's GPL-2.0 license is in `LICENSE`. Existing per-file SPDX statements, copyright notices and upstream license files continue to apply. For any public binary release, publish its corresponding source commit and the referenced submodule revisions and patches together with the release.
+
+V1 uses an isolated LGPL-2.1-or-later build of FFmpeg, rather than the GPLv3-enabled
+MSYS2 build. Exact source attachments and reproduction details are documented in
+[docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Python, Pillow, iced-x86, PyInstaller
+and Tcl/Tk license notices are included in the Windows package. The RatchetPort
+geometric application icons were created for this project; they use no game artwork.

@@ -63,10 +63,10 @@ NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # The game and everything it starts form one process group, ended together (GameJob).
 NEW_GROUP = {} if WINDOWS else {'start_new_session': True}
 UI_FONT, MONO_FONT, SERIF_FONT = 'Segoe UI', 'Consolas', 'Georgia'
-# This build; GitHub release tags are windows-v<VERSION>.
-VERSION = '0.1.0-prealpha'
+# V1 is an experimental public milestone, not a stability claim.
+VERSION = '1.0.0-prealpha'
 RELEASES_API = ''
-RELEASES_PAGE = ''
+RELEASES_PAGE = 'https://github.com/shehab4546/RatchetPort/releases'
 UPDATE_DIR = Path(tempfile.gettempdir()) / 'ratchetport-update'
 # Never copied over an installation by an update (the package does not hold them either).
 USER_FILES = ('user', 'out', 'mods', 'ratchet.ini', 'settings.json', 'game_icon.ico', 'mods.json', 'mods_presets.json', 'patches.json', 'last_run.log')

@@ -15,6 +15,7 @@ def main():
     parser.add_argument('--build-dir', type=Path, default=ROOT / 'out/ratchet-clean')
     parser.add_argument('--zero-clear-shader', type=Path, help='Local captured cs_0540709a SPIR-V; never distributed')
     parser.add_argument('--msys2', type=Path, default=Path(os.environ.get('MSYS2_ROOT', r'C:\msys64')))
+    parser.add_argument('--runtime-dir', type=Path, help='Test with release DLLs before toolchain DLLs')
     args = parser.parse_args()
     if sys.platform != 'win32':
         parser.error('This runner covers Windows targets; use the inherited Linux test workflow on Linux.')
@@ -25,6 +26,8 @@ def main():
     work.mkdir(parents=True)
     env = {k: v for k, v in os.environ.items() if not k.startswith(('RATCHET_', 'SPARTAN_', 'GOW3_'))}
     env['PATH'] = str(args.msys2 / 'clang64/bin') + os.pathsep + env.get('PATH', '')
+    if args.runtime_dir:
+        env['PATH'] = str(args.runtime_dir.resolve()) + os.pathsep + env['PATH']
     extra = {'mp3-test': [str(ROOT / 'tests/data/sine.mp3')],
              'videodec-test': [str(ROOT / 'tests/data/tiny.h264')],
              'isa-stub-test': [str(ROOT / 'tests/data/isa_fixture.bin')]}

@@ -35,6 +35,10 @@ jobs:
             spirv-tools:p spirv-headers:p spirv-cross:p
       - name: Build
         run: bash build.sh
+      - name: Build LGPL release libraries
+        run: |
+          pacman -S --needed --noconfirm make nasm
+          bash packaging/windows/build-ffmpeg.sh
       # Freezes the launcher; this Python ships Tk, as the python.org one does. Set up after the
       # build so its Python_ROOT_DIR and PKG_CONFIG_PATH do not reach CMake.
       - uses: actions/setup-python@v5

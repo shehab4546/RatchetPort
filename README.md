@@ -1,5 +1,15 @@
 # RatchetPort
 
+![RatchetPort icon](launcher/ratchetport.png)
+
+**V1 — Pre-Alpha · Windows x64 · CUSA01047 USA v1.00**
+
+V1 is the first public experimental release, **not a stable or fully playable 1.0**.
+See the [V1 release notes](docs/releases/V1.md) and [tested hardware and results](docs/TESTING.md).
+
+[Download V1 and its sources](https://github.com/shehab4546/RatchetPort/releases/tag/v1)
+· [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
+
 A Windows-first, **Pre-Alpha** native runtime for **Ratchet & Clank (PS4), CUSA01047, USA, version 1.00**. RatchetPort is derived directly from [FelipePrado0/SpartanPort](https://github.com/FelipePrado0/SpartanPort) and uses renderer and shader-recompiler work from [shadPS4](https://github.com/shadps4-emu/shadPS4).
 
 This is experimental software. Intel UHD 730 has previously reproduced `VK_ERROR_DEVICE_LOST`, including with the zero-clear mirror disabled. Successful compilation or a launcher opening does not establish playable or stable gameplay. Other title IDs, updates and regions are not supported by this configuration.
@@ -9,9 +19,32 @@ This is experimental software. Intel UHD 730 has previously reproduced `VK_ERROR
 - Windows 10 1903+ or Windows 11, 64-bit; an x86-64 CPU with AVX.
 - A Vulkan 1.3-capable GPU and driver. Compatibility depends on the device's reported features; there is no validated minimum performance specification yet.
 - Enough RAM and page-file capacity for the guest memory pool and renderer. Out-of-memory errors remain possible.
-- Your **own legally obtained PS4 game dump** of CUSA01047 USA v1.00, already extracted into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
+- **You must own the original PS4 game disc and make your own dump from that disc using your own PS4.** V1 targets CUSA01047 USA v1.00 only. Extract your dump into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
 
 **No game files, PS4 system modules, keys or game artwork are included.** RatchetPort does not download or decrypt a game. Keep the original dump unchanged.
+
+Do not use or share someone else's dump. Ownership of a disc does not make this
+project a source of downloadable game files. Use your own hardware and files in
+accordance with applicable law; this repository provides no bypass keys or game downloads.
+
+**بالعربية:** يجب أن تمتلك قرص اللعبة الأصلي وأن تعمل dump بنفسك من قرصك باستخدام
+جهاز PS4 الخاص بك. المشروع لا يتضمن اللعبة أو ملفات نظام PS4 أو المفاتيح، ولا يوفر
+روابط لتنزيلها. إصدار V1 تجريبي؛ ظهور القائمة والمشهد الافتتاحي لا يعني أن اللعب مستقر.
+
+## What was actually tested
+
+Local testing used **Windows 11 Pro build 26300, Intel Core i5-12400, Intel UHD
+Graphics 730 (driver 32.0.101.7088), and 12 GB RAM**. No AMD/NVIDIA or Linux game
+compatibility is claimed. The initial settings were 30 FPS limit, VSync on,
+1280x720 output, upscaling off and zero-clear mirror off; this is not a measured
+sustained 30 FPS result.
+
+The title/main menu and difficulty selection were reached. With linear readbacks
+on and deferred readbacks off, the tester confirmed the loading screen and opening
+movie. A freeze followed several button presses during an attempted skip. Actual
+playable movement, reliable cutscene skipping, audible audio, a physical controller,
+save/load and long sessions remain unverified. See [the detailed evidence and test
+counts](docs/TESTING.md); automated tests are listed separately from game observations.
 
 ## Starting on Windows
 
@@ -65,3 +98,13 @@ Native test targets are listed in `gpu/CMakeLists.txt`. They include tiling disp
 ## Credits and license
 
 See [CREDITS.md](CREDITS.md), [LICENSE](LICENSE), `gpu/VENDOR.txt` and dependency licenses. RatchetPort is distributed under **GPL-2.0** (source files that specify GPL-2.0-or-later retain that grant); third-party components keep their own licenses and attribution. Original history and copyright notices remain credited to their authors. This community project is not affiliated with Sony or Insomniac Games.
+
+Ratchet & Clank, PlayStation and related names and game content belong to their
+respective rights holders. The software license grants no rights to the game.
+The project icons are original geometric artwork, not extracted game assets.
+
+The Windows release uses shared FFmpeg libraries built with GPL, version3 and
+nonfree features disabled, under LGPL-2.1-or-later. The release includes the exact
+FFmpeg source archive alongside the binaries and a RatchetPort source archive
+containing the pinned submodules and tracked patches. See
+[source and dependency notices](docs/DISTRIBUTION.md).

@@ -516,8 +516,9 @@ class GpuChoiceTest(unittest.TestCase):
 
 
 class ReleaseVersionTest(unittest.TestCase):
-    def test_port_release_is_newer_than_the_inherited_tags(self):
-        self.assertEqual(launcher.VERSION, '0.1.0-prealpha')
+    def test_v1_keeps_the_prealpha_version_and_updater_isolation(self):
+        self.assertEqual(launcher.VERSION, '1.0.0-prealpha')
+        self.assertEqual(launcher.RELEASES_API, '')
 
     def test_first_start_is_in_english(self):
         # The translations are partial; 'System' stays a choice in Advanced.

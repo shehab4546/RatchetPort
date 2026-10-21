@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Assemble a fresh, portable Windows package without touching previous packages or user data."""
 import argparse
+import ctypes
 from datetime import datetime
+import importlib.metadata
+import json
 import os
 from pathlib import Path
 import re
@@ -22,14 +25,16 @@ def audit(folder):
             raise ValueError(f'Forbidden package content: {p.relative_to(folder)}')
         if p.is_file() and p.suffix.lower() in {'.exe', '.dll', '.pyd', '.py', '.txt', '.md'}:
             content = p.read_bytes().lower()
-            roots = (str(ROOT).encode().lower(), ROOT.as_posix().encode().lower())
+            roots = (str(ROOT).encode().lower(), ROOT.as_posix().encode().lower(),
+                     ('/' + ROOT.drive[0].lower() + ROOT.as_posix()[2:]).encode().lower())
             if any(root in content or root.decode().encode('utf-16-le') in content for root in roots):
                 raise ValueError(f'Local build path embedded in package: {p.relative_to(folder)}')
 
 
-def dependencies(executable, destination, clang):
+def dependencies(executable, destination, clang, ffmpeg):
     pending, done = [executable], set()
     files = {p.name.lower(): p for p in clang.glob('*.dll')}
+    files.update({p.name.lower(): p for p in ffmpeg.glob('*.dll')})
     system = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32'
     while pending:
         current = pending.pop()
@@ -55,8 +60,23 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--build-dir', type=Path, default=ROOT / 'out/ratchet-clean')
     parser.add_argument('--msys2', type=Path, default=Path(os.environ.get('MSYS2_ROOT', r'C:\msys64')))
+    parser.add_argument('--ffmpeg-prefix', type=Path, default=ROOT / 'out/ffmpeg-lgpl')
     args = parser.parse_args()
     build = args.build_dir.resolve()
+    ffmpeg = args.ffmpeg_prefix.resolve()
+    # Reject the MSYS2 GPLv3 build: the public package uses our isolated LGPL build.
+    codec_files = list((ffmpeg / 'bin').glob('avcodec-*.dll'))
+    if len(codec_files) != 1:
+        raise FileNotFoundError('Build the release dependency first: bash packaging/windows/build-ffmpeg.sh')
+    with os.add_dll_directory(str(ffmpeg / 'bin')), os.add_dll_directory(str(args.msys2 / 'clang64/bin')):
+        codec = ctypes.CDLL(str(codec_files[0]))
+        codec.avcodec_license.restype = ctypes.c_char_p
+        codec.avcodec_configuration.restype = ctypes.c_char_p
+        license_name = codec.avcodec_license().decode()
+        configuration = codec.avcodec_configuration().decode()
+        if license_name != 'LGPL version 2.1 or later' or any(
+                flag in configuration for flag in ('--enable-gpl', '--enable-version3', '--enable-nonfree')):
+            raise ValueError(f'Unsupported FFmpeg distribution license: {license_name}')
     for name in ('ratchet-probe.exe', 'ratchet-gpu-capabilities.exe', 'ratchet-play.exe'):
         if not (build / name).is_file(): raise FileNotFoundError(f'Build first: {build / name}')
     work = ROOT / 'out' / ('package-' + datetime.now().strftime('%Y%m%d-%H%M%S'))
@@ -78,7 +98,7 @@ def main():
     for name in ('ratchet-probe.exe', 'ratchet-gpu-capabilities.exe'):
         target = stage / 'bin' / name
         subprocess.run([str(clang / 'llvm-strip.exe'), '--strip-debug', '-o', str(target), str(build / name)], check=True)
-        dependencies(target, target.parent, clang)
+        dependencies(target, target.parent, clang, ffmpeg / 'bin')
     subprocess.run([str(clang / 'llvm-strip.exe'), '-o', str(stage / 'Play RatchetPort.exe'),
                     str(build / 'ratchet-play.exe')], check=True)
     (stage / 'scripts').mkdir()
@@ -86,6 +106,9 @@ def main():
     copy_launcher_assets(stage)
     for name in ('run.py', 'LICENSE', 'README.md', 'CREDITS.md'):
         shutil.copy2(ROOT / name, stage / name)
+    (stage / 'docs/releases').mkdir(parents=True)
+    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md'):
+        shutil.copy2(ROOT / 'docs' / name, stage / 'docs' / name)
     shutil.copy2(ROOT / 'packaging/windows/README-Windows.txt', stage / 'README-Windows.txt')
     notices = stage / 'licenses'
     notices.mkdir()
@@ -98,6 +121,25 @@ def main():
                     shutil.copy2(p, notices / (project.name + '-' + p.name))
     packaged_licenses = args.msys2 / 'clang64/share/licenses'
     if packaged_licenses.is_dir(): shutil.copytree(packaged_licenses, notices / 'msys2')
+    shutil.copytree(ffmpeg / 'share/licenses/ffmpeg', notices / 'ffmpeg')
+    shutil.copy2(Path(sys.base_prefix) / 'LICENSE.txt', notices / 'Python-LICENSE.txt')
+    for package in ('Pillow', 'iced-x86', 'PyInstaller'):
+        distribution = importlib.metadata.distribution(package)
+        for path in distribution.files or []:
+            if any(word in path.name.lower() for word in ('license', 'copying', 'notice')):
+                source = Path(distribution.locate_file(path))
+                if source.is_file(): shutil.copy2(source, notices / f'{package}-{path.name}')
+    for path in (Path(sys.base_prefix) / 'tcl').glob('*/license.terms'):
+        shutil.copy2(path, notices / f'{path.parent.name}-license.terms')
+    source_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
+    (stage / 'build-info.json').write_text(json.dumps({
+        'release': 'V1 Pre-Alpha', 'source_commit': source_commit,
+        'ffmpeg_license': license_name,
+        'ffmpeg_source': 'ffmpeg-9.0.2.tar.xz',
+        'ffmpeg_source_sha256': '8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e',
+        'python': sys.version.split()[0],
+        'packages': {name: importlib.metadata.version(name) for name in ('Pillow', 'iced-x86', 'PyInstaller')}
+    }, indent=2) + '\n', encoding='utf-8')
     audit(stage)
     output = ROOT / 'dist/RatchetPort-Windows-PreAlpha.zip'
     output.parent.mkdir(exist_ok=True)
