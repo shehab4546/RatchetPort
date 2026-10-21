@@ -3,6 +3,9 @@
 set -euo pipefail
 cd -- "$(dirname -- "$0")/../.."
 source ./msys2-env.sh
+for tool in clang make nasm cmp python curl tar; do
+    command -v "$tool" >/dev/null || { echo "Missing build tool: $tool (install make nasm diffutils)." >&2; exit 1; }
+done
 version=9.0.2
 sha256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
 root=$PWD
@@ -30,7 +33,7 @@ cd "$build_dir"
     --extra-ldflags=-Wl,--no-insert-timestamp
 # The public runtime configuration string must not expose the local checkout.
 # Keep the actual commands in this recipe; only redact the diagnostic string.
-python - "$root" <<'PY'
+MSYS2_ARG_CONV_EXCL='*' python - "$root" <<'PY'
 from pathlib import Path
 import sys
 path = Path('config.h')

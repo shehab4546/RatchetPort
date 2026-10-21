@@ -40,9 +40,13 @@ change. Full gameplay has not been revalidated against the final V1 package.
 
 ## Automated checks
 
-- Prior complete native suite: **46 passed, 0 failed**, including a zero-clear GPU
-  check using a local captured shader. That shader is not distributed.
+- V1 native suite with the LGPL FFmpeg DLL directory first in the runtime search
+  path: **46 passed, 0 failed, 0 skipped**, including MP3/H.264 fixture decoding and
+  a zero-clear GPU check using a local captured shader. That shader is not distributed.
 - V1 complete Python suite: **450 discovered; 399 passed, 51 skipped, 0 failed**.
+- Liverpool command harness: pending, late-arrival, callback-arrival and startup
+  command cases passed.
+- Packaging's license check rejected the installed GPLv3 FFmpeg build as expected.
 - Icon/launcher follow-up: **54 passed, 0 failed**; these overlap the Python suite
   and must not be added to its count as independent coverage.
 - Windows product builds succeeded. The isolated ZIP smoke test verifies CPU
