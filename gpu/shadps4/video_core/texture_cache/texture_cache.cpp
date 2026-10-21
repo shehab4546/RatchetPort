@@ -38,7 +38,11 @@ TextureCache::TextureCache(const Vulkan::Instance& instance_, Vulkan::Scheduler&
     : instance{instance_}, scheduler{scheduler_}, runtime{runtime_}, liverpool{liverpool_},
       buffer_cache{buffer_cache_}, tracker{tracker_}, blit_helper{instance, scheduler},
       tile_manager{instance, scheduler, runtime, buffer_cache.GetStreamBuffer()},
-      readback_linear_images{true} {
+      readback_linear_images{EmulatorSettings.IsReadbackLinearImagesEnabled()} {
+
+    std::printf("Ratchet: linear image readbacks = %s (TextureCache)\n",
+                readback_linear_images ? "ON" : "OFF");
+    std::fflush(stdout);
 
     std::printf("GPU: deferred image readback %s (64 copies, 64 MiB pending limit)%s\n",
                 deferred_readbacks ? "enabled" : "disabled",

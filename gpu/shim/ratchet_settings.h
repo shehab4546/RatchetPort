@@ -70,7 +70,8 @@ struct Values {
     // Startup: run.py turns them into patches and environment variables; "Apply and restart".
     std::atomic<int> render_resolution{0};
     std::atomic<int> engine_fps{60};
-    std::atomic<bool> deferred_readback{true};
+    // Synchronous readbacks are the Ratchet baseline: deferred reads stalled scene entry.
+    std::atomic<bool> deferred_readback{false};
     std::atomic<bool> stale_readback{true};
     /// RatchetGraphics::Anisotropies; the samplers read startup_anisotropy.
     std::atomic<int> anisotropy{0};
@@ -86,7 +87,7 @@ struct Values {
     /// rounded. Null when this eboot.bin's code does not match. engine_fps is written there live.
     std::atomic<float*> engine_fps_global{nullptr};
     std::atomic<int32_t*> engine_fps_int_global{nullptr};
-    bool startup_deferred_readback = true, startup_stale_readback = true;
+    bool startup_deferred_readback = false, startup_stale_readback = true;
     // FSR 4 checks (menu): the provider's auto exposure, the jitter sign it is given.
     std::atomic<bool> fsr4_auto_exposure{true};
     std::atomic<bool> fsr4_invert_jitter{false};

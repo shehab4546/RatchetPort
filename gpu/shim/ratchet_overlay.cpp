@@ -394,9 +394,9 @@ void PerformanceTab() {
     ImGui::SeparatorText("Applied on restart");
     if (BeginRows("##restart")) {
         CheckRow("Game reads GPU data without waiting", s.stale_readback,
-                 "Big FPS gain. Switch it off if lighting or objects look wrong.");
+                   "Experimental. Requires deferred readbacks; otherwise inactive.");
         CheckRow("Deferred GPU readbacks", s.deferred_readback,
-                 "Fewer waits for the GPU. Switch it off if textures or shadows look wrong.");
+                   "Experimental: caused a black screen entering a new Ratchet game. Keep off for the baseline.");
         ImGui::EndTable();
     }
 }

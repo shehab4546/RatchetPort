@@ -395,7 +395,7 @@ INI_FLAGS = {'object_motion', 'show_fps', 'vsync', 'async_shaders', 'deferred_re
 INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
                 'object_motion': '1', 'show_fps': '1', 'output_res': '1280x720',
                 'live_resolution': 'auto', 'display_mode': 'windowed', 'vsync': '1', 'fps_limit': '30',
-                'async_shaders': '1', 'deferred_readback': '1', 'stale_readback': '1',
+                'async_shaders': '1', 'deferred_readback': '0', 'stale_readback': '1',
                 'render_resolution': 'native', 'engine_fps': '60',
                 'frames_queued': '1',
                 'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
@@ -1751,7 +1751,8 @@ class Launcher:
         self.check(f, 'background_warmup', 'app', 'Load shader cache in the background')
         self.check(f, 'parallel_warmup', 'app', 'Parallel shader cache loading')
         self.check(f, 'pipeline_binary_cache', 'app', 'Use pipeline binary cache')
-        self.check(f, 'deferred_readback', 'ini', 'Deferred GPU readbacks')
+        self.check(f, 'deferred_readback', 'ini', 'Deferred GPU readbacks',
+                   'Experimental: can stall Ratchet after difficulty selection. Keep off for the baseline.')
         self.check(f, 'stale_readback', 'ini', 'Allow stale GPU readbacks')
         gpus = list_gpus()
         self.row(f, 'Graphics card', self.choice(f, 'gpu_id', 'app', [('', ('Automatic',))] + [(r[0], (r[1],)) for r in gpus]))

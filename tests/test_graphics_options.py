@@ -29,7 +29,7 @@ class GraphicsOptionsTest(unittest.TestCase):
             {
                 'render_resolution': 'native',
                 'engine_fps': '60',
-                'deferred_readback': '1',
+                'deferred_readback': '0',
                 'stale_readback': '1',
                 'async_shaders': '1',
             },
@@ -223,7 +223,7 @@ class GraphicsOptionsTest(unittest.TestCase):
         self.assertEqual(
             env,
             {
-                'RATCHET_DEFERRED_READBACK': '1',
+                'RATCHET_DEFERRED_READBACK': '0',
                 'RATCHET_STALE_READBACK': '0',
                 'RATCHET_ASYNC_SHADERS': '1',
             },

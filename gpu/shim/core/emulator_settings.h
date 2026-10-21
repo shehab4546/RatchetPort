@@ -1,5 +1,5 @@
 // ratchetport: shadPS4 settings used by the video core, read once from RATCHET_* environment
-// variables (defaults match shadPS4 except the pipeline cache, which is on).
+// variables (pipeline caching and Ratchet linear-image readbacks default to on).
 #pragma once
 #include <algorithm>
 #include <cstdlib>
@@ -57,7 +57,8 @@ public:
     bool IsPatchShaders() { return false; }
     bool IsPipelineCacheArchived() { return false; }
     bool IsPipelineCacheEnabled() { static const auto value = Flag("RATCHET_PIPELINE_CACHE", true); return value; }
-    bool IsReadbackLinearImagesEnabled() { static const auto value = Flag("RATCHET_READBACK_LINEAR", false); return value; }
+    // CUSA01047 needs linear GPU-to-CPU image copies during scene transitions.
+    bool IsReadbackLinearImagesEnabled() { static const auto value = Flag("RATCHET_READBACK_LINEAR", true); return value; }
     bool IsRenderdocEnabled() { return false; }
     bool IsShaderCollect() { return false; }
     bool IsUserfaultfdTracking() { return false; }

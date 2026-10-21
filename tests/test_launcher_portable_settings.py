@@ -13,6 +13,16 @@ import ratchetport_launcher_win as launcher
 
 
 class PortableSettingsPathsTest(unittest.TestCase):
+    def test_new_launch_keeps_ratchet_readbacks_synchronous(self):
+        import graphics_options
+        with tempfile.TemporaryDirectory() as folder:
+            ini = Path(folder) / 'ratchet.ini'
+            graphics_options.write_keys(ini, launcher.INI_DEFAULTS)
+            options, reverted = graphics_options.prepare(ini, Path(folder) / 'state.json')
+            self.assertFalse(reverted)
+            self.assertEqual(options['deferred_readback'], '0')
+            self.assertEqual(graphics_options.environment(options)['RATCHET_DEFERRED_READBACK'], '0')
+
     def test_config_dir_is_data_dir(self):
         self.assertEqual(launcher.CONFIG_DIR, launcher.DATA_DIR)
         self.assertEqual(launcher.CONFIG_FILE, launcher.DATA_DIR / 'settings.json')

@@ -7,6 +7,7 @@
 #include <string>
 #include "ratchet_graphics.h"
 #include "ratchet_settings.h"
+#include "core/emulator_settings.h"
 
 #ifndef _WIN32
 static int _putenv_s(const char* key, const char* value) { return *value ? setenv(key, value, 1) : unsetenv(key); }
@@ -21,7 +22,13 @@ static std::string Read(const char* path) {
     return s.str();
 }
 
-int main() {
+int main(int argc, char** argv) {
+    // Run with an expected value in a fresh process to check cached environment parsing.
+    if (argc == 2) {
+        return EmulatorSettings.IsReadbackLinearImagesEnabled() == (argv[1][0] == '1') ? 0 : 1;
+    }
+    assert(EmulatorSettings.IsReadbackLinearImagesEnabled());
+    assert(!RatchetSettings::Get().deferred_readback);
     assert(G::ParseDisplayMode("borderless") == G::Borderless && G::ParseDisplayMode("bogus") == G::Windowed);
     assert(G::ParseFpsLimit(240) == 240 && G::ParseFpsLimit(144) == 144 && G::ParseFpsLimit(180) == 180 && G::ParseFpsLimit(100) == 100 && G::ParseFpsLimit(75) == 0);
     assert(G::ParseResolution("900p") == 3 && G::ParseResolution("1440p") == 4 && G::ParseResolution("8K") == 22);
