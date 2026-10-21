@@ -34,7 +34,8 @@ def audit(folder):
 def dependencies(executable, destination, clang, ffmpeg):
     pending, done = [executable], set()
     files = {p.name.lower(): p for p in clang.glob('*.dll')}
-    files.update({p.name.lower(): p for p in ffmpeg.glob('*.dll')})
+    release_ffmpeg = {p.name.lower(): p for p in ffmpeg.glob('*.dll')}
+    files.update(release_ffmpeg)
     system = Path(os.environ.get('SystemRoot', r'C:\Windows')) / 'System32'
     while pending:
         current = pending.pop()
@@ -43,6 +44,9 @@ def dependencies(executable, destination, clang, ffmpeg):
             key = name.lower()
             if key in done: continue
             done.add(key)
+            if re.fullmatch(r'(?:avcodec|avformat|avutil|avfilter|avdevice|swscale|swresample)-\d+\.dll', key):
+                if key not in release_ffmpeg:
+                    raise FileNotFoundError(f'Release FFmpeg ABI does not match the executable: {name}')
             if key in files:
                 source = files[key]
                 shutil.copy2(source, destination / source.name)
