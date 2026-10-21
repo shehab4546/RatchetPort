@@ -1,4 +1,4 @@
-// spartanport: profiler disabled.
+// ratchetport: profiler disabled.
 #pragma once
 #include "Tracy.hpp"
 #define TracyVkCtx void*

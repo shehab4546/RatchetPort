@@ -1,3 +1,6 @@
+#ifndef NDEBUG
+#define NDEBUG // Vulkan-Hpp dispatcher ABI must match ratchetgpu.
+#endif
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Exercise the actual SPIR-V backend without opening a window or loading the game.
 // Output is validated by spirv-val (see docs/upscaler.md).
@@ -7,6 +10,9 @@
 #include <setjmp.h>
 #include "shader_recompiler/backend/spirv/emit_spirv.h"
 #include "shader_recompiler/ir/ir_emitter.h"
+
+#undef NDEBUG
+#include <cassert> // Re-enable assertions after ABI-sensitive headers.
 
 
 int main(int argc, char** argv) {

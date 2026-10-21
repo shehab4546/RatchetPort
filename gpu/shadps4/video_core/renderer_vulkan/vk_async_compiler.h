@@ -17,7 +17,7 @@
 
 namespace Vulkan {
 
-// spartanport: bounded compiler queue. Stop drains accepted work before Vulkan resources are released.
+// ratchetport: bounded compiler queue. Stop drains accepted work before Vulkan resources are released.
 class AsyncCompiler {
 public:
     explicit AsyncCompiler(unsigned count, size_t capacity = 64,
@@ -99,7 +99,7 @@ private:
     std::vector<std::thread> workers;
 };
 
-// spartanport: one job per cache entry; failures are terminal until the next session.
+// ratchetport: one job per cache entry; failures are terminal until the next session.
 template <typename T>
 class AsyncJob {
 public:
@@ -147,7 +147,7 @@ private:
     std::string error;
 };
 
-// spartanport: IR retains its pools until emission finishes, then returns them for another translation.
+// ratchetport: IR retains its pools until emission finishes, then returns them for another translation.
 template <typename T>
 class CompilerPool {
 public:

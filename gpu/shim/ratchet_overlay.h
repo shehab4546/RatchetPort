@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: in-game settings menu (Dear ImGui), drawn by the presenter into the swapchain image
+// ratchetport: in-game settings menu (Dear ImGui), drawn by the presenter into the swapchain image
 // after the game frame, at display resolution. Insert (keyboard) or R3+L2 (gamepad) opens it;
 // while it is open the game gets no pad/keyboard input. Settings live in ratchet_settings.h.
 
@@ -56,7 +56,7 @@ void SetTextEntry(bool active, const std::string& prompt, const std::string& tex
 /// cancels (Esc/Circle). `pictures`: one per item (empty = none), drawn beside its text.
 /// PollChoice: -1 while open, -2 cancelled, else the chosen index.
 void BeginChoice(const std::string& title, const std::vector<std::string>& items,
-                 std::vector<SpartanPng::Image> pictures, int focus);
+                 std::vector<RatchetPng::Image> pictures, int focus);
 int PollChoice();
 
 } // namespace RatchetOverlay

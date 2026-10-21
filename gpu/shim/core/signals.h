@@ -1,4 +1,4 @@
-// spartanport: fault-handler registry. The C loader's SIGSEGV handler calls
+// ratchetport: fault-handler registry. The C loader's SIGSEGV handler calls
 // ratchetgpu_handle_fault() first; registered handlers run in priority order.
 #pragma once
 #include <compare>

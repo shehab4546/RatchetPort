@@ -31,26 +31,26 @@ extern "C" void runtime_restart(void); // src/probe.c: starts run.py again, ends
 #ifdef _WIN32
 asm(".section .rdata,\"dr\"\n"
     ".balign 16\n"
-    ".global spartanport_font_ttf\n"
-    "spartanport_font_ttf:\n"
+    ".global ratchetport_font_ttf\n"
+    "ratchetport_font_ttf:\n"
     ".incbin \"" RATCHET_FONT_PATH "\"\n"
-    ".global spartanport_font_ttf_end\n"
-    "spartanport_font_ttf_end:\n"
+    ".global ratchetport_font_ttf_end\n"
+    "ratchetport_font_ttf_end:\n"
     ".text\n");
 #else
 asm(".section .rodata\n"
     ".balign 16\n"
-    ".hidden spartanport_font_ttf\n"
-    ".global spartanport_font_ttf\n"
-    "spartanport_font_ttf:\n"
+    ".hidden ratchetport_font_ttf\n"
+    ".global ratchetport_font_ttf\n"
+    "ratchetport_font_ttf:\n"
     ".incbin \"" RATCHET_FONT_PATH "\"\n"
-    ".hidden spartanport_font_ttf_end\n"
-    ".global spartanport_font_ttf_end\n"
-    "spartanport_font_ttf_end:\n"
+    ".hidden ratchetport_font_ttf_end\n"
+    ".global ratchetport_font_ttf_end\n"
+    "ratchetport_font_ttf_end:\n"
     ".previous\n");
 #endif
-extern "C" const unsigned char spartanport_font_ttf[];
-extern "C" const unsigned char spartanport_font_ttf_end[];
+extern "C" const unsigned char ratchetport_font_ttf[];
+extern "C" const unsigned char ratchetport_font_ttf_end[];
 
 namespace RatchetOverlay {
 
@@ -80,7 +80,7 @@ int choice_index = 0;
 std::atomic<int> choice_result{-1}; // -1 open, -2 cancelled, else the chosen index
 // Save pictures: decoded by BeginChoice, made textures on the present thread (null = none).
 // Closed lists' textures wait in choice_retired until the backend has destroyed them.
-std::vector<SpartanPng::Image> choice_pictures;
+std::vector<RatchetPng::Image> choice_pictures;
 std::vector<ImTextureData*> choice_textures, choice_retired;
 std::atomic<bool> choice_retiring{false};
 float base_scale = 1.0f;
@@ -371,14 +371,10 @@ void PerformanceTab() {
     auto& s = RatchetSettings::Get();
     ImGui::SeparatorText("Live");
     if (BeginRows("##live")) {
-        static const char* const fps_labels[] = {"30", "60", "100", "120", "144", "180", "240", "Unlimited"};
-        ChoiceRow("Frame rate limit", s.fps_limit, fps_labels, G::FpsLimits.data(), int(G::FpsLimits.size()),
-                  "Caps the frame rate. The engine frame rate (below) is the highest it can go.");
-        static const char* const engine_labels[] = {"60 (original)", "100", "120", "144", "180", "240"};
-        static_assert(std::size(engine_labels) == G::EngineFps.size());
-        ChoiceRow("Engine frame rate", s.engine_fps, engine_labels, G::EngineFps.data(), int(G::EngineFps.size()),
-                  "The highest frame rate the game itself runs at. Use 60 FPS if a higher engine rate causes "
-                  "gameplay issues. R3 + L1 + R1 or F9 goes through the list.");
+        static const char* const fps_labels[] = {"30"};
+        static const int verified_limits[] = {30};
+        ChoiceRow("Frame rate limit", s.fps_limit, fps_labels, verified_limits, 1,
+                  "Conservative pre-alpha limit; higher frame rates are unverified.");
         const int effective = G::EffectiveFps(s.fps_limit, RatchetSettings::EngineFpsNow());
         if (s.fps_limit == 0 || effective < s.fps_limit) {
             char text[48];
@@ -397,29 +393,6 @@ void PerformanceTab() {
     }
     ImGui::SeparatorText("Applied on restart");
     if (BeginRows("##restart")) {
-        // The built-in sizes, then those of the enabled mods' patch files (ultrawide, for one).
-        // The same labels as the launcher (graphics_options.resolution_label): name, exact size, aspect ratio.
-        static const char* const builtin_labels[] = {
-            "Native · 1920 × 1080 · 16:9", "480p · 854 × 480 · 16:9",
-            "720p · 1280 × 720 · 16:9", "900p · 1600 × 900 · 16:9",
-            "1440p · 2560 × 1440 · 16:9",
-            "1800p · 3200 × 1800 · 16:9", "4K · 3840 × 2160 · 16:9",
-            "2560 × 1080 · 21:9 (beta)", "3440 × 1440 · 21:9 (beta)",
-            "3840 × 1600 · 21:9 (beta)", "5120 × 1440 · 32:9 (beta)",
-            "1920 × 1200 · 16:10 (beta)", "2560 × 1600 · 16:10 (beta)",
-            "1280 × 800 · 16:10", "1440 × 900 · 16:10",
-            "1360 × 768 · 16:9",
-            "1280 × 960 · 4:3", "1440 × 1080 · 4:3 (beta)", "1920 × 1440 · 4:3 (beta)",
-            "2048 × 1536 · 4:3 (beta)", "2560 × 1920 · 4:3 (beta)", "5120 × 2160 · 21:9 (beta)",
-            "8K · 7680 × 4320 · 16:9 (beta)"};
-        static_assert(std::size(builtin_labels) == G::Resolutions.size());
-        const std::vector<std::string> resolution_names = G::ResolutionNames();
-        std::vector<const char*> resolution_labels;
-        for (std::size_t i = 0; i < resolution_names.size(); ++i) {
-            resolution_labels.push_back(i < G::Resolutions.size() ? builtin_labels[i] : resolution_names[i].c_str());
-        }
-        ChoiceRow("Render resolution", s.render_resolution, resolution_labels.data(), nullptr,
-                  int(resolution_labels.size()), "The resolution the game draws at. Higher is sharper and slower.");
         CheckRow("Game reads GPU data without waiting", s.stale_readback,
                  "Big FPS gain. Switch it off if lighting or objects look wrong.");
         CheckRow("Deferred GPU readbacks", s.deferred_readback,
@@ -506,7 +479,7 @@ void Menu() {
                                     std::min(680.0f * base_scale, viewport->WorkSize.y * 0.9f)),
                              ImGuiCond_Appearing);
     bool keep_open = true;
-    // spartanport: the game's own title (param.sfo), not a fixed one.
+    // ratchetport: the game's own title (param.sfo), not a fixed one.
     static const std::string heading = [] {
         const std::string_view title = Common::ElfInfo::Instance().Title();
         return std::string(title.empty() ? "RatchetPort" : title) + PadText("  (Insert / R3+L2)", "  (Insert / RS+LT)", "  (Insert / RS+ZL)");
@@ -786,7 +759,7 @@ void Init(const Vulkan::Instance& instance, vk::Format format, u32 image_count) 
     io.IniFilename = nullptr; // window positions are not kept
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
     io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
-    io.BackendPlatformName = "spartanport";
+    io.BackendPlatformName = "ratchetport";
 
     ImGui::StyleColorsDark();
     ImGuiStyle& style = ImGui::GetStyle();
@@ -797,8 +770,8 @@ void Init(const Vulkan::Instance& instance, vk::Format format, u32 image_count) 
 
     ImFontConfig font_config;
     font_config.FontDataOwnedByAtlas = false;
-    io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(spartanport_font_ttf),
-                                   int(spartanport_font_ttf_end - spartanport_font_ttf), 18.0f, &font_config);
+    io.Fonts->AddFontFromMemoryTTF(const_cast<unsigned char*>(ratchetport_font_ttf),
+                                   int(ratchetport_font_ttf_end - ratchetport_font_ttf), 18.0f, &font_config);
 
     const vk::Instance vk_instance = instance.GetInstance();
     ImGui_ImplVulkan_LoadFunctions(
@@ -870,7 +843,7 @@ void UpdateChoiceTextures() {
     if (!choice_pictures.empty()) {
         choice_textures.assign(choice_pictures.size(), nullptr);
         for (size_t i = 0; i < choice_pictures.size(); ++i) {
-            const SpartanPng::Image& picture = choice_pictures[i];
+            const RatchetPng::Image& picture = choice_pictures[i];
             if (picture.rgba.empty()) {
                 continue;
             }
@@ -1081,7 +1054,7 @@ bool CapturesInput() {
 }
 
 void BeginChoice(const std::string& title, const std::vector<std::string>& items,
-                 std::vector<SpartanPng::Image> pictures, int focus) {
+                 std::vector<RatchetPng::Image> pictures, int focus) {
     std::scoped_lock lock{imgui_mutex};
     RetireChoiceTextures();
     choice_pictures = std::move(pictures);

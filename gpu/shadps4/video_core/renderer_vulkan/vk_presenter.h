@@ -37,7 +37,7 @@ struct Frame {
     u64 ready_tick;
     bool is_hdr{false};
     u8 id{};
-    vk::Format format{}; ///< spartanport: of `image` (screenshots)
+    vk::Format format{}; ///< ratchetport: of `image` (screenshots)
 };
 
 enum SchedulerType {
@@ -99,7 +99,7 @@ public:
     Frame* PrepareBlankFrame(bool present_thread);
 
     void Present(Frame* frame, bool is_reusing_frame = false, bool is_game_frame = true);
-    /// spartanport: a black frame with the loading screen (RatchetOverlay::SetLoading) only.
+    /// ratchetport: a black frame with the loading screen (RatchetOverlay::SetLoading) only.
     void PresentLoadingFrame();
     Frame* PrepareLastFrame();
 
@@ -123,7 +123,7 @@ private:
     HostPasses::PostProcessingPass pp_pass;
     AmdGpu::Liverpool* liverpool;
     Scheduler draw_scheduler;
-    std::deque<u64> recent_frame_ticks; ///< spartanport: RATCHET_FRAMES_AHEAD bound (PrepareFrame)
+    std::deque<u64> recent_frame_ticks; ///< ratchetport: RATCHET_FRAMES_AHEAD bound (PrepareFrame)
     Scheduler present_scheduler;
     Scheduler flip_scheduler;
     Swapchain swapchain;

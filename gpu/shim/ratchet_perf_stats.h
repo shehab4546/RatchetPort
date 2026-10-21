@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: numbers for the performance overlay (ratchet_overlay.cpp). A thread started once samples
+// ratchetport: numbers for the performance overlay (ratchet_overlay.cpp). A thread started once samples
 // CPU, RAM, GPU use (Windows counters) and VRAM (VK_EXT_memory_budget) twice a second;
 // a value that cannot be measured stays negative and shows as "n/a".
 

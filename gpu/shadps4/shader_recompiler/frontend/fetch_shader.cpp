@@ -102,7 +102,7 @@ std::optional<FetchShaderData> ParseFetchShader(const Shader::Info& info) {
 
     const auto* code = GetFetchShaderCode(info, info.fetch_shader_sgpr_base);
 
-    // spartanport: the pipeline cache parses the fetch shader on every draw. Results are cached
+    // ratchetport: the pipeline cache parses the fetch shader on every draw. Results are cached
     // per thread by code address and revalidated against a copy of the code, which is
     // much cheaper than decoding it again.
     struct CachedParse {
@@ -111,7 +111,7 @@ std::optional<FetchShaderData> ParseFetchShader(const Shader::Info& info) {
     };
     thread_local std::unordered_map<const u32*, CachedParse> cache;
     if (const auto it = cache.find(code);
-        !SpartanToggle::Disabled(SpartanToggle::FetchShaderCache) && it != cache.end() &&
+        !RatchetToggle::Disabled(RatchetToggle::FetchShaderCache) && it != cache.end() &&
         std::memcmp(code, it->second.code.data(), it->second.code.size() * sizeof(u32)) == 0) {
         return it->second.data;
     }

@@ -38,11 +38,11 @@ extern std::unique_ptr<Vulkan::Presenter> presenter;
 extern std::unique_ptr<AmdGpu::Liverpool> liverpool;
 
 namespace Vulkan {
-extern std::atomic<u64> g_spartanport_compile_ns;
-extern std::atomic<u32> g_spartanport_compiles;
-extern std::atomic<u64> g_spartanport_capture_ns, g_spartanport_async_ns, g_spartanport_compile_wait_ns;
-extern std::atomic<u64> g_spartanport_snapshot_ns, g_spartanport_guest_wait_ns;
-extern std::atomic<u32> g_spartanport_pending_draws;
+extern std::atomic<u64> g_ratchetport_compile_ns;
+extern std::atomic<u32> g_ratchetport_compiles;
+extern std::atomic<u64> g_ratchetport_capture_ns, g_ratchetport_async_ns, g_ratchetport_compile_wait_ns;
+extern std::atomic<u64> g_ratchetport_snapshot_ns, g_ratchetport_guest_wait_ns;
+extern std::atomic<u32> g_ratchetport_pending_draws;
 } // namespace Vulkan
 
 namespace Libraries::VideoOut {
@@ -98,7 +98,7 @@ void VideoOutDriver::RunPresenter(std::function<void()> work, bool if_idle) {
 }
 
 void VideoOutDriver::SwapThread(std::stop_token token) {
-    Common::SetCurrentThreadName("spartanport:Present");
+    Common::SetCurrentThreadName("ratchetport:Present");
     while (true) {
         std::function<void()> work;
         {
@@ -303,7 +303,7 @@ int VideoOutDriver::ChangeBufferAttribute(VideoOutPort* port, s32 attributeIndex
 
 void VideoOutDriver::Flip(const Request& req) {
     VideoCore::ChurnTrace::OnFlip();
-    // Update HDR status before presenting, then present the frame (spartanport: on the swap thread).
+    // Update HDR status before presenting, then present the frame (ratchetport: on the swap thread).
     RunPresenter([this, frame = req.frame, hdr = req.port->is_hdr] {
         presenter->SetHDR(hdr);
         presenter->Present(frame);
@@ -311,7 +311,7 @@ void VideoOutDriver::Flip(const Request& req) {
     Vulkan::FrameCapture::OnFlip(req.index >= 0 ? req.port->buffer_slots[req.index].address_left
                                                 : 0);
 
-    // spartanport: RATCHET_FRAME_STATS=1 prints flip rate and frame time spread every 5 seconds.
+    // ratchetport: RATCHET_FRAME_STATS=1 prints flip rate and frame time spread every 5 seconds.
     static const bool frame_stats = EmulatorSettingsImpl::Flag("RATCHET_FRAME_STATS", false);
     if (frame_stats) {
         using Clock = std::chrono::steady_clock;
@@ -336,7 +336,7 @@ void VideoOutDriver::Flip(const Request& req) {
         static u64 last_proc_flt, last_copy_ns, last_copy_bytes, last_rf, last_trf, last_twf;
         const u64 rf = RatchetStats::read_faults.load(), trf = RatchetStats::t_read_faults.load(),
                   twf = RatchetStats::t_write_faults.load();
-        // spartanport: every frame over 40 ms (RATCHET_STALL_MS) after the first, at most 10 per 5 s window.
+        // ratchetport: every frame over 40 ms (RATCHET_STALL_MS) after the first, at most 10 per 5 s window.
         static const double stall_ms = [] {
             const char* value = std::getenv("RATCHET_STALL_MS");
             return value ? std::atof(value) : 40.0;
@@ -351,7 +351,7 @@ void VideoOutDriver::Flip(const Request& req) {
         static u64 last_wait[7];
         const u64 wait_now[7] = {RatchetStats::t_readback_wait.load(), RatchetStats::tick_wait_ns.load(),
                                  RatchetStats::sync_recording_ns.load(), RatchetStats::host_copies_wait_ns.load(),
-                                 u64(Vulkan::g_spartanport_compile_ns.load()), u64(Vulkan::g_spartanport_compiles.load()),
+                                 u64(Vulkan::g_ratchetport_compile_ns.load()), u64(Vulkan::g_ratchetport_compiles.load()),
                                  RatchetStats::t_gc.load()};
         if (stall) {
             std::printf("Stall: %.1f ms frame; waits: readback %.1f ms, GPU ticks %.1f ms, "
@@ -387,7 +387,7 @@ void VideoOutDriver::Flip(const Request& req) {
                   vol = RatchetStats::gpu_vol_switches.load();
         u64 gpu_ns = 0;
 #ifdef _WIN32
-        // spartanport: Windows has no per-thread clock id; the thread's user + kernel time instead.
+        // ratchetport: Windows has no per-thread clock id; the thread's user + kernel time instead.
         static HANDLE gpu_thread = nullptr;
         if (!gpu_thread) {
             if (const unsigned long id = RatchetStats::gpu_thread_id.load()) {
@@ -477,14 +477,14 @@ void VideoOutDriver::Flip(const Request& req) {
         ++frames;
         const double window = std::chrono::duration<double>(now - window_start).count();
         if (window >= 5.0) {
-            const u32 compiles = Vulkan::g_spartanport_compiles.exchange(0);
-            const u64 compile_ns = Vulkan::g_spartanport_compile_ns.exchange(0);
-            const double capture_ms = Vulkan::g_spartanport_capture_ns.exchange(0) / 1e6;
-            const double async_ms = Vulkan::g_spartanport_async_ns.exchange(0) / 1e6;
-            const double wait_ms = Vulkan::g_spartanport_compile_wait_ns.exchange(0) / 1e6;
-            const double snapshot_ms = Vulkan::g_spartanport_snapshot_ns.exchange(0) / 1e6;
-            const double guest_wait_ms = Vulkan::g_spartanport_guest_wait_ns.exchange(0) / 1e6;
-            const u32 pending_draws = Vulkan::g_spartanport_pending_draws.exchange(0);
+            const u32 compiles = Vulkan::g_ratchetport_compiles.exchange(0);
+            const u64 compile_ns = Vulkan::g_ratchetport_compile_ns.exchange(0);
+            const double capture_ms = Vulkan::g_ratchetport_capture_ns.exchange(0) / 1e6;
+            const double async_ms = Vulkan::g_ratchetport_async_ns.exchange(0) / 1e6;
+            const double wait_ms = Vulkan::g_ratchetport_compile_wait_ns.exchange(0) / 1e6;
+            const double snapshot_ms = Vulkan::g_ratchetport_snapshot_ns.exchange(0) / 1e6;
+            const double guest_wait_ms = Vulkan::g_ratchetport_guest_wait_ns.exchange(0) / 1e6;
+            const u32 pending_draws = Vulkan::g_ratchetport_pending_draws.exchange(0);
             const u64 direct = Vulkan::Scheduler::direct_recordings.exchange(0);
             const u64 faults = RatchetStats::tracker_faults.exchange(0);
             // GPU command thread CPU time per draw: comparable between builds even when the scene
@@ -661,9 +661,9 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
 
     Common::AccurateTimer timer{vblank_period};
 
-    // spartanport: frame limit (see EmulatorSettings::GetFrameLimit). A request waits in the queue
+    // ratchetport: frame limit (see EmulatorSettings::GetFrameLimit). A request waits in the queue
     // until its slot; slots advance by one period (no drift) but never lag behind by more.
-    // spartanport: the in-game menu changes the limit and the engine rate live (RatchetSettings::fps_limit,
+    // ratchetport: the in-game menu changes the limit and the engine rate live (RatchetSettings::fps_limit,
     // engine_fps); the uncapped presets keep their fixed limit, still capped by the engine rate.
     // RATCHET_FPS_LIMIT (measurements) is used as given.
     const bool measured_limit = std::getenv("RATCHET_FPS_LIMIT") != nullptr;
@@ -693,7 +693,7 @@ void VideoOutDriver::PresentThread(std::stop_token token) {
         return {};
     };
 
-    // spartanport: with a frame limit (uncapped presets) a queued flip is presented as soon as it
+    // ratchetport: with a frame limit (uncapped presets) a queued flip is presented as soon as it
     // arrives and its slot allows, between vblanks, instead of on the next vblank tick.
     bool immediate_flips = frame_limit != 0;
 

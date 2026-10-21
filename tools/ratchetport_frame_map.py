@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Finds SpartanPort's frame pieces in a frame capture (in-game menu, Diagnostics, Capture
+"""Finds RatchetPort's frame pieces in a frame capture (in-game menu, Diagnostics, Capture
 frame): scene depth, camera view-projection, scene color before the HUD and the HUD passes.
 These are the inputs a temporal upscaler or frame generation needs.
 
-Usage: python tools/spartanport_frame_map.py user/captures/frame_<...>.txt [...]
+Usage: python tools/ratchetport_frame_map.py user/captures/frame_<...>.txt [...]
 """
 import math
 import re

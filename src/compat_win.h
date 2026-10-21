@@ -17,6 +17,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef O_NONBLOCK
 #define O_NONBLOCK 0
 #endif
@@ -74,9 +78,12 @@ int compat_errno_from_win32(unsigned long error);
 int compat_cpu_times(int who, int64_t *user_us, int64_t *kernel_us);
 /* setjmp/longjmp without SEH unwinding (guest frames have no unwind data) that saves every
  * Win64 callee-saved register, xmm6-15 included. clang's __builtin_longjmp restores a wrong
- * frame pointer on Win64. spartanport_longjmp may also be entered from the exception handler. */
-typedef unsigned long long spartanport_jmp_buf[32];
-__attribute__((returns_twice)) int spartanport_setjmp(spartanport_jmp_buf buffer);
-__attribute__((noreturn)) void spartanport_longjmp(spartanport_jmp_buf buffer, int value);
+ * frame pointer on Win64. ratchetport_longjmp may also be entered from the exception handler. */
+typedef unsigned long long ratchetport_jmp_buf[32];
+__attribute__((returns_twice)) int ratchetport_setjmp(ratchetport_jmp_buf buffer);
+__attribute__((noreturn)) void ratchetport_longjmp(ratchetport_jmp_buf buffer, int value);
+#ifdef __cplusplus
+}
+#endif
 #endif
 #endif

@@ -168,6 +168,8 @@ void Load() {
         }
     }
     const std::pair<const char*, const char*> env_keys[] = {
+        {"RATCHET_FPS_LIMIT", "fps_limit"}, {"RATCHET_VSYNC", "vsync"},
+        {"RATCHET_OUTPUT_RES", "output_res"},
         {"RATCHET_FSR_SHARPNESS", "sharpness"},        {"RATCHET_JITTER", "jitter"},
         {"RATCHET_REACTIVE", "reactive"},              {"RATCHET_REACTIVE_SCALE", "reactive_scale"},
         {"RATCHET_REACTIVE_THRESHOLD", "reactive_threshold"}, {"RATCHET_REACTIVE_MAX", "reactive_max"},

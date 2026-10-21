@@ -1,3 +1,6 @@
+#ifndef NDEBUG
+#define NDEBUG // Vulkan-Hpp dispatcher ABI must match ratchetgpu.
+#endif
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <cassert>
 #include <cstdio>
@@ -313,7 +316,7 @@ int main(int argc, char** argv) {
     assert(Encode(global, pipeline, 42, {}).empty());
     assert(Encode(global, pipeline, 42, std::vector<Binary>(MaxBinaries + 1, binaries[0])).empty());
     const auto root = std::filesystem::temp_directory_path() /
-                      ("spartanport-binary-test-" +
+                      ("ratchetport-binary-test-" +
                        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     const auto file = root / "pipeline.bin";
     assert(!Load(file, global, pipeline, 42));

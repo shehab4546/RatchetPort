@@ -414,8 +414,8 @@ static void ratchet_diag03_dump_fault(const CONTEXT *c) {
             fputs("??", stderr);
     }
     fputc('\n', stderr);
-    Gow3CrashFrame frames[32];
-    const size_t count = gow3_crash_unwind(c, frames, sizeof(frames) / sizeof(frames[0]));
+    RatchetCrashFrame frames[32];
+    const size_t count = ratchet_crash_unwind(c, frames, sizeof(frames) / sizeof(frames[0]));
     for (size_t i = 0; i < count; ++i) {
         char where[MAX_PATH + 64];
         describe_address(where, sizeof(where), (uintptr_t)frames[i].pc);
@@ -642,14 +642,14 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
         if (gpu_enabled && ratchetgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
         if (runtime_fault_recover) {
             /* A speculative guest memory read (GPU draw preparation) faulted: the thread resumes
-             * in spartanport_longjmp, outside the exception dispatcher, back at its recovery point. */
+             * in ratchetport_longjmp, outside the exception dispatcher, back at its recovery point. */
             unsigned long long *buffer=*runtime_fault_recover;
             runtime_fault_recover=NULL;
             CONTEXT *c=info->ContextRecord;
             c->Rsp=((c->Rsp-128)&~(DWORD64)15)-40;
             c->Rcx=(DWORD64)(uintptr_t)buffer;
             c->Rdx=1;
-            c->Rip=(DWORD64)(uintptr_t)spartanport_longjmp;
+            c->Rip=(DWORD64)(uintptr_t)ratchetport_longjmp;
             return EXCEPTION_CONTINUE_EXECUTION;
         }
     }
@@ -827,40 +827,6 @@ static int mapped(Segment *segments, uint64_t count, uint64_t address, uint64_t 
             address - segments[i].address <= segments[i].size - bytes) return 1;
     return 0;
 }
-/* The engine's frame rate setter, called once at start-up with 59.94 (the frame rate patches
- * change that constant): it stores the maximum frame rate as a float and rounded, and the frame
- * timing reads both every frame. Writing them changes the engine rate live (SyncEngineFps). */
-extern void spartanport_engine_fps_globals(uintptr_t fps, uintptr_t rounded);
-static const SpartanSignature engine_fps_setter={
-    "48 8d 05 ?? ?? ?? ?? c5 fa 11 00 c5 fa 58 0d ?? ?? ?? ?? c5 fa 2c c1 48 8d 0d ?? ?? ?? ?? 89 01",0};
-static uint64_t engine_fps_at, engine_rounded_at; /* image offsets; 0: not found */
-/* Before the image is protected: the search reads the gaps between segments too. */
-static void find_engine_fps(Segment *segments, uint64_t count, uint64_t size) {
-    const uint64_t at=spartanport_signature_find(image,size,&engine_fps_setter);
-    if (at==UINT64_MAX) {
-        puts("Engine FPS: live frame rate unavailable (code not found in this eboot.bin)");
-        return;
-    }
-    int32_t fps_displacement, rounded_displacement;
-    memcpy(&fps_displacement,image+at+3,4);      /* lea rax, [rip+fps] */
-    memcpy(&rounded_displacement,image+at+26,4); /* lea rcx, [rip+rounded] */
-    const uint64_t fps=(uint64_t)((int64_t)at+7+fps_displacement);
-    const uint64_t rounded=(uint64_t)((int64_t)at+30+rounded_displacement);
-    if (!mapped(segments,count,fps,4) || !mapped(segments,count,rounded,4)) {
-        puts("Engine FPS: live frame rate unavailable (globals outside the image)");
-        return;
-    }
-    engine_fps_at=fps;
-    engine_rounded_at=rounded;
-}
-/* After it: the present thread reads the globals every vblank, and the image is not
- * accessible between the two protect passes. */
-static void publish_engine_fps(void) {
-    if (!engine_fps_at) return;
-    spartanport_engine_fps_globals((uintptr_t)(image+engine_fps_at),(uintptr_t)(image+engine_rounded_at));
-    puts("Engine FPS: live frame rate ready (menu, R3 + L1 + R1 or F9)");
-}
-
 /* G3PATCH2 (patches.py): the patches' image base, then byte writes at image offsets, applied
  * after relocation. A write may replace a whole base-relative pointer slot (60/90 FPS++ swap
  * function pointers): the patch holds the address at the patches' base, rebased here. */
@@ -1185,7 +1151,7 @@ int main(int argc, char **argv) {
         return 20;
     }
     if (!cpu_only) {
-        char title[128]="SpartanPort", serial[16]="UNKNOWN", sfo[4096];
+        char title[128]="RatchetPort", serial[16]="UNKNOWN", sfo[4096];
         uint32_t attributes=0;
         snprintf(sfo,sizeof(sfo),"%s/sce_sys/param.sfo",app0 ? app0 : ".");
         sfo_value(sfo,"TITLE",title,sizeof(title),NULL);
@@ -1245,7 +1211,6 @@ int main(int argc, char **argv) {
         _exit(missing ? 1 : 0); /* no destructors: GPU threads are running */
     }
     if (patch_file) apply_patches(patch_file, segments, ns, relocs, nr);
-    if (0 && gpu_enabled) find_engine_fps(segments, ns, size);
 #ifdef _WIN32
     printf("Guest TCB loads redirected to the TEB TLS slot: %" PRIu64 "\n", patch_tcb_loads(segments, ns));
 #endif
@@ -1272,7 +1237,6 @@ int main(int argc, char **argv) {
     }
     if (!executable_entry) fail("entry is not executable");
     printf("Mapped %" PRIu64 " bytes, %" PRIu64 " segments; applied %" PRIu64 " relocations\n", size, ns, nr);
-    publish_engine_fps();
     if (native_libc) {
         for (uint64_t m=0;m<module_count;++m) {
             int init_executable=0;

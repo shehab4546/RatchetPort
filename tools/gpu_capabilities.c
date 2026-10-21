@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     const int live_mode = argc > 1 && !strcmp(argv[1], "--live-resolution");
     const VkApplicationInfo app = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pApplicationName = "spartanport scene scaling probe",
+        .pApplicationName = "ratchetport scene scaling probe",
         .apiVersion = VK_API_VERSION_1_3,
     };
     const VkInstanceCreateInfo create = {
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
                    props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU     ? "discrete"
                    : props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU ? "integrated"
                                                                                  : "other",
-                   spartanport_no_msaa_default(driver.driverID) ? "off" : "on", devices[i] == preferred);
+                   ratchetport_no_msaa_default(driver.driverID) ? "off" : "on", devices[i] == preferred);
         }
         free(devices);
         vkDestroyInstance(instance, NULL);

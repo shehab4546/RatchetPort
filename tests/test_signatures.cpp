@@ -7,18 +7,18 @@
 #include "../src/signature.h"
 
 
-static uint64_t Find(const std::vector<unsigned char>& image, const SpartanSignature& sig) {
-    return spartanport_signature_find(image.data(), image.size(), &sig);
+static uint64_t Find(const std::vector<unsigned char>& image, const RatchetSignature& sig) {
+    return ratchetport_signature_find(image.data(), image.size(), &sig);
 }
 
 int main(int argc, char** argv) {
     int parsed[RATCHET_SIGNATURE_MAX];
-    assert(spartanport_signature_parse("c5 ?? 0a", parsed) == 3 && parsed[0] == 0xc5 && parsed[1] == -1 && parsed[2] == 10);
-    assert(!spartanport_signature_parse("c5 g0", parsed) && !spartanport_signature_parse("c5 0", parsed));
+    assert(ratchetport_signature_parse("c5 ?? 0a", parsed) == 3 && parsed[0] == 0xc5 && parsed[1] == -1 && parsed[2] == 10);
+    assert(!ratchetport_signature_parse("c5 g0", parsed) && !ratchetport_signature_parse("c5 0", parsed));
 
     std::vector<unsigned char> buffer(256);
     const unsigned char bytes[] = {0x48, 0x8d, 0x05, 1, 2, 3, 4, 0xc3};
-    const SpartanSignature sig = {"48 8d 05 ?? ?? ?? ?? c3", 3};
+    const RatchetSignature sig = {"48 8d 05 ?? ?? ?? ?? c3", 3};
     assert(Find(buffer, sig) == UINT64_MAX);                       // absent
     memcpy(buffer.data() + 100, bytes, sizeof(bytes));
     assert(Find(buffer, sig) == 103);                              // the site, wildcards ignored

@@ -1,3 +1,6 @@
+#ifndef NDEBUG
+#define NDEBUG // Vulkan-Hpp dispatcher ABI must match ratchetgpu.
+#endif
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Run the production TAA shader on synthetic inputs, including undefined/invalid history.
 #include <cassert>
@@ -15,6 +18,9 @@
 #include "video_core/host_shaders/taa_comp.h"
 #include "video_core/host_shaders/taa_sharpen_comp.h"
 #include <vk_mem_alloc.h>
+
+#undef NDEBUG
+#include <cassert> // Re-enable assertions after ABI-sensitive headers.
 
 int main(int argc, char** argv) {
     using namespace Vulkan;

@@ -60,7 +60,7 @@ struct FetchShaderData {
     bool Deserialize(Serialization::Archive& buffer);
 };
 
-// spartanport: compiler workers read captured fetch data instead of mutable guest pointers.
+// ratchetport: compiler workers read captured fetch data instead of mutable guest pointers.
 struct FetchShaderSnapshot {
     const Info* info{};
     std::optional<FetchShaderData> fetch;

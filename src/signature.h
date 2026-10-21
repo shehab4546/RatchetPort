@@ -8,12 +8,12 @@
  * marks bytes another build may change (rip-relative displacements, rel32 branch targets).
  * tools/make_signatures.py writes them from the reference eboot.bin; scripts/patches.py does the
  * same search for the XML patches. at: the site's offset in the pattern. */
-typedef struct { const char *pattern; unsigned at; } SpartanSignature;
+typedef struct { const char *pattern; unsigned at; } RatchetSignature;
 
 enum { RATCHET_SIGNATURE_MAX = 64 };
 
 /* Bytes of text into out (-1 for "??"); the count, or 0 when the text is not a pattern. */
-static inline unsigned spartanport_signature_parse(const char *text, int *out) {
+static inline unsigned ratchetport_signature_parse(const char *text, int *out) {
     unsigned n = 0;
     while (*text) {
         if (*text == ' ') { ++text; continue; }
@@ -35,9 +35,9 @@ static inline unsigned spartanport_signature_parse(const char *text, int *out) {
 }
 
 /* The image offset of the signature's site when the pattern occurs exactly once, else UINT64_MAX. */
-static inline uint64_t spartanport_signature_find(const unsigned char *image, uint64_t size, const SpartanSignature *sig) {
+static inline uint64_t ratchetport_signature_find(const unsigned char *image, uint64_t size, const RatchetSignature *sig) {
     int pattern[RATCHET_SIGNATURE_MAX];
-    const unsigned n = spartanport_signature_parse(sig->pattern, pattern);
+    const unsigned n = ratchetport_signature_parse(sig->pattern, pattern);
     if (!n || n > size || sig->at >= n) return UINT64_MAX;
     /* Scan for the longest run of fixed bytes, then check the whole pattern around it. */
     unsigned best = 0, best_length = 0;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: temporal upscaling of the HDR scene color (docs/upscaler.md). Off for SpartanPort
+// ratchetport: temporal upscaling of the HDR scene color (docs/upscaler.md). Off for RatchetPort
 // until its scene color, depth and camera constants are found (run.py). RATCHET_UPSCALER=fsr3
 // runs FSR 3.1 (FireBurn/FSR-Vulkan, native Vulkan) on the scene color right before the
 // post-processing combine pass, with the scene depth and camera motion vectors, and writes the
@@ -67,10 +67,10 @@ public:
     /// Start of a frame in the command stream (display pass).
     bool OnFrameStart();
     bool RasterScaling() const;
-    /// spartanport: LOD bias for scene materials, log2(render / output) while a reduced scene is
+    /// ratchetport: LOD bias for scene materials, log2(render / output) while a reduced scene is
     /// upscaled (0 at native size, for TAA and without an upscaler).
     [[nodiscard]] float SceneMipBias() const;
-    /// spartanport: the state RedirectColor/RedirectDepth/RasterScaling depend on, for memoizing a
+    /// ratchetport: the state RedirectColor/RedirectDepth/RasterScaling depend on, for memoizing a
     /// draw's render state (Rasterizer::BeginRendering).
     [[nodiscard]] u64 RedirectState() const noexcept {
         return u64(ui_phase) | u64(display_redirect) << 1 | u64(done_this_frame) << 2 |
@@ -124,7 +124,7 @@ public:
     bool DisplayOverride(VAddr address, Display& display);
 
 private:
-    /// spartanport: views of guest images the upscaler reads, kept across frames: FSR 4 registers
+    /// ratchetport: views of guest images the upscaler reads, kept across frames: FSR 4 registers
     /// images by view in a registry of eight (a new view per frame filled it at Native AA).
     vk::ImageView CachedView(const VideoCore::Image& image, vk::Format format,
                              vk::ImageAspectFlags aspect);
@@ -166,7 +166,7 @@ private:
     bool RecordReactive(vk::ImageView color_view);
     /// FSR 4 is selected, possible in this session (not RATCHET_RENDER_RES) and has not failed.
     [[nodiscard]] bool UseFsr4() const;
-    /// spartanport: DLSS selected and the bridge is ready (NVIDIA RTX, ratchet_dlss.dll).
+    /// ratchetport: DLSS selected and the bridge is ready (NVIDIA RTX, ratchet_dlss.dll).
     [[nodiscard]] bool UseDlss() const;
     /// Records DLSS into `cmdbuf` (output in General). `hdr`: linear scene color input.
     bool RecordDlss(vk::CommandBuffer cmdbuf, const Dlss::Resource& color,

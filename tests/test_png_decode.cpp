@@ -15,8 +15,8 @@ static const unsigned char kPng[] = {
     0xd9, 0x68, 0x8b, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
 
 int main() {
-    SpartanPng::Image image;
-    assert(SpartanPng::DecodeRgba(kPng, sizeof(kPng), image));
+    RatchetPng::Image image;
+    assert(RatchetPng::DecodeRgba(kPng, sizeof(kPng), image));
     assert(image.width == 2 && image.height == 2 && image.rgba.size() == 16);
     const unsigned char expected[16] = {255, 0, 0, 255, 0, 255, 0, 255,
                                         0, 0, 255, 255, 255, 255, 255, 255};
@@ -25,13 +25,13 @@ int main() {
     }
 
     // Truncated data and data that is not a PNG fail and leave the image empty.
-    SpartanPng::Image bad;
-    assert(!SpartanPng::DecodeRgba(kPng, 40, bad) && bad.rgba.empty());
+    RatchetPng::Image bad;
+    assert(!RatchetPng::DecodeRgba(kPng, 40, bad) && bad.rgba.empty());
     const unsigned char junk[64] = {1, 2, 3};
-    assert(!SpartanPng::DecodeRgba(junk, sizeof(junk), bad) && bad.rgba.empty());
-    assert(!SpartanPng::DecodeRgba(nullptr, 0, bad));
+    assert(!RatchetPng::DecodeRgba(junk, sizeof(junk), bad) && bad.rgba.empty());
+    assert(!RatchetPng::DecodeRgba(nullptr, 0, bad));
 
-    assert(!SpartanPng::LoadRgba("does/not/exist/icon0.png", bad) && bad.rgba.empty());
+    assert(!RatchetPng::LoadRgba("does/not/exist/icon0.png", bad) && bad.rgba.empty());
     std::puts("png-decode-test: ok");
     return 0;
 }

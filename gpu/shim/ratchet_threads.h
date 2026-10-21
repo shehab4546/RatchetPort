@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: helper thread sizing. Counts follow the hardware threads this process may run on
+// ratchetport: helper thread sizing. Counts follow the hardware threads this process may run on
 // (the affinity mask, so `taskset` can emulate a Steam Deck), and speculative helpers run as
 // SCHED_IDLE: they use cores the game leaves idle and never take time from its threads.
 
@@ -16,7 +16,7 @@
 #include <unistd.h>
 #endif
 
-namespace SpartanThreads {
+namespace RatchetThreads {
 #ifdef _WIN32
 /// Hardware threads available to the process (its affinity mask).
 inline unsigned Available() {
@@ -52,4 +52,4 @@ inline void MakeBackground() {
 }
 #endif
 
-} // namespace SpartanThreads
+} // namespace RatchetThreads

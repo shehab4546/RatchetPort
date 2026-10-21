@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: guest multisampled images created and sampled as single-sampled ones.
+// ratchetport: guest multisampled images created and sampled as single-sampled ones.
 //
-// SpartanPort draws with one color fragment and two depth samples, and its shaders fetch
+// RatchetPort draws with one color fragment and two depth samples, and its shaders fetch
 // that depth buffer (D32S8, 2 samples) as a multisampled texture. On the RX 6600 with AMD's
 // Windows driver the fetch returns zero in the lower half of many 8x8 pixel tiles, the ones
 // with little depth variation (it looks like compressed depth that was not expanded). That

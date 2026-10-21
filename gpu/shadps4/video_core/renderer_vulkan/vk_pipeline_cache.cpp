@@ -374,7 +374,7 @@ PipelineCache::PipelineCache(const Instance& instance_, Scheduler& scheduler_,
         .supports_shader_subgroup_clock = instance_.IsShaderSubgroupClockSupported(),
         .needs_manual_interpolation = instance.IsFragmentShaderBarycentricSupported() &&
                                       instance.GetDriverID() == vk::DriverId::eNvidiaProprietary,
-        // spartanport: older NVIDIA (Pascal) has no barycentrics; RATCHET_INTERP_INT_FIX=0/1 overrides.
+        // ratchetport: older NVIDIA (Pascal) has no barycentrics; RATCHET_INTERP_INT_FIX=0/1 overrides.
         .needs_integer_interpolation_fix = [&] {
             if (const char* env = std::getenv("RATCHET_INTERP_INT_FIX")) {
                 return env[0] == '1';
@@ -395,25 +395,25 @@ PipelineCache::PipelineCache(const Instance& instance_, Scheduler& scheduler_,
     ASSERT_MSG(cache_result == vk::Result::eSuccess, "Failed to create pipeline cache: {}",
                vk::to_string(cache_result));
     pipeline_cache = std::move(cache);
-    // spartanport: the compiler threads always exist; the in-game menu switches async compilation live
+    // ratchetport: the compiler threads always exist; the in-game menu switches async compilation live
     // (RatchetSettings::async_shaders, RATCHET_ASYNC_SHADERS at start).
     {
-        const auto count = std::clamp(SpartanThreads::Available() / 2, 1u, 6u);
-        const auto capture_count = std::min(2u, std::max(1u, SpartanThreads::Available() / 4));
+        const auto count = std::clamp(RatchetThreads::Available() / 2, 1u, 6u);
+        const auto capture_count = std::min(2u, std::max(1u, RatchetThreads::Available() / 4));
         for (unsigned i = 0; i < count; ++i) {
             auto [result, worker_cache] = instance.GetDevice().createPipelineCacheUnique({});
             ASSERT_MSG(result == vk::Result::eSuccess, "Failed to create compiler pipeline cache");
             worker_pipeline_caches.push_back(std::move(worker_cache));
         }
         capture_compiler = std::make_unique<AsyncCompiler>(capture_count, 8, [](unsigned index) {
-            Common::SetCurrentThreadName(("spartanport:ShaderCapture" + std::to_string(index)).c_str());
+            Common::SetCurrentThreadName(("ratchetport:ShaderCapture" + std::to_string(index)).c_str());
             Common::SetCurrentThreadPriority(Common::ThreadPriority::High);
         });
         compiler = std::make_unique<AsyncCompiler>(count, 64, [](unsigned index) {
-            Common::SetCurrentThreadName(("spartanport:ShaderCompile" + std::to_string(index)).c_str());
+            Common::SetCurrentThreadName(("ratchetport:ShaderCompile" + std::to_string(index)).c_str());
             Common::SetCurrentThreadPriority(Common::ThreadPriority::Low);
         });
-        LOG_INFO(Render_Vulkan, "spartanport: async graphics compilation ready ({} capture, {} compile workers)",
+        LOG_INFO(Render_Vulkan, "ratchetport: async graphics compilation ready ({} capture, {} compile workers)",
                  capture_count, count);
     }
 }
@@ -423,13 +423,13 @@ PipelineCache::~PipelineCache() {
     FinishCompilations();
 }
 
-// spartanport: shader/pipeline compile time on the GPU thread, reported by RATCHET_FRAME_STATS.
-std::atomic<u64> g_spartanport_compile_ns;
-std::atomic<u32> g_spartanport_compiles;
-std::atomic<u64> g_spartanport_capture_ns, g_spartanport_async_ns, g_spartanport_compile_wait_ns;
-std::atomic<u64> g_spartanport_snapshot_ns, g_spartanport_guest_wait_ns;
-std::atomic<u32> g_spartanport_pool_reuses;
-std::atomic<u32> g_spartanport_pending_draws;
+// ratchetport: shader/pipeline compile time on the GPU thread, reported by RATCHET_FRAME_STATS.
+std::atomic<u64> g_ratchetport_compile_ns;
+std::atomic<u32> g_ratchetport_compiles;
+std::atomic<u64> g_ratchetport_capture_ns, g_ratchetport_async_ns, g_ratchetport_compile_wait_ns;
+std::atomic<u64> g_ratchetport_snapshot_ns, g_ratchetport_guest_wait_ns;
+std::atomic<u32> g_ratchetport_pool_reuses;
+std::atomic<u32> g_ratchetport_pending_draws;
 namespace {
 struct PhaseTimer {
     std::atomic<u64>& counter;
@@ -448,10 +448,10 @@ struct PhaseTimer {
 struct CompileTimer {
     std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
     ~CompileTimer() {
-        g_spartanport_compile_ns += u64(std::chrono::duration_cast<std::chrono::nanoseconds>(
+        g_ratchetport_compile_ns += u64(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                    std::chrono::steady_clock::now() - start)
                                    .count());
-        ++g_spartanport_compiles;
+        ++g_ratchetport_compiles;
     }
 };
 } // namespace
@@ -465,7 +465,7 @@ bool PipelineCache::QueueShader(Program& program, HwStage stage, SwStage l_stage
     if (!compiler->HasCapacity()) {
         return false;
     }
-    PhaseTimer snapshot{g_spartanport_snapshot_ns};
+    PhaseTimer snapshot{g_ratchetport_snapshot_ns};
     auto build = std::make_shared<AsyncShaderCompilation>();
     build->device = instance.GetDevice();
     build->code.assign(params.code.begin(), params.code.end());
@@ -487,13 +487,13 @@ bool PipelineCache::QueueShader(Program& program, HwStage stage, SwStage l_stage
     snapshot.Stop();
     AsyncJob<bool> capture_job;
     if (!capture_job.Start(*capture_compiler, [this, build, binding] {
-        PhaseTimer capture{g_spartanport_capture_ns};
+        PhaseTimer capture{g_ratchetport_capture_ns};
         auto [pools, reused] = compiler_pools.Acquire();
         build->pools = std::move(pools);
         if (reused) {
-            ++g_spartanport_pool_reuses;
+            ++g_ratchetport_pool_reuses;
         }
-        // spartanport: the GPU thread waits until all guest reads and specialization are captured.
+        // ratchetport: the GPU thread waits until all guest reads and specialization are captured.
         build->ir.emplace(Shader::TranslateProgram(build->code, *build->pools, build->info,
                                                    build->runtime, profile));
         build->spec = Shader::StageSpecialization(build->info, build->runtime, profile, binding);
@@ -503,7 +503,7 @@ bool PipelineCache::QueueShader(Program& program, HwStage stage, SwStage l_stage
         return false;
     }
     {
-        PhaseTimer waiting{g_spartanport_guest_wait_ns};
+        PhaseTimer waiting{g_ratchetport_guest_wait_ns};
         capture_job.Wait();
     }
     if (!capture_job.Poll()) {
@@ -513,12 +513,12 @@ bool PipelineCache::QueueShader(Program& program, HwStage stage, SwStage l_stage
             specialization->info = &program.info;
             program.failed_permutations.push_back(std::move(*specialization));
         }
-        LOG_ERROR(Render_Vulkan, "spartanport: shader {:#x}/{} capture failed: {}", params.hash,
+        LOG_ERROR(Render_Vulkan, "ratchetport: shader {:#x}/{} capture failed: {}", params.hash,
                   permutation, capture_job.Error());
         return false;
     }
     const bool queued = build->job.Start(*compiler, [this, build] {
-        PhaseTimer compile{g_spartanport_async_ns};
+        PhaseTimer compile{g_ratchetport_async_ns};
         Shader::Gcn::ScopedFetchShaderSnapshot snapshot{build->fetch};
         auto spv = Shader::Backend::SPIRV::EmitSPIRV(profile, build->runtime, *build->ir,
                                                     build->binding);
@@ -562,7 +562,7 @@ void PipelineCache::PublishShaders(bool wait) {
                     program->failed_permutations.push_back(std::move(build->spec));
                 }
                 program->pending.reset();
-                LOG_ERROR(Render_Vulkan, "spartanport: shader {:#x}/{} compilation failed: {}", hash,
+                LOG_ERROR(Render_Vulkan, "ratchetport: shader {:#x}/{} compilation failed: {}", hash,
                           build->permutation, build->job.Error());
                 retire();
             } else {
@@ -602,7 +602,7 @@ void PipelineCache::PublishGraphics(bool wait) {
         auto result = build->job.Poll();
         if (!result) {
             if (build->job.Failed() && !build->failure_logged) {
-                LOG_ERROR(Render_Vulkan, "spartanport: pipeline {:#x} compilation failed: {}",
+                LOG_ERROR(Render_Vulkan, "ratchetport: pipeline {:#x} compilation failed: {}",
                           std::hash<GraphicsPipelineKey>{}(it.key()), build->job.Error());
                 build->failure_logged = true;
             }
@@ -630,7 +630,7 @@ void PipelineCache::FinishCompilations() {
         }
         const auto result = instance.GetDevice().mergePipelineCaches(*pipeline_cache, sources);
         if (result != vk::Result::eSuccess) {
-            LOG_ERROR(Render_Vulkan, "spartanport: compiler cache merge failed: {}", vk::to_string(result));
+            LOG_ERROR(Render_Vulkan, "ratchetport: compiler cache merge failed: {}", vk::to_string(result));
         }
     }
 }
@@ -656,7 +656,7 @@ void PipelineCache::ReportCompilerStats() {
                     "%.1f ms, compile %.1f ms; pools retained %zu, reused %u\n",
                     capture_compiler->Depth(), compiler->Depth(),
                     capture_compiler->QueueWaitNs() / 1e6, compiler->QueueWaitNs() / 1e6,
-                    compiler_pools.Retained(), g_spartanport_pool_reuses.exchange(0));
+                    compiler_pools.Retained(), g_ratchetport_pool_reuses.exchange(0));
     }
 }
 
@@ -717,7 +717,7 @@ const GraphicsPipeline* PipelineCache::GetGraphicsPipeline(const DrawIndirectPar
     sel.draw_indirect_params = params;
     if (!RefreshGraphicsKey(sel)) {
         if (sel.compilation_pending) {
-            ++g_spartanport_pending_draws;
+            ++g_ratchetport_pending_draws;
         }
         return nullptr;
     }
@@ -727,7 +727,7 @@ const GraphicsPipeline* PipelineCache::GetGraphicsPipeline(const DrawIndirectPar
             return found->second.get();
         }
         if (!pending_graphics.contains(sel.graphics_key) && compiler->HasCapacity()) {
-            PhaseTimer capture{g_spartanport_snapshot_ns};
+            PhaseTimer capture{g_ratchetport_snapshot_ns};
             auto build = std::make_shared<AsyncGraphicsCompilation>();
             build->selection = sel;
             build->selection.regs = nullptr;
@@ -744,7 +744,7 @@ const GraphicsPipeline* PipelineCache::GetGraphicsPipeline(const DrawIndirectPar
             const bool queued = build->job.Start(*compiler, [this, build] {
                 // Only the vertex stage uses fetch-shader guest pointers during pipeline construction.
                 Shader::Gcn::ScopedFetchShaderSnapshot snapshot{build->fetch[u32(SwStage::Vertex)]};
-                PhaseTimer compile{g_spartanport_async_ns};
+                PhaseTimer compile{g_ratchetport_async_ns};
                 auto& s = build->selection;
                 build->pipeline = std::make_unique<GraphicsPipeline>(
                     instance, scheduler, desc_heap, profile, s.graphics_key,
@@ -756,7 +756,7 @@ const GraphicsPipeline* PipelineCache::GetGraphicsPipeline(const DrawIndirectPar
                 pending_graphics.emplace(sel.graphics_key, std::move(build));
             }
         }
-        ++g_spartanport_pending_draws;
+        ++g_ratchetport_pending_draws;
         return nullptr;
     }
     const auto [it, is_new] = graphics_pipelines.try_emplace(sel.graphics_key);
@@ -819,7 +819,7 @@ bool PipelineCache::RefreshGraphicsKey(PipelineSelection& sel) {
     const auto& regs = (*sel.regs);
     auto& key = sel.graphics_key;
 
-    // spartanport: a depth/stencil buffer that cannot affect the draw is not attached: on the PC a
+    // ratchetport: a depth/stencil buffer that cannot affect the draw is not attached: on the PC a
     // smaller one would crop a full-screen pass (eltutz, vk_depth_stencil_state.h).
     const bool db_enabled = GetEffectiveDepthStencilState(regs).needs_attachment;
 
@@ -1175,7 +1175,7 @@ PipelineCache::Result PipelineCache::GetProgram(PipelineSelection& sel, HwStage 
                                                 Shader::Backend::Bindings& binding) {
     auto runtime_info = BuildRuntimeInfo(sel, hw_stage, sw_stage);
     if (sel.worker) {
-        // spartanport: draw-preparation worker: look up only, with the worker's own Info copy.
+        // ratchetport: draw-preparation worker: look up only, with the worker's own Info copy.
         auto& worker = *sel.worker;
         std::shared_lock lk{programs_mutex};
         const auto found_program = program_cache.find(params.hash);
@@ -1220,7 +1220,7 @@ PipelineCache::Result PipelineCache::GetProgram(PipelineSelection& sel, HwStage 
                                !EmulatorSettings.IsShaderCollect();
     if (!compile_async && it_pgm != program_cache.end() && it_pgm->second->pending) {
         {
-            PhaseTimer waiting{g_spartanport_compile_wait_ns};
+            PhaseTimer waiting{g_ratchetport_compile_wait_ns};
             it_pgm->second->pending->job.Wait();
         }
         PublishShaders();
@@ -1281,7 +1281,7 @@ PipelineCache::Result PipelineCache::GetProgram(PipelineSelection& sel, HwStage 
 
     vk::ShaderModule module{};
 
-    // spartanport: consecutive draws of a program almost always use the same permutation.
+    // ratchetport: consecutive draws of a program almost always use the same permutation.
     auto it = program->last_used < program->modules.size() &&
                       program->modules[program->last_used].spec == spec
                   ? program->modules.begin() + program->last_used

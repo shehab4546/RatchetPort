@@ -28,7 +28,7 @@ public:
     Pool() {
         // Copies are on the critical path (fences wait for them): normal priority, a quarter
         // of the hardware threads available to the process (Steam Deck 2).
-        unsigned count = std::clamp(SpartanThreads::Available() / 4, 1u, 4u);
+        unsigned count = std::clamp(RatchetThreads::Available() / 4, 1u, 4u);
         if (const char* env = std::getenv("RATCHET_COPY_THREADS")) {
             count = static_cast<unsigned>(std::clamp(std::atoi(env), 0, 16));
         }
@@ -189,7 +189,7 @@ private:
     }
 
     void Loop(unsigned index) {
-        Common::SetCurrentThreadName(("spartanport:Copy" + std::to_string(index)).c_str());
+        Common::SetCurrentThreadName(("ratchetport:Copy" + std::to_string(index)).c_str());
         u64 seen = 0;
         std::unique_lock lk{mutex};
         while (true) {
@@ -246,7 +246,7 @@ unsigned long long Yields() {
 }
 
 bool Enabled() {
-    return GetPool().Enabled() && !SpartanToggle::Disabled(SpartanToggle::ParallelCopies);
+    return GetPool().Enabled() && !RatchetToggle::Disabled(RatchetToggle::ParallelCopies);
 }
 
 void Async(std::function<void()> task) {

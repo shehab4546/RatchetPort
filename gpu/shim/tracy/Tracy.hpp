@@ -1,4 +1,4 @@
-// spartanport: profiler disabled; Tracy macros compile to nothing.
+// ratchetport: profiler disabled; Tracy macros compile to nothing.
 #pragma once
 #include <cstddef>
 #include <cstdint>

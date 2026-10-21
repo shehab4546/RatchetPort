@@ -10,7 +10,7 @@
 
 namespace VideoCore {
 
-// spartanport: who asked for a pending image readback to reach RAM. Only used by the
+// ratchetport: who asked for a pending image readback to reach RAM. Only used by the
 // RATCHET_PERF_DIAG report, to find the consumer behind the remaining readback waits.
 enum class ReadbackSource : std::uint8_t {
     Unknown,

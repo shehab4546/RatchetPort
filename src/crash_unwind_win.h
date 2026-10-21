@@ -1,6 +1,6 @@
 /* Bounded Windows x64 unwind of a saved exception context; no symbol server needed. */
-#ifndef GOW3_CRASH_UNWIND_WIN_H
-#define GOW3_CRASH_UNWIND_WIN_H
+#ifndef RATCHET_CRASH_UNWIND_WIN_H
+#define RATCHET_CRASH_UNWIND_WIN_H
 #include <windows.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -12,9 +12,9 @@ typedef struct {
     DWORD function_begin;
     DWORD function_end;
     int has_unwind;
-} Gow3CrashFrame;
+} RatchetCrashFrame;
 
-static size_t gow3_crash_unwind(const CONTEXT *saved, Gow3CrashFrame *frames, size_t capacity) {
+static size_t ratchet_crash_unwind(const CONTEXT *saved, RatchetCrashFrame *frames, size_t capacity) {
     CONTEXT current = *saved;
     const NT_TIB *tib = (const NT_TIB *)NtCurrentTeb();
     const DWORD64 stack_low = (DWORD64)(uintptr_t)tib->StackLimit;
@@ -26,7 +26,7 @@ static size_t gow3_crash_unwind(const CONTEXT *saved, Gow3CrashFrame *frames, si
         /* Later PCs are return addresses: lookup their preceding instruction. */
         const DWORD64 lookup_pc = current.Rip - (count != 0);
         PRUNTIME_FUNCTION function = RtlLookupFunctionEntry(lookup_pc, &image_base, NULL);
-        frames[count++] = (Gow3CrashFrame){
+        frames[count++] = (RatchetCrashFrame){
             current.Rip, current.Rsp, image_base,
             function ? function->BeginAddress : 0,
             function ? function->EndAddress : 0, function != NULL};

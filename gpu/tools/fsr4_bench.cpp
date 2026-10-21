@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: FSR 4 benchmark outside the game. Runs the v07 INT8 provider (the same assets and
-// provider as vk_fsr4.cpp) on synthetic inputs and prints GPU time per pass (SPARTAN_FSR4_PROFILE)
-// and, with --stats, the driver's statistics of every pass (SPARTAN_FSR4_STATS).
+// ratchetport: FSR 4 benchmark outside the game. Runs the v07 INT8 provider (the same assets and
+// provider as vk_fsr4.cpp) on synthetic inputs and prints GPU time per pass (RATCHET_FSR4_PROFILE)
+// and, with --stats, the driver's statistics of every pass (RATCHET_FSR4_STATS).
 //
 //   fsr4-bench [render WxH] [output WxH] [preset 0-4] [frames] [--stats] [--fsr411]
 // --fsr411: FSR 4.1.1 replay (fsr411.cpp, assets in RATCHET_FSR411_DIR or fsr4_411) instead of v07;
@@ -276,9 +276,9 @@ int main(int argc, char** argv) {
             break;
         }
     }
-    setenv("SPARTAN_FSR4_PROFILE", "1", 0);
+    setenv("RATCHET_FSR4_PROFILE", "1", 0);
     if (stats) {
-        setenv("SPARTAN_FSR4_STATS", "1", 1);
+        setenv("RATCHET_FSR4_STATS", "1", 1);
     }
     const Gpu gpu = CreateGpu(stats);
 

@@ -63,7 +63,7 @@ std::span<const SurfaceFormatInfo> SurfaceFormats();
 
 vk::Format SurfaceFormat(AmdGpu::DataFormat data_format, AmdGpu::NumberFormat num_format);
 
-/// spartanport: SurfaceFormat without the assertion (eUndefined for unknown pairs), for speculative
+/// ratchetport: SurfaceFormat without the assertion (eUndefined for unknown pairs), for speculative
 /// readers such as the draw-preparation workers.
 vk::Format TrySurfaceFormat(AmdGpu::DataFormat data_format, AmdGpu::NumberFormat num_format);
 

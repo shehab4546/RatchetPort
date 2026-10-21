@@ -111,7 +111,7 @@ void BufferCache::InvalidateMemory(VAddr device_addr, u64 size, bool assume_lock
     });
 }
 
-// spartanport: the game fills its per-frame buffers (constants, skinning output) sequentially and
+// ratchetport: the game fills its per-frame buffers (constants, skinning output) sequentially and
 // every 4 KiB page cost a protection fault (~110k/s in the test scene, a fifth of each
 // render worker's time in the kernel). A fault unprotects the aligned window around it instead;
 // pages marked CPU-modified without being written only cost an upload when bound.
@@ -128,7 +128,7 @@ void BufferCache::RunGuestCopy(const RatchetCopy::Item& item) {
 // Small guest copies run on the recording thread (it spins for work: no wakeup, and it is
 // idle most of the time); PoolSmallCopies (toggle 524288) batches them for the copy threads.
 void BufferCache::SmallGuestCopy(const RatchetCopy::Item& item) {
-    if (scheduler.IsRecordingDeferred() && !SpartanToggle::Disabled(SpartanToggle::PoolSmallCopies)) {
+    if (scheduler.IsRecordingDeferred() && !RatchetToggle::Disabled(RatchetToggle::PoolSmallCopies)) {
         scheduler.RecordHostCopy([item] { item.run(item); });
         return;
     }
@@ -141,7 +141,7 @@ void BufferCache::ExtendWriteFault(VAddr device_addr) {
         const u64 kib = env ? std::strtoull(env, nullptr, 10) : 256;
         return std::bit_ceil(std::clamp<u64>(kib, 4, 1024)) * 1024;
     }();
-    if (window <= TRACKER_BYTES_PER_PAGE || SpartanToggle::Disabled(SpartanToggle::FaultWindow)) {
+    if (window <= TRACKER_BYTES_PER_PAGE || RatchetToggle::Disabled(RatchetToggle::FaultWindow)) {
         return;
     }
     memory_tracker->ExtendWriteFault(Common::AlignDown(device_addr, window), window);
@@ -214,7 +214,7 @@ void BufferCache::DownloadMemory(const Buffer* arena, VAddr device_addr, u64 siz
 }
 
 namespace {
-// spartanport: RATCHET_BUFFER_STATS=1 — how buffer bindings reach the GPU, by guest region (256 MiB),
+// ratchetport: RATCHET_BUFFER_STATS=1 — how buffer bindings reach the GPU, by guest region (256 MiB),
 // printed every 5 s: small read-only copies into the stream buffer, arena bindings, and the
 // bytes those re-upload after CPU writes. Input for engine-level short paths.
 struct BufferStats {
@@ -310,10 +310,10 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBuffer(VAddr device_addr, u32 s
             ++region.stream_count;
             region.stream_bytes += size;
         }
-        // spartanport: the guest data is copied on a copy thread, started now; submission and
+        // ratchetport: the guest data is copied on a copy thread, started now; submission and
         // guest-visible fences wait for it (Scheduler::WaitHostCopies).
         if (!stream_buffer.mapped_data.empty() &&
-            !SpartanToggle::Disabled(SpartanToggle::DeferredStreamCopies)) {
+            !RatchetToggle::Disabled(RatchetToggle::DeferredStreamCopies)) {
             if (const auto offset = stream_buffer.Reserve(size, instance.UniformMinAlignment())) {
                 SmallGuestCopy({
                     .run = &RunGuestCopy,
@@ -359,8 +359,8 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBufferForImage(VAddr device_add
     ChurnTrace::Source(size, false);
     const auto staging = staging_pool.Request(size, VideoCore::MemoryType::HostUncached,
                                               instance.StorageMinAlignment());
-    if (!SpartanToggle::Disabled(SpartanToggle::DeferredUploads)) {
-        // spartanport: texture data is copied on the copy threads (streaming: 100+ MB per frame);
+    if (!RatchetToggle::Disabled(RatchetToggle::DeferredUploads)) {
+        // ratchetport: texture data is copied on the copy threads (streaming: 100+ MB per frame);
         // the upload reads the staging only after submission, which waits for the copies.
         constexpr u64 Chunk = 1_MB;
         for (u64 offset = 0; offset < staging.size; offset += Chunk) {
@@ -550,10 +550,10 @@ const Buffer* BufferCache::UploadCopies(const Buffer* arena, std::span<vk::Buffe
     }
     RatchetStats::buffer_upload_bytes.fetch_add(total_size_bytes, std::memory_order_relaxed);
     const auto staging = staging_pool.Request(total_size_bytes, MemoryType::HostUncached);
-    // spartanport: the guest memory is copied into staging on the copy threads, started now in
+    // ratchetport: the guest memory is copied into staging on the copy threads, started now in
     // groups of about 1 MiB; submission and guest-visible fences wait for them
     // (Scheduler::WaitHostCopies).
-    if (!SpartanToggle::Disabled(SpartanToggle::DeferredUploads) && total_size_bytes < 1_MB) {
+    if (!RatchetToggle::Disabled(RatchetToggle::DeferredUploads) && total_size_bytes < 1_MB) {
         // Small uploads join the calling thread's batch.
         for (auto& copy : copies) {
             SmallGuestCopy({
@@ -569,7 +569,7 @@ const Buffer* BufferCache::UploadCopies(const Buffer* arena, std::span<vk::Buffe
         }
         return staging.buffer;
     }
-    if (!SpartanToggle::Disabled(SpartanToggle::DeferredUploads)) {
+    if (!RatchetToggle::Disabled(RatchetToggle::DeferredUploads)) {
         struct HostCopy {
             VAddr source;
             u8* destination;
@@ -631,11 +631,11 @@ bool BufferCache::SynchronizeMemoryFromImage(const Buffer* arena, VAddr device_a
             LOG_WARNING(Render_Vulkan, "Unhandled metadata type {}", magic_enum::enum_name(*type));
         }
     }
-    // spartanport: most texel buffers alias no image; remember misses until images change.
+    // ratchetport: most texel buffers alias no image; remember misses until images change.
     const u64 generation = texture_cache.RegistryGeneration();
     auto& miss = image_miss_cache[((device_addr >> 6) ^ size * 0x9E3779B1u) % image_miss_cache.size()];
     if (miss.address == device_addr && miss.size == size && miss.generation == generation &&
-        !SpartanToggle::Disabled(SpartanToggle::TextureBindingMemo)) {
+        !RatchetToggle::Disabled(RatchetToggle::TextureBindingMemo)) {
         return false;
     }
     const ImageId image_id = texture_cache.FindImageFromRange(device_addr, size);
@@ -643,7 +643,7 @@ bool BufferCache::SynchronizeMemoryFromImage(const Buffer* arena, VAddr device_a
         miss = {device_addr, size, generation};
         return false;
     }
-    // spartanport: the lookups above only read what the texture binding helper leaves alone; the
+    // ratchetport: the lookups above only read what the texture binding helper leaves alone; the
     // copy below changes image state, so the helper finishes first.
     runtime.BeforeImageAccess();
     Image& image = texture_cache.GetImage(image_id);

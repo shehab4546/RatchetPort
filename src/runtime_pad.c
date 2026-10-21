@@ -4,7 +4,7 @@
  * Default keyboard layout (RATCHET_KEY_MAP changes the buttons, see apply_button_map):
  *   WASD left stick, arrow keys right stick, Space Cross, LShift Circle,
  *   E Square, Q Triangle, 1 L1, 3 R1, R L2, F R2, Z L3, C R3,
- *   Enter Options, Tab left touchpad (photo mode), Backspace right touchpad (pause menu),
+ *   Enter Options, Tab left touchpad, Backspace right touchpad,
  *   IJKL d-pad (I up, K down, J left, L right).
  * RATCHET_KEY_MAP also takes the mouse: Mouse Left, Mouse Right, Mouse Middle, Mouse Back,
  * Mouse Forward, Wheel Up and Wheel Down (see mouse_names). */
@@ -76,10 +76,9 @@ static uint16_t touch_axis(float v, int max) {
 
 /* A click without a touch surface (Back/View, Tab, Backspace, the pad file) is played like a
  * finger: the touch is reported CLICK_LEAD_US before the button, the button stays at least
- * CLICK_HOLD_US, and the touch lingers CLICK_TAIL_US after the release. SpartanPort opens
- * photo mode on the release of a left click with the finger still down, and ignores a touch
- * that comes and goes with the button. The side is chosen when the click starts and kept: the
- * right source with L1 held is a left click (photo mode on pads without a touchpad). */
+ * CLICK_HOLD_US, and the touch lingers CLICK_TAIL_US after the release. This emulates a
+ * complete touch-and-click gesture. The side is chosen when the click starts and kept:
+ * the right source with L1 held is a left click on pads without a touchpad. */
 enum { CLICK_LEAD_US=50000, CLICK_HOLD_US=50000, CLICK_TAIL_US=100000 };
 static struct { int side; uint64_t pressed, released; } click={-1,0,0};
 static void play_click(PadData *d) {
@@ -128,7 +127,7 @@ static SDL_Gamepad *current_gamepad(void) {
  * <ps4 button>=<SDL key or gamepad button name>. A mapped PS4 button loses its default sources;
  * <ps4 button>=None leaves it without any.
  * touchpad_left (alias touchpad) and touchpad_right are the two sides of the touchpad click:
- * photo mode and the pause menu. Back/View (Share on a DualSense) is the right click, and with
+ * their game actions depend on the guest. Back/View (Share on a DualSense) is the right click, and with
  * L1 held the left one. Sticks, triggers, the real touchpad click and the overlay shortcuts are
  * not remapped. */
 static const struct { const char *name; uint32_t ps; } ps_names[]={
@@ -499,8 +498,7 @@ static void apply_mouse_aim(PadData *d) {
     }
 }
 
-/* The pause key (touchpad right without L1, which is photo mode) lets go of the window's mouse
- * lock while the game's pause menu is up, and takes it back (gpu/shim/window.cpp). */
+/* The right-touchpad keyboard mapping toggles host mouse capture (gpu/shim/window.cpp). */
 static void note_pause_key(const PadData *d) {
     static bool held;
     const bool pause=(d->buttons & CLICK_RIGHT) && !(d->buttons & BTN_L1);

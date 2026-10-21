@@ -58,4 +58,4 @@ if [[ ${VERIFY:-0} == 1 ]]; then
     ninja -C out/gpu fsr4-bench >/dev/null
     bash tools/fsr4cap/verify.sh "$work"
 fi
-echo "FSR 4.1.1 assets in $PWD/fsr4_411 (spartanport.ini: upscaler=fsr411)"
+echo "FSR 4.1.1 assets in $PWD/fsr4_411 (ratchet.ini: upscaler=fsr411)"

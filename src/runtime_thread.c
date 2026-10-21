@@ -58,7 +58,7 @@ typedef struct GuestThread {
     char name[32];
     int detached, finished, joined, host_owned;
 #ifdef _WIN32
-    spartanport_jmp_buf exit_jump; /* no SEH unwinding through guest frames */
+    ratchetport_jmp_buf exit_jump; /* no SEH unwinding through guest frames */
 #else
     jmp_buf exit_jump;
 #endif
@@ -297,8 +297,8 @@ static void set_host_priority(const char *name,int guest_prio) {
 #endif
 }
 #ifdef _WIN32
-#define exit_setjmp(t) spartanport_setjmp((t)->exit_jump)
-#define exit_longjmp(t) spartanport_longjmp((t)->exit_jump,1)
+#define exit_setjmp(t) ratchetport_setjmp((t)->exit_jump)
+#define exit_longjmp(t) ratchetport_longjmp((t)->exit_jump,1)
 #else
 #define exit_setjmp(t) setjmp((t)->exit_jump)
 #define exit_longjmp(t) longjmp((t)->exit_jump,1)

@@ -9,16 +9,16 @@ static volatile size_t exception_frames;
 static LONG CALLBACK exception_handler(EXCEPTION_POINTERS *info) {
     if (info->ExceptionRecord->ExceptionCode != 0xe0010007)
         return EXCEPTION_CONTINUE_SEARCH;
-    Gow3CrashFrame frames[32];
-    exception_frames = gow3_crash_unwind(info->ContextRecord, frames, 32);
+    RatchetCrashFrame frames[32];
+    exception_frames = ratchet_crash_unwind(info->ContextRecord, frames, 32);
     return EXCEPTION_CONTINUE_EXECUTION;
 }
 
 __attribute__((noinline)) static int capture(void) {
     CONTEXT context;
     RtlCaptureContext(&context);
-    Gow3CrashFrame frames[32];
-    frame_count = gow3_crash_unwind(&context, frames, 32);
+    RatchetCrashFrame frames[32];
+    frame_count = ratchet_crash_unwind(&context, frames, 32);
     for (size_t i = 0; i < frame_count; ++i) {
         if (!frames[i].pc || (i && frames[i].sp <= frames[i-1].sp))
             return 1;
@@ -27,7 +27,7 @@ __attribute__((noinline)) static int capture(void) {
         return 2;
     CONTEXT invalid = context;
     invalid.Rsp = 0;
-    if (gow3_crash_unwind(&invalid, frames, 32) != 0)
+    if (ratchet_crash_unwind(&invalid, frames, 32) != 0)
         return 3;
     validated = 1;
     return 0;

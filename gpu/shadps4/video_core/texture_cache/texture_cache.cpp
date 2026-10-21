@@ -119,7 +119,7 @@ bool TextureCache::ResolveReadbacks(VAddr address, u64 size, bool assume_locks,
     if (!deferred_readbacks || !has_pending_readbacks.load(std::memory_order_acquire)) return false;
     {
         std::scoped_lock lock{readback_mutex};
-        // Stale mode, byte rule: SpartanPort writes every frame to the page that holds a
+        // Stale mode, byte rule: RatchetPort writes every frame to the page that holds a
         // 1x1 exposure copy, but not to its bytes. That write need not wait for the GPU: the
         // copy only stops protecting its page and is still published when the GPU is done.
         if (stale_readbacks && source == ReadbackSource::CpuWrite) {
@@ -170,7 +170,7 @@ void TextureCache::CancelReadbacks(VAddr address, u64 size) {
     });
 }
 
-// spartanport (RATCHET_PERF_DIAG): a request PartialHeightViews answered with a taller cached image.
+// ratchetport (RATCHET_PERF_DIAG): a request PartialHeightViews answered with a taller cached image.
 void TextureCache::NotePartialView(const ImageInfo& request, const ImageInfo& used,
                                    BindingType binding) {
     ++partial_views;
@@ -190,7 +190,7 @@ void TextureCache::NotePartialView(const ImageInfo& request, const ImageInfo& us
     ++slot->count;
 }
 
-// spartanport (RATCHET_PERF_DIAG): every 5 s, the images FindImage created most often. Takes `mutex`
+// ratchetport (RATCHET_PERF_DIAG): every 5 s, the images FindImage created most often. Takes `mutex`
 // (held by FindImage), so it runs before ProcessDownloadImages takes readback_mutex.
 void TextureCache::ReportImageCreates() {
     const auto now = std::chrono::steady_clock::now();
@@ -232,7 +232,7 @@ void TextureCache::ReportImageCreates() {
     partial_views = 0;
 }
 
-// spartanport: every copy is recorded first and the GPU is waited for once. A wait per image (as
+// ratchetport: every copy is recorded first and the GPU is waited for once. A wait per image (as
 // before) left the GPU mostly idle in the game's gameplay, at about 2 FPS.
 void TextureCache::ProcessDownloadImages() {
     if (Vulkan::WaitDiagnostics::Enabled()) {
@@ -447,7 +447,7 @@ void TextureCache::DiagDumpImage(ImageId image_id, const char* tag) {
     }
 }
 
-// spartanport: images sharing guest memory (aliases), ported from cuesta4/shadPS4 (eltutz) commit
+// ratchetport: images sharing guest memory (aliases), ported from cuesta4/shadPS4 (eltutz) commit
 // 189ca3b6. A write to one is copied into the others before they are read, as on the PS4,
 // where they are the same memory.
 static bool Covers(const Extent3D& extent, const ImageInfo& info) {
@@ -640,7 +640,7 @@ void TextureCache::ApplyBackingWrites() {
         writes.swap(backing_writes);
         has_backing_writes.store(false, std::memory_order_release);
     }
-    // SpartanPort streams textures with GPU copies through large storage images over the
+    // RatchetPort streams textures with GPU copies through large storage images over the
     // texture pool; their readbacks put the new texels in memory without a fault. Textures
     // there kept the old contents (yellow ground #138, missing textures #194) until a restart.
     for (const auto& [address, size] : writes) {
@@ -796,7 +796,7 @@ std::tuple<ImageId, int, int> TextureCache::ResolveOverlap(const ImageInfo& imag
     if (image_info.guest_address == cache_image.info.guest_address) {
         const u32 lhs_block_size = image_info.num_bits * image_info.guest_samples;
         const u32 rhs_block_size = cache_image.info.num_bits * cache_image.info.guest_samples;
-        // spartanport: the top rows of a cached image with the same layout. SpartanPort reads its
+        // ratchetport: the top rows of a cached image with the same layout. RatchetPort reads its
         // frame buffers as R8G8B8A8Uint with a height that changes every frame during Rage of
         // Sparta and weapon effects; as a "pool allocation" below, each read created and uploaded
         // a new ~8 MB image (FPS 120 -> 40).
@@ -818,7 +818,7 @@ std::tuple<ImageId, int, int> TextureCache::ResolveOverlap(const ImageInfo& imag
             const char* value = std::getenv("RATCHET_PARTIAL_HEIGHT_VIEWS");
             return !value || value[0] != '0';
         }();
-        if (partial_views_enabled && !SpartanToggle::Disabled(SpartanToggle::PartialHeightViews) &&
+        if (partial_views_enabled && !RatchetToggle::Disabled(RatchetToggle::PartialHeightViews) &&
             (binding == BindingType::Texture || binding == BindingType::Storage) && native_reads &&
             a.pixel_format != b.pixel_format && is_integer(a.pixel_format) &&
             lhs_block_size == rhs_block_size && a.pitch == b.pitch && a.tile_mode == b.tile_mode &&
@@ -1104,7 +1104,7 @@ ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
         cached.format == info.pixel_format && cached.type == info.type &&
         cached.exact_fmt == exact_fmt && cached.binding == desc.type &&
         cached.needs_native == desc.needs_native && cached.levels == info.resources.levels && cached.layers == info.resources.layers &&
-        !SpartanToggle::Disabled(SpartanToggle::FindImageCache)) {
+        !RatchetToggle::Disabled(RatchetToggle::FindImageCache)) {
         Image& image = slot_images[cached.image_id];
         image.tick_accessed_last = scheduler.CurrentTick();
         TouchImage(image);
@@ -1145,7 +1145,7 @@ ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
         image_id = cache_id;
     }
 
-    // spartanport (RATCHET_PERF_DIAG): what was cached here, read before overlap resolution may free it.
+    // ratchetport (RATCHET_PERF_DIAG): what was cached here, read before overlap resolution may free it.
     const bool diag = Vulkan::WaitDiagnostics::Enabled();
     CreateStat created{info.guest_address, info.size.width, info.size.height, 1, info.pixel_format,
                        desc.type, image_ids.empty() ? "nothing cached" : "overlap unresolved"};
@@ -1299,7 +1299,7 @@ ImageView& TextureCache::FindTexture(ImageId image_id, const ImageDesc& desc, Vi
     if (desc.type == BindingType::Storage) {
         PublishAliasWrite(image_id);
     }
-    if (memo && !SpartanToggle::Disabled(SpartanToggle::TextureViewMemo)) {
+    if (memo && !RatchetToggle::Disabled(RatchetToggle::TextureViewMemo)) {
         if (memo->image_id == image_id && memo->backing == image.backing && memo->view_id) {
             return slot_image_views[memo->view_id];
         }
@@ -1684,7 +1684,7 @@ void TextureCache::GarbageCollectImages() {
     static u64 ratchet_gc_download_unpressured_blocked = 0;
     if (instance.CanReportMemoryUsage()) {
         total_used_memory = instance.GetDeviceMemoryUsage();
-        // spartanport: on integrated GPUs (Steam Deck) the usage covers system-memory heaps holding
+        // ratchetport: on integrated GPUs (Steam Deck) the usage covers system-memory heaps holding
         // much more than images (buffers backing guest memory), and the startup budget left
         // ~1 GB after its 8 GB system reserve: usage stayed above the critical mark, so the
         // collector evicted images used two or three frames ago on every submission and wrote
@@ -1757,7 +1757,7 @@ void TextureCache::GarbageCollectImages() {
             return false;
         }
         if (download) {
-            // spartanport: synchronously, while the image still protects its pages. A deferred
+            // ratchetport: synchronously, while the image still protects its pages. A deferred
             // write-back landed after FreeImage had unprotected them, over whatever the game
             // had meanwhile stored there (e.g. its heap after unloading an area).
             DownloadImageMemory(image_id, true);
@@ -1792,7 +1792,7 @@ void TextureCache::GarbageCollectImages() {
         configure(true);
         lru_cache.ForEachItemBelow(gc_tick - ticks_to_destroy, clean_up);
     }
-    // spartanport: evictions under memory pressure, at most every 5 s (RATCHET_FRAME_STATS or not).
+    // ratchetport: evictions under memory pressure, at most every 5 s (RATCHET_FRAME_STATS or not).
     if (pressured || gc_downloads != 0) {
         const auto now = std::chrono::steady_clock::now();
         if (now - gc_report_time >= std::chrono::seconds(5)) {

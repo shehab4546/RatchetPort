@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# spartanport: rewrites the FSR 4.1.1 postpass (spirv-dis text of dxil-spirv output) so that its image
+# ratchetport: rewrites the FSR 4.1.1 postpass (spirv-dis text of dxil-spirv output) so that its image
 # stores go through workgroup memory, like tools/fsr4_post_lds.pl does for FSR 4 v07.
 #
 #   postpass_lds.py < postpass.spvasm > postpass_lds.spvasm   (then spirv-as --target-env spv1.3)
@@ -55,41 +55,41 @@ n = [0]
 
 def new(prefix):
     n[0] += 1
-    return f'%spartanport_{prefix}{n[0]}'
+    return f'%ratchetport_{prefix}{n[0]}'
 
 decl = [
-    '%spartanport_u5 = OpConstant %uint 5', '%spartanport_u31 = OpConstant %uint 31', '%spartanport_u32 = OpConstant %uint 32',
-    '%spartanport_u10 = OpConstant %uint 10', '%spartanport_u256 = OpConstant %uint 256', '%spartanport_u2 = OpConstant %uint 2',
-    '%spartanport_u264 = OpConstant %uint 264', '%spartanport_u10240 = OpConstant %uint 10240',
-] + [f'%spartanport_c{c} = OpConstant %uint {c}' for c in range(10)] + [
-    '%spartanport_arr = OpTypeArray %float %spartanport_u10240',
-    '%spartanport_ptr_arr = OpTypePointer Workgroup %spartanport_arr',
-    '%spartanport_ptr_f = OpTypePointer Workgroup %float',
-    '%spartanport_lds = OpVariable %spartanport_ptr_arr Workgroup',
+    '%ratchetport_u5 = OpConstant %uint 5', '%ratchetport_u31 = OpConstant %uint 31', '%ratchetport_u32 = OpConstant %uint 32',
+    '%ratchetport_u10 = OpConstant %uint 10', '%ratchetport_u256 = OpConstant %uint 256', '%ratchetport_u2 = OpConstant %uint 2',
+    '%ratchetport_u264 = OpConstant %uint 264', '%ratchetport_u10240 = OpConstant %uint 10240',
+] + [f'%ratchetport_c{c} = OpConstant %uint {c}' for c in range(10)] + [
+    '%ratchetport_arr = OpTypeArray %float %ratchetport_u10240',
+    '%ratchetport_ptr_arr = OpTypePointer Workgroup %ratchetport_arr',
+    '%ratchetport_ptr_f = OpTypePointer Workgroup %float',
+    '%ratchetport_lds = OpVariable %ratchetport_ptr_arr Workgroup',
 ]
 preamble = [
-    '%spartanport_wgx_p = OpAccessChain %_ptr_Input_uint %gl_WorkGroupID %uint_0',
-    '%spartanport_wgx = OpLoad %uint %spartanport_wgx_p',
-    '%spartanport_wgy_p = OpAccessChain %_ptr_Input_uint %gl_WorkGroupID %uint_1',
-    '%spartanport_wgy = OpLoad %uint %spartanport_wgy_p',
-    '%spartanport_lid_p = OpAccessChain %_ptr_Input_uint %gl_LocalInvocationID %uint_0',
-    '%spartanport_lid = OpLoad %uint %spartanport_lid_p',
-    '%spartanport_x0 = OpShiftLeftLogical %uint %spartanport_wgx %spartanport_u5',
-    '%spartanport_y0 = OpShiftLeftLogical %uint %spartanport_wgy %spartanport_u5',
+    '%ratchetport_wgx_p = OpAccessChain %_ptr_Input_uint %gl_WorkGroupID %uint_0',
+    '%ratchetport_wgx = OpLoad %uint %ratchetport_wgx_p',
+    '%ratchetport_wgy_p = OpAccessChain %_ptr_Input_uint %gl_WorkGroupID %uint_1',
+    '%ratchetport_wgy = OpLoad %uint %ratchetport_wgy_p',
+    '%ratchetport_lid_p = OpAccessChain %_ptr_Input_uint %gl_LocalInvocationID %uint_0',
+    '%ratchetport_lid = OpLoad %uint %ratchetport_lid_p',
+    '%ratchetport_x0 = OpShiftLeftLogical %uint %ratchetport_wgx %ratchetport_u5',
+    '%ratchetport_y0 = OpShiftLeftLogical %uint %ratchetport_wgy %ratchetport_u5',
 ]
 
 def flush():
-    code = ['OpControlBarrier %spartanport_u2 %spartanport_u2 %spartanport_u264']
+    code = ['OpControlBarrier %ratchetport_u2 %ratchetport_u2 %ratchetport_u264']
     for k in range(4):
         i, lx, ly, px, py = new('i'), new('lx'), new('ly'), new('px'), new('py')
         kk = new('k')
         code += [
             f'{kk} = OpConstant %uint {256 * k}' if False else '',
-            f'{i} = OpIAdd %uint %spartanport_lid %spartanport_k{k}',
-            f'{lx} = OpBitwiseAnd %uint {i} %spartanport_u31',
-            f'{ly} = OpShiftRightLogical %uint {i} %spartanport_u5',
-            f'{px} = OpIAdd %uint %spartanport_x0 {lx}',
-            f'{py} = OpIAdd %uint %spartanport_y0 {ly}',
+            f'{i} = OpIAdd %uint %ratchetport_lid %ratchetport_k{k}',
+            f'{lx} = OpBitwiseAnd %uint {i} %ratchetport_u31',
+            f'{ly} = OpShiftRightLogical %uint {i} %ratchetport_u5',
+            f'{px} = OpIAdd %uint %ratchetport_x0 {lx}',
+            f'{py} = OpIAdd %uint %ratchetport_y0 {ly}',
         ]
         tx, ty, cx, cy, c = new('tx'), new('ty'), new('cx'), new('cy'), new('c')
         code += [
@@ -99,14 +99,14 @@ def flush():
             f'{cy} = OpULessThan %bool {ty} {h2}',
             f'{c} = OpLogicalAnd %bool {cx} {cy}',
         ]
-        then, done = f'%spartanport_then{k}', f'%spartanport_done{k}'
+        then, done = f'%ratchetport_then{k}', f'%ratchetport_done{k}'
         code += [f'OpSelectionMerge {done} None', f'OpBranchConditional {c} {then} {done}', f'{then} = OpLabel']
         base = new('base')
-        code.append(f'{base} = OpIMul %uint {i} %spartanport_u10')
+        code.append(f'{base} = OpIMul %uint {i} %ratchetport_u10')
         vals = []
         for comp in range(10):
             e, p, v = new('e'), new('p'), new('v')
-            code += [f'{e} = OpIAdd %uint {base} %spartanport_c{comp}', f'{p} = OpAccessChain %spartanport_ptr_f %spartanport_lds {e}',
+            code += [f'{e} = OpIAdd %uint {base} %ratchetport_c{comp}', f'{p} = OpAccessChain %ratchetport_ptr_f %ratchetport_lds {e}',
                      f'{v} = OpLoad %float {p}']
             vals.append(v)
         coord = new('coord')
@@ -124,7 +124,7 @@ def flush():
         code += [f'OpBranch {done}', f'{done} = OpLabel']
     return [c for c in code if c]
 
-decl += [f'%spartanport_k{k} = OpConstant %uint {256 * k}' for k in range(4)]
+decl += [f'%ratchetport_k{k} = OpConstant %uint {256 * k}' for k in range(4)]
 
 stores = 0
 in_main = False
@@ -165,14 +165,14 @@ for idx, line in enumerate(lines):
             comps = [t[1], t[2], t[3]]
         lx, ly, row, pix, base = new('slx'), new('sly'), new('srow'), new('spix'), new('sbase')
         out += ['               ' + c for c in [
-            f'{lx} = OpISub %uint {x} %spartanport_x0', f'{ly} = OpISub %uint {y} %spartanport_y0',
-            f'{row} = OpShiftLeftLogical %uint {ly} %spartanport_u5', f'{pix} = OpIAdd %uint {row} {lx}',
-            f'{base} = OpIMul %uint {pix} %spartanport_u10']]
+            f'{lx} = OpISub %uint {x} %ratchetport_x0', f'{ly} = OpISub %uint {y} %ratchetport_y0',
+            f'{row} = OpShiftLeftLogical %uint {ly} %ratchetport_u5', f'{pix} = OpIAdd %uint {row} {lx}',
+            f'{base} = OpIMul %uint {pix} %ratchetport_u10']]
         for c, v in enumerate(comps):
             e, p = new('se'), new('sp')
             out += ['               ' + q for q in [
-                f'{e} = OpIAdd %uint {base} %spartanport_c{SLOT[var] + c}',
-                f'{p} = OpAccessChain %spartanport_ptr_f %spartanport_lds {e}', f'OpStore {p} {v}']]
+                f'{e} = OpIAdd %uint {base} %ratchetport_c{SLOT[var] + c}',
+                f'{p} = OpAccessChain %ratchetport_ptr_f %ratchetport_lds {e}', f'OpStore {p} {v}']]
         stores += 1
         continue
     if in_main and s == f'{merge} = OpLabel':

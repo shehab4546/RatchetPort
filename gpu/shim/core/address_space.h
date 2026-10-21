@@ -1,4 +1,4 @@
-// spartanport: address-space operations the video core needs, backed by the C
+// ratchetport: address-space operations the video core needs, backed by the C
 // runtime's VMA table (runtime_memory.c).
 #pragma once
 #include <boost/icl/interval_set.hpp>

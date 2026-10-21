@@ -1,4 +1,4 @@
-// spartanport: optimizations that can be switched off while the game runs (RATCHET_TOGGLE_FILE,
+// ratchetport: optimizations that can be switched off while the game runs (RATCHET_TOGGLE_FILE,
 // see runtime_memory.c), to find which one changes rendering without restarting.
 #pragma once
 #include <atomic>
@@ -7,18 +7,18 @@
 #include <cstdint>
 #include <cstdlib>
 #ifdef _WIN32
-// spartanport (Windows): no signals. The loader's exception handler resumes the faulting thread
-// in spartanport_longjmp (src/compat_win.c: no unwinding through the faulting frames).
+// ratchetport (Windows): no signals. The loader's exception handler resumes the faulting thread
+// in ratchetport_longjmp (src/compat_win.c: no unwinding through the faulting frames).
 typedef unsigned long long sigjmp_buf[32];
-extern "C" __attribute__((returns_twice)) int spartanport_setjmp(sigjmp_buf buffer);
-#define sigsetjmp(buffer, save) spartanport_setjmp(buffer)
+extern "C" __attribute__((returns_twice)) int ratchetport_setjmp(sigjmp_buf buffer);
+#define sigsetjmp(buffer, save) ratchetport_setjmp(buffer)
 #endif
 
 extern "C" std::uint64_t runtime_disabled_optimizations;
 /// Recovery point for speculative guest memory reads on this thread (runtime_memory.c).
 extern "C" __thread sigjmp_buf* runtime_fault_recover;
 
-namespace SpartanToggle {
+namespace RatchetToggle {
 enum : std::uint64_t {
     RegionCache = 1,
     FetchShaderCache = 2,
@@ -77,7 +77,7 @@ enum : std::uint64_t {
 inline bool Disabled(std::uint64_t bit) {
     return (__atomic_load_n(&runtime_disabled_optimizations, __ATOMIC_RELAXED) & bit) != 0;
 }
-} // namespace SpartanToggle
+} // namespace RatchetToggle
 
 namespace RatchetStats {
 /// Guest writes caught by page protection, and pages currently left unprotected as hot.

@@ -1,3 +1,6 @@
+#ifndef NDEBUG
+#define NDEBUG // Vulkan-Hpp dispatcher ABI must match ratchetgpu.
+#endif
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Execute production camera motion SPIR-V: distant geometry, sky and stale object vectors.
 #include <array>
@@ -9,6 +12,9 @@
 #include "video_core/texture_cache/image.h"
 #include "video_core/host_shaders/camera_motion_comp.h"
 #include <vk_mem_alloc.h>
+
+#undef NDEBUG
+#include <cassert> // Re-enable assertions after ABI-sensitive headers.
 
 int main() {
     Vulkan::Instance instance(0, false);

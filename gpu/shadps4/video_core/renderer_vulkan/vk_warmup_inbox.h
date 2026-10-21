@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: helpers of the background pipeline cache warm-up (vk_pipeline_serialization.cpp).
+// ratchetport: helpers of the background pipeline cache warm-up (vk_pipeline_serialization.cpp).
 
 #pragma once
 

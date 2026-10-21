@@ -50,7 +50,7 @@ FfxVkPortableImage Describe(vk::Image image, vk::Format format, u32 width, u32 h
     return out;
 }
 
-/// spartanport: RATCHET_DUMP_TRIGGER=<file> RATCHET_DUMP_DIR=<dir> (default out/dump): creating the file dumps
+/// ratchetport: RATCHET_DUMP_TRIGGER=<file> RATCHET_DUMP_DIR=<dir> (default out/dump): creating the file dumps
 /// the upscaler's images of the next RATCHET_DUMP_FRAMES (8) frames as raw files
 /// <dir>/fNNN_<name>_<w>x<h>_<format>.raw, for checking temporal stability offline.
 /// Returns the frame number to dump, or -1.
@@ -233,12 +233,12 @@ bool TemporalUpscaler::Active() const {
             RatchetSettings::IsFsr4(RatchetSettings::Get().upscaler) ||
             RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa ||
             RatchetSettings::Get().upscaler == RatchetSettings::UpscalerDlss) &&
-           !SpartanToggle::Disabled(1u << 24);
+           !RatchetToggle::Disabled(1u << 24);
 }
 
 bool TemporalUpscaler::ReactiveOn() const {
     // FSR 4 takes no reactive mask: the opaque snapshot and the mask pass would be wasted.
-    return RatchetSettings::Get().reactive && !SpartanToggle::Disabled(1u << 27) && !UseFsr4() && !UseDlss() &&
+    return RatchetSettings::Get().reactive && !RatchetToggle::Disabled(1u << 27) && !UseFsr4() && !UseDlss() &&
            RatchetSettings::Get().upscaler != RatchetSettings::UpscalerTaa;
 }
 
@@ -266,7 +266,7 @@ bool TemporalUpscaler::RasterScaling() const {
 }
 
 bool TemporalUpscaler::OnFrameStart() {
-    // spartanport: RATCHET_PRESET_FILE=<file> holding a preset number, read about once a second: switches
+    // ratchetport: RATCHET_PRESET_FILE=<file> holding a preset number, read about once a second: switches
     // the preset like the menu does (scripted tests of live preset changes).
     static const char* preset_file = std::getenv("RATCHET_PRESET_FILE");
     if (preset_file && ++preset_file_frames % 64 == 0) {
@@ -294,7 +294,7 @@ bool TemporalUpscaler::OnFrameStart() {
     const int preset = RatchetSettings::RenderPreset();
     if (applied_preset != preset || settings.upscaler == RatchetSettings::UpscalerOff) failed = false;
     const bool active = Active();
-    const bool jitter_on = active && settings.jitter && !SpartanToggle::Disabled(1u << 25);
+    const bool jitter_on = active && settings.jitter && !RatchetToggle::Disabled(1u << 25);
     const int upscaler = settings.upscaler.load();
     const int output = settings.output_res.load();
     const bool output_changed = !scaled_session && applied_output != output;
@@ -685,11 +685,11 @@ void TemporalUpscaler::RecordTaa(vk::CommandBuffer cmdbuf, vk::ImageView color,
     // YCoCg clipping, variance clipping, 3x3 reconstruction. Measured in game on 2026-10-02
     // (static and panning camera, interleaved captures): none improved stability beyond run
     // noise; YCoCg clipping and the reconstruction made it worse. Default: all off.
-    params.pad |= (SpartanToggle::Disabled(SpartanToggle::TaaTonemapBlend) ? 1u << 8 : 0u) |
-                  (SpartanToggle::Disabled(SpartanToggle::TaaClip) ? 2u << 8 : 0u) |
-                  (SpartanToggle::Disabled(SpartanToggle::TaaVariance) ? 4u << 8 : 0u) |
-                  (SpartanToggle::Disabled(SpartanToggle::TaaFilter) ? 8u << 8 : 0u) |
-                  (SpartanToggle::Disabled(SpartanToggle::TaaKeepNearerHistory) ? 16u << 8 : 0u);
+    params.pad |= (RatchetToggle::Disabled(RatchetToggle::TaaTonemapBlend) ? 1u << 8 : 0u) |
+                  (RatchetToggle::Disabled(RatchetToggle::TaaClip) ? 2u << 8 : 0u) |
+                  (RatchetToggle::Disabled(RatchetToggle::TaaVariance) ? 4u << 8 : 0u) |
+                  (RatchetToggle::Disabled(RatchetToggle::TaaFilter) ? 8u << 8 : 0u) |
+                  (RatchetToggle::Disabled(RatchetToggle::TaaKeepNearerHistory) ? 16u << 8 : 0u);
     cmdbuf.bindPipeline(vk::PipelineBindPoint::eCompute, *taa_pipeline);
     if (params.pad & 0xffu) {
         static u32 diagnostic_frames = 0;
@@ -1126,7 +1126,7 @@ void TemporalUpscaler::Run() {
         }
         info.transparencyAndCompositionMask.structSize = sizeof(info.transparencyAndCompositionMask);
         // Toggle 1 << 26 (tests): the opposite sign convention for FSR.
-        const float sign = SpartanToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
+        const float sign = RatchetToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
         info.jitterOffset = {sign * jitter[0], sign * jitter[1]};
         info.motionVectorScale = {1.0f, 1.0f};
         info.renderSize = {w, h};
@@ -1216,7 +1216,7 @@ void TemporalUpscaler::Run() {
         // or the motion vectors (menu).
         const int debug_view = RatchetSettings::Get().debug_view;
         const u32 mode = has_reactive && (debug_view == RatchetSettings::DebugReactive ||
-                                          SpartanToggle::Disabled(1u << 28))
+                                          RatchetToggle::Disabled(1u << 28))
                              ? 1
                          : debug_view == RatchetSettings::DebugMotion ? 2
                                                                  : 0;
@@ -1614,7 +1614,7 @@ void TemporalUpscaler::RunScaled() {
     }
     last_frame = now;
 
-    // spartanport: FSR 4 writes its HDR-format output, copied into the output-size UI image.
+    // ratchetport: FSR 4 writes its HDR-format output, copied into the output-size UI image.
     if (UseFsr4() || UseDlss() || RatchetSettings::Get().upscaler == RatchetSettings::UpscalerTaa) {
         barrier(vk::Image(output_image), vk::ImageAspectFlagBits::eColor,
                 vk::ImageLayout::eUndefined, all, vk::AccessFlagBits2::eNone,
@@ -1721,7 +1721,7 @@ void TemporalUpscaler::RunScaled() {
     }
 
     info.transparencyAndCompositionMask.structSize = sizeof(info.transparencyAndCompositionMask);
-    const float sign = SpartanToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
+    const float sign = RatchetToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
     info.jitterOffset = {sign * jitter[0], sign * jitter[1]};
     info.motionVectorScale = {1.0f, 1.0f};
     info.renderSize = {w, h};
@@ -1938,7 +1938,7 @@ bool TemporalUpscaler::RecordFsr4(vk::CommandBuffer cmdbuf, Fsr4Upscaler::Image 
     const auto& settings = RatchetSettings::Get();
     // Same jitter convention as FSR 3; the menu (or toggle 1 << 26) flips it for tests.
     const float sign =
-        SpartanToggle::Disabled(1u << 26) != settings.fsr4_invert_jitter.load() ? -1.0f : 1.0f;
+        RatchetToggle::Disabled(1u << 26) != settings.fsr4_invert_jitter.load() ? -1.0f : 1.0f;
     const bool ok = fsr4->Record({
         .cmdbuf = cmdbuf,
         .color = color,
@@ -2001,7 +2001,7 @@ bool TemporalUpscaler::RecordDlss(vk::CommandBuffer cmdbuf, const Dlss::Resource
     }
     if (ok) {
         // The jitter and motion vectors FSR 3 gets: render pixels, current to previous.
-        const float sign = SpartanToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
+        const float sign = RatchetToggle::Disabled(1u << 26) ? -1.0f : 1.0f;
         const auto& settings = RatchetSettings::Get();
         ok = dlss->Evaluate(cmdbuf, {
             .color = color,

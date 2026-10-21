@@ -200,7 +200,7 @@ void Swapchain::FindPresentMode() {
         return;
     }
 
-    // spartanport: VSync on is Fifo (no tearing, waits for the display); off is Mailbox when the
+    // ratchetport: VSync on is Fifo (no tearing, waits for the display); off is Mailbox when the
     // driver has it, else Immediate (tearing allowed), else Fifo.
     vsync = RatchetSettings::Get().vsync;
     const auto has = [&](vk::PresentModeKHR mode) { return std::ranges::find(modes, mode) != modes.cend(); };

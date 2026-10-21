@@ -300,10 +300,10 @@ void CameraMotion::Overlay(VideoCore::ImageId frame) {
         .size = {float(color.info.size.width), float(color.info.size.height)},
         .jitter = jitter,
         .previous_jitter = previous_jitter,
-        .mode = SpartanToggle::Disabled(1u << 20)   ? 1u
-                : SpartanToggle::Disabled(1u << 21) ? 2u
-                : SpartanToggle::Disabled(1u << 22) ? 3u
-                : SpartanToggle::Disabled(1u << 23) ? 4u
+        .mode = RatchetToggle::Disabled(1u << 20)   ? 1u
+                : RatchetToggle::Disabled(1u << 21) ? 2u
+                : RatchetToggle::Disabled(1u << 22) ? 3u
+                : RatchetToggle::Disabled(1u << 23) ? 4u
                                                : 0u,
     };
     static u32 log_counter = 0;

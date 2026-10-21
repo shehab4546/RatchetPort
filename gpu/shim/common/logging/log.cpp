@@ -1,4 +1,4 @@
-// spartanport: see log.h.
+// ratchetport: see log.h.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

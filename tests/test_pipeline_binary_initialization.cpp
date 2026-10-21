@@ -1,3 +1,6 @@
+#ifndef NDEBUG
+#define NDEBUG // Vulkan-Hpp dispatcher ABI must match ratchetgpu.
+#endif
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include <cstdlib>
 #include <cstdio>

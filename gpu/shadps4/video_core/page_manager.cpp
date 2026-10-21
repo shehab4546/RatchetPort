@@ -69,7 +69,7 @@ struct PageManager::Impl {
 
     static bool GuestFaultSignalHandler(void* context, void* fault_address) {
         const auto addr = reinterpret_cast<VAddr>(fault_address);
-        // spartanport: the draw recording thread handles its faults inline too (vk_draw_pipe.h).
+        // ratchetport: the draw recording thread handles its faults inline too (vk_draw_pipe.h).
         const auto is_gpu_thread = rasterizer->IsGpuSideThread();
         if (is_gpu_thread) {
             RatchetStats::gpu_signal_faults.fetch_add(1, std::memory_order_relaxed);
@@ -233,7 +233,7 @@ struct PageManager::Impl {
 };
 
 #ifdef __linux__
-// spartanport: write tracking with userfaultfd write-protection instead of mprotect. mprotect takes
+// ratchetport: write tracking with userfaultfd write-protection instead of mprotect. mprotect takes
 // the address space lock for writing and splits mappings; while guest threads fault on
 // per-frame buffers and the GPU thread re-protects uploaded pages, every page fault in the
 // process (copy threads included) waits for it. UFFDIO_WRITEPROTECT changes page table bits
@@ -337,7 +337,7 @@ public:
     }
 
     void UffdHandler(std::stop_token token) {
-        Common::SetCurrentThreadName("spartanport:Uffd");
+        Common::SetCurrentThreadName("ratchetport:Uffd");
         while (!token.stop_requested()) {
             pollfd pollfd{};
             pollfd.fd = uffd;

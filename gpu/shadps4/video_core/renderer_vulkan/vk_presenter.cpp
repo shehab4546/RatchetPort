@@ -43,7 +43,7 @@
 #include <vector>
 #include <vk_mem_alloc.h>
 #ifdef MemoryBarrier
-#undef MemoryBarrier // spartanport: winnt.h macro (through fmt), clashes with vk::MemoryBarrier
+#undef MemoryBarrier // ratchetport: winnt.h macro (through fmt), clashes with vk::MemoryBarrier
 #endif
 
 namespace Vulkan {
@@ -129,7 +129,7 @@ static vk::Rect2D FitImage(s32 frame_width, s32 frame_height, s32 swapchain_widt
                          dst_rect.offset.x, dst_rect.offset.y);
 }
 
-// spartanport: F12 screenshots of the game's frame (without the overlay), saved as PNG to the user
+// ratchetport: F12 screenshots of the game's frame (without the overlay), saved as PNG to the user
 // folder's screenshots/ once the GPU is done; the conversion follows upstream shadPS4.
 namespace {
 
@@ -209,7 +209,7 @@ std::filesystem::path ScreenshotPath() {
     std::filesystem::create_directories(dir, ec);
     std::string serial{Common::ElfInfo::Instance().GameSerial()};
     if (serial.empty()) {
-        serial = "spartanport";
+        serial = "ratchetport";
     }
     const auto now = std::chrono::system_clock::now();
     const std::time_t now_time = std::chrono::system_clock::to_time_t(now);
@@ -331,7 +331,7 @@ Presenter::Presenter(Frontend::WindowSDL& window_, AmdGpu::Liverpool* liverpool_
         return;
     }
 
-    // spartanport: by default the cached pipelines load while the game runs (a corner note shows the
+    // ratchetport: by default the cached pipelines load while the game runs (a corner note shows the
     // progress). Otherwise rebuilding them takes up to minutes before the first game frame:
     // show what is happening instead of a black window.
     const char* background_warmup = std::getenv("RATCHET_BACKGROUND_WARMUP");
@@ -513,7 +513,7 @@ static vk::Format GetFrameViewFormat(const Libraries::VideoOut::PixelFormat form
     return {};
 }
 
-// spartanport: raw copy of an image for RATCHET_FRAME_DUMP_TRIGGER, written once the GPU is done.
+// ratchetport: raw copy of an image for RATCHET_FRAME_DUMP_TRIGGER, written once the GPU is done.
 static void DumpRaw(const Instance& instance, Scheduler& scheduler, vk::CommandBuffer cmdbuf,
                     vk::Image image, vk::ImageLayout layout, u32 w, u32 h, const char* name,
                     int index) {
@@ -550,13 +550,13 @@ static void DumpRaw(const Instance& instance, Scheduler& scheduler, vk::CommandB
 
 Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& attribute,
                                VAddr cpu_address) {
-    // spartanport: RATCHET_FRAME_DUMP_TRIGGER=<file>: when the file exists it is removed and this frame's
+    // ratchetport: RATCHET_FRAME_DUMP_TRIGGER=<file>: when the file exists it is removed and this frame's
     // guest display buffer and presented image are written to RATCHET_DUMP_DIR (default out/dump)
     // as raw 32-bit pixels (menus and movies included; the upscaler dumps scene frames only).
     static const char* frame_dump_trigger = std::getenv("RATCHET_FRAME_DUMP_TRIGGER");
     static int frame_dump_index = 0;
     const bool frame_dump = frame_dump_trigger && std::remove(frame_dump_trigger) == 0;
-    // spartanport: scaled upscaler presets: the output-size display buffer drawn by the port.
+    // ratchetport: scaled upscaler presets: the output-size display buffer drawn by the port.
     TemporalUpscaler::Display display{};
     const bool upscaled = rasterizer->GetUpscaler().DisplayOverride(cpu_address, display);
     VideoCore::ImageId image_id{};
@@ -643,7 +643,7 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
     }
     expected_ratio = static_cast<float>(image_size.width) / static_cast<float>(image_size.height);
 
-    // spartanport: FSR 1, RCAS and its strength come from the in-game menu, every frame.
+    // ratchetport: FSR 1, RCAS and its strength come from the in-game menu, every frame.
     const auto& graphics = RatchetSettings::Get();
     fsr_settings.enable = graphics.fsr1;
     fsr_settings.use_rcas = graphics.rcas;
@@ -663,7 +663,7 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
     // the post process pass still sRGB encoded and has to be decoded there instead.
     pp_settings.srgb_input =
         attribute.attrib.pixel_format == Libraries::VideoOut::PixelFormat::A2R10G10B10Srgb;
-    // spartanport: black bars around a cutscene when the render resolution is not 16:9 (movie_bars.h).
+    // ratchetport: black bars around a cutscene when the render resolution is not 16:9 (movie_bars.h).
     pp_settings.picture = MovieBars::Cutscenes().Bars(image_size.width, image_size.height,
                                                       MovieBars::NowMs());
     pp_pass.Render(cmdbuf, image_view, image_size, *frame, pp_settings);
@@ -685,7 +685,7 @@ Frame* Presenter::PrepareFrame(const Libraries::VideoOut::BufferAttributeGroup& 
     SubmitInfo info{};
     draw_scheduler.Flush(info);
 
-    // spartanport: the GPU command thread runs at most RATCHET_FRAMES_AHEAD (default 1) guest frames
+    // ratchetport: the GPU command thread runs at most RATCHET_FRAMES_AHEAD (default 1) guest frames
     // ahead of the GPU: it waits here for the frame that many flips back. When the GPU is the
     // bottleneck it finishes frames at an even rate; without this bound the command thread ran
     // ahead and then blocked wherever a resource ran out, so flips (and the guest's frame
@@ -847,7 +847,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
         }
     };
 
-    // spartanport: a minimized window has no pixels on Windows (0x0); keep the swapchain and skip
+    // ratchetport: a minimized window has no pixels on Windows (0x0); keep the swapchain and skip
     // presenting until the window is restored.
     if (window.GetWidth() == 0 || window.GetHeight() == 0) {
         free_frame();
@@ -877,7 +877,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
     ASSERT_MSG(reset_result == vk::Result::eSuccess,
                "Unexpected error resetting present done fence: {}", vk::to_string(reset_result));
 
-    // spartanport: the game frame is blitted (letterboxed) straight into the swapchain image.
+    // ratchetport: the game frame is blitted (letterboxed) straight into the swapchain image.
     const vk::Image swapchain_image = swapchain.Image();
     auto& scheduler = present_scheduler;
     const auto cmdbuf = scheduler.CommandBuffer();
@@ -938,7 +938,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
         if (VideoCore::ConsumeGameOnlyScreenshotRequests() != 0) {
             CaptureScreenshot(instance, scheduler, cmdbuf, *frame);
         }
-        // spartanport: the settings menu / FPS counter over the frame, at display resolution.
+        // ratchetport: the settings menu / FPS counter over the frame, at display resolution.
         const bool overlay = RatchetOverlay::Visible();
         const std::array post_barriers{
             vk::ImageMemoryBarrier{

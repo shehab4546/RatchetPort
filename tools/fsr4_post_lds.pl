@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 # fsr4_post_lds.pl < post.comp > post_lds.comp
-# spartanport: rewrites a decompiled FSR 4 v07 post pass (spirv-cross GLSL) for RDNA3.
+# ratchetport: rewrites a decompiled FSR 4 v07 post pass (spirv-cross GLSL) for RDNA3.
 #
 # Each invocation computes a 2x2 block of output pixels and stores them into three images
 # (recurrent state, history, output). Stores of every other pixel from three images cost ~4x
@@ -23,19 +23,19 @@ use lib $FindBin::Bin;
 use Fsr4SpirvCrossFixes;
 $src = Fsr4SpirvCrossFixes::signed_unpack($src);
 
-my %slot = (rw_recurrent_0 => ['spartanport_rec', 'vec4'], rw_history_color => ['spartanport_hist', 'vec4'],
-            rw_mlsr_output_color => ['spartanport_out', 'vec4']);
+my %slot = (rw_recurrent_0 => ['ratchetport_rec', 'vec4'], rw_history_color => ['ratchetport_hist', 'vec4'],
+            rw_mlsr_output_color => ['ratchetport_out', 'vec4']);
 for my $image (sort keys %slot) {
     my ($array, $type) = @{$slot{$image}};
-    my $n = ($src =~ s/imageStore\($image, ivec2\((_\d+)\), /$array\[spartanportLocal($1)\] = $type(/g);
+    my $n = ($src =~ s/imageStore\($image, ivec2\((_\d+)\), /$array\[ratchetportLocal($1)\] = $type(/g);
     die "expected one store to $image, found $n\n" unless $n == 1;
 }
 my $decl = <<'GLSL';
-// spartanport: the workgroup's 16x16 output block, stored in contiguous rows after the loop.
-shared vec4 spartanport_rec[256];
-shared vec4 spartanport_hist[256];
-shared vec4 spartanport_out[256];
-uint spartanportLocal(uvec2 p)
+// ratchetport: the workgroup's 16x16 output block, stored in contiguous rows after the loop.
+shared vec4 ratchetport_rec[256];
+shared vec4 ratchetport_hist[256];
+shared vec4 ratchetport_out[256];
+uint ratchetportLocal(uvec2 p)
 {
     uvec2 l = p - gl_WorkGroupID.xy * 16u;
     return l.y * 16u + l.x;
@@ -46,14 +46,14 @@ GLSL
 $src =~ s/^void main\(\)\n/$decl/m or die "no main\n";
 my $flush = <<'GLSL';
     barrier();
-    uvec2 spartanportBase = gl_WorkGroupID.xy * 16u;
-    for (uint spartanportK = 0u; spartanportK < 4u; spartanportK++)
+    uvec2 ratchetportBase = gl_WorkGroupID.xy * 16u;
+    for (uint ratchetportK = 0u; ratchetportK < 4u; ratchetportK++)
     {
-        uint spartanportI = gl_LocalInvocationIndex + 64u * spartanportK;
-        ivec2 spartanportP = ivec2(spartanportBase + uvec2(spartanportI % 16u, spartanportI / 16u));
-        imageStore(rw_recurrent_0, spartanportP, spartanport_rec[spartanportI]);
-        imageStore(rw_history_color, spartanportP, spartanport_hist[spartanportI]);
-        imageStore(rw_mlsr_output_color, spartanportP, spartanport_out[spartanportI]);
+        uint ratchetportI = gl_LocalInvocationIndex + 64u * ratchetportK;
+        ivec2 ratchetportP = ivec2(ratchetportBase + uvec2(ratchetportI % 16u, ratchetportI / 16u));
+        imageStore(rw_recurrent_0, ratchetportP, ratchetport_rec[ratchetportI]);
+        imageStore(rw_history_color, ratchetportP, ratchetport_hist[ratchetportI]);
+        imageStore(rw_mlsr_output_color, ratchetportP, ratchetport_out[ratchetportI]);
     }
 }
 GLSL

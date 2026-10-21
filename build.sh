@@ -20,14 +20,15 @@ MINGW*|MSYS*)
             git -C gpu/third_party/fsr-vulkan apply "$PWD/$patch"
         fi
     done
-    cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSPARTAN_PGO=off \
+    build_dir=${RATCHET_BUILD_DIR:-out/ratchet-clean}
+    cmake -S gpu -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DRATCHET_PGO=off \
         -DRATCHET_LTO="${RATCHET_LTO:-OFF}" -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ >/dev/null
     echo "GPU library and loader: LTO ${RATCHET_LTO:-OFF}"
-    if ! ninja -C out/gpu ratchet-probe ratchet-gpu-capabilities ratchet-play > out/gpu-build.log 2>&1; then
+    if ! ninja -C "$build_dir" ratchet-probe ratchet-gpu-capabilities ratchet-play > out/gpu-build.log 2>&1; then
         grep -v '^\[' out/gpu-build.log | tail -40 >&2
         echo 'Build failed (full log: out/gpu-build.log)' >&2; exit 1
     fi
-    cp out/gpu/ratchet-probe.exe out/gpu/ratchet-gpu-capabilities.exe out/gpu/ratchet-play.exe out/
+    cp "$build_dir"/ratchet-probe.exe "$build_dir"/ratchet-gpu-capabilities.exe "$build_dir"/ratchet-play.exe out/
     echo "Built $PWD/out/ratchet-probe.exe"
     exit 0
     ;;
@@ -69,8 +70,8 @@ for patch in gpu/patches/fsr-vulkan/*.patch; do
         git -C gpu/third_party/fsr-vulkan apply "$PWD/$patch"
     fi
 done
-cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSPARTAN_PGO="$pgo" \
-    -DRATCHET_LTO="${RATCHET_LTO:-ON}" -DSPARTAN_PGO_DIR="$PWD/pgo" >/dev/null
+cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DRATCHET_PGO="$pgo" \
+    -DRATCHET_LTO="${RATCHET_LTO:-ON}" -DRATCHET_PGO_DIR="$PWD/pgo" >/dev/null
 echo "GPU library: PGO $pgo, LTO ${RATCHET_LTO:-ON}"
 # A failed GPU build must stop here: an older libratchetgpu.so would otherwise be used silently.
 if ! ninja -C out/gpu ratchetgpu > out/gpu-build.log 2>&1; then

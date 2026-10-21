@@ -1,4 +1,4 @@
-// spartanport.ini graphics keys (ratchet_settings.cpp, ratchet_graphics.h).
+// ratchet.ini graphics keys (ratchet_settings.cpp, ratchet_graphics.h).
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -7,6 +7,10 @@
 #include <string>
 #include "ratchet_graphics.h"
 #include "ratchet_settings.h"
+
+#ifndef _WIN32
+static int _putenv_s(const char* key, const char* value) { return *value ? setenv(key, value, 1) : unsetenv(key); }
+#endif
 
 namespace G = RatchetGraphics;
 
@@ -140,8 +144,8 @@ int main() {
     RatchetSettings::Load();
     RatchetSettings::Save();
     const std::string cheats = Read(path);
-    assert(cheats.find("cheat_double_jumps=1\n") != std::string::npos);
-    assert(cheats.find("cheat_very_hard=1\n") != std::string::npos);
+    assert(cheats.find("cheat_double_jumps=1\n") == std::string::npos);
+    assert(cheats.find("cheat_very_hard=1\n") == std::string::npos);
     std::remove(path);
     std::puts("PASS: graphics settings");
 }

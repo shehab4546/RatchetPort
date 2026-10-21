@@ -24,10 +24,32 @@ perf.data
 /docs/route_run.log
 mods.json
 patches.json
-!launcher/spartanport.png
+!launcher/ratchetport.png
 !scripts/controller_diagrams/xbox.png
 !scripts/controller_diagrams/nintendo.png
 !launcher/logo.png
 !packaging/icon/monogram.png
 /.vscode
 
+
+# Local migration evidence, game dumps and developer output (never remove these).
+/Ratchet_*.zip
+/Ratchet_*.log
+/Ratchet_*.txt
+/migration_backups/
+/ratchet_analysis/
+/ratchet_diag*/
+/ratchet_gc*/
+/ratchet_opt*/
+/ratchet_res*/
+/ratchet_tex*/
+*.pre_ratchet*
+*.pre_netctl*
+*.pre_term*
+*.v3.bak
+/src/import_names.inc.bak
+/OK
+/README.txt
+/apply_res03.py
+/revert_res03.py
+/diagnostics/

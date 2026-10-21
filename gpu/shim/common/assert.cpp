@@ -1,4 +1,4 @@
-// spartanport: GPU-side assertion failures stop the port with exit code 23.
+// ratchetport: GPU-side assertion failures stop the port with exit code 23.
 #include <cstdio>
 #include <cstdlib>
 #include <stdexcept>

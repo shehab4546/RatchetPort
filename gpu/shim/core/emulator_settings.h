@@ -1,4 +1,4 @@
-// spartanport: shadPS4 settings used by the video core, read once from SPARTAN_* environment
+// ratchetport: shadPS4 settings used by the video core, read once from RATCHET_* environment
 // variables (defaults match shadPS4 except the pipeline cache, which is on).
 #pragma once
 #include <algorithm>
@@ -6,7 +6,7 @@
 #include <string>
 #include "common/types.h"
 
-u32 SpartanDisplayRefreshHz(); // ratchetgpu.cpp: primary display refresh rate, 60 when unknown
+u32 RatchetDisplayRefreshHz(); // ratchetgpu.cpp: primary display refresh rate, 60 when unknown
 
 enum GpuReadbacksMode : int { Disabled, Relaxed, Precise };
 
@@ -25,10 +25,10 @@ public:
     u32 GetInternalScreenWidth() { static const auto value = u32(Number("RATCHET_INTERNAL_WIDTH", 1920)); return value; }
     u32 GetInternalScreenHeight() { static const auto value = u32(Number("RATCHET_INTERNAL_HEIGHT", 1080)); return value; }
     std::string GetPresentMode() { const char* v = std::getenv("RATCHET_PRESENT_MODE"); return v ? v : "Mailbox"; }
-    // spartanport: Relaxed by default: without readbacks FaceGen reads stale GPU-written vertices
+    // ratchetport: Relaxed by default: without readbacks FaceGen reads stale GPU-written vertices
     // (vertex explosions); in the test scene it costs no measurable frame rate.
     u32 GetReadbacksMode() { static const auto value = u32(Number("RATCHET_READBACKS", GpuReadbacksMode::Relaxed)); return value; }
-    // spartanport: RATCHET_VBLANK_HZ=0 (uncapped presets): vblank runs at 480 Hz so a finished frame is
+    // ratchetport: RATCHET_VBLANK_HZ=0 (uncapped presets): vblank runs at 480 Hz so a finished frame is
     // shown within ~2 ms instead of waiting for the next display-rate vblank (below the display
     // rate frames alternated 10/20 ms at 100 Hz: judder), and GetFrameLimit() caps the rate at
     // the display refresh, at most 120 (above ~120 FPS movement timing breaks: running slows).
@@ -45,7 +45,7 @@ public:
         static const u32 value = [] {
             const long limit = Number("RATCHET_FPS_LIMIT", -1);
             if (limit >= 0) return u32(limit);
-            return Number("RATCHET_VBLANK_HZ", 60) > 0 ? 0u : std::min<u32>(SpartanDisplayRefreshHz(), 120);
+            return Number("RATCHET_VBLANK_HZ", 60) > 0 ? 0u : std::min<u32>(RatchetDisplayRefreshHz(), 120);
         }();
         return value;
     }

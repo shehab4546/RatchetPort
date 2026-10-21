@@ -9,7 +9,7 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
-namespace SpartanPng {
+namespace RatchetPng {
 
 namespace {
 constexpr int kMaxSide = 4096; // save icons are 228x128; anything far larger is not one
@@ -73,4 +73,4 @@ bool LoadRgba(const char* path, Image& out) {
     return DecodeRgba(bytes.data(), bytes.size(), out);
 }
 
-} // namespace SpartanPng
+} // namespace RatchetPng

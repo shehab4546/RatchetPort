@@ -1,4 +1,4 @@
-// spartanport: SDL3 window for the Vulkan swapchain (X11 or Wayland).
+// ratchetport: SDL3 window for the Vulkan swapchain (X11 or Wayland).
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -13,14 +13,14 @@
 
 namespace Frontend {
 
-// spartanport: set by the pause key (any thread), cleared by it or a click in the window.
+// ratchetport: set by the pause key (any thread), cleared by it or a click in the window.
 static std::atomic<bool> mouse_paused{false};
 
 void ToggleMousePause() {
     mouse_paused.store(!mouse_paused.load(std::memory_order_relaxed), std::memory_order_relaxed);
 }
 
-// spartanport: a window opens at the render resolution chosen in the launcher (or the in-game menu); one too
+// ratchetport: a window opens at the render resolution chosen in the launcher (or the in-game menu); one too
 // large for the screen's usable area (with room for the title bar) opens maximized, restoring to that
 // size shrunk to fit. The picture is scaled to the window either way. True when shrunk.
 static bool StartSize(s32& width, s32& height) {
@@ -57,7 +57,7 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     window = SDL_CreateWindowWithProperties(props);
     SDL_DestroyProperties(props);
     ASSERT_MSG(window, "Failed to create window: {}", SDL_GetError());
-    // spartanport: the game's own icon (run.py converts sce_sys/icon0.png to BMP, SDL's built-in format).
+    // ratchetport: the game's own icon (run.py converts sce_sys/icon0.png to BMP, SDL's built-in format).
     if (const char* icon_path = std::getenv("RATCHET_WINDOW_ICON")) {
         if (SDL_Surface* icon = SDL_LoadBMP(icon_path)) {
             SDL_SetWindowIcon(window, icon);
@@ -84,7 +84,7 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     } else {
         UNREACHABLE_MSG("Unsupported SDL video driver {}", driver ? driver : "(none)");
     }
-    // spartanport: RATCHET_FULLSCREEN=1 (older launchers) still asks for fullscreen.
+    // ratchetport: RATCHET_FULLSCREEN=1 (older launchers) still asks for fullscreen.
     if (const char* fullscreen = std::getenv("RATCHET_FULLSCREEN"); fullscreen && fullscreen[0] == '1' &&
         RatchetSettings::Get().display_mode == RatchetGraphics::Windowed) {
         RatchetSettings::Get().display_mode = RatchetGraphics::Borderless;
@@ -92,7 +92,7 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     ApplyDisplayMode(RatchetSettings::Get().display_mode);
     ApplyOutputResolution(true);
 
-    // spartanport: the game has no mouse; the in-game menu draws its own cursor (RatchetOverlay::SetOpen).
+    // ratchetport: the game has no mouse; the in-game menu draws its own cursor (RatchetOverlay::SetOpen).
     SDL_HideCursor();
     int w = 0, h = 0;
     SDL_GetWindowSizeInPixels(window, &w, &h);
@@ -257,7 +257,7 @@ bool WindowSDL::PollEvents() {
             break;
         }
     }
-    // spartanport: while the game has the mouse it stays in the window (relative mode: hidden, no edges,
+    // ratchetport: while the game has the mouse it stays in the window (relative mode: hidden, no edges,
     // so a click cannot land on another monitor); the menu, the save list, a text dialog,
     // another window or the game's pause menu (the pause key) get it back. Taken back, it starts
     // at the window's centre; let go by the pause key, the system cursor shows.

@@ -138,7 +138,7 @@ void ObjectMotion::OnFrameStart() {
 }
 
 u32 ObjectMotion::PrepareDraw(const DrawInfo& draw) {
-    if (!enabled || SpartanToggle::Disabled(1u << 29) || params_used >= ParamsPerFrame) {
+    if (!enabled || RatchetToggle::Disabled(1u << 29) || params_used >= ParamsPerFrame) {
         return 0;
     }
     const auto allocation = history.Prepare(draw);

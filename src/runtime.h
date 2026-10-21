@@ -4,10 +4,10 @@
 #include <stddef.h>
 #ifdef _WIN32
 #include "compat_win.h"
-/* No signals on Windows: the exception handler resumes the thread in spartanport_longjmp
+/* No signals on Windows: the exception handler resumes the thread in ratchetport_longjmp
  * (gpu/shim/ratchet_toggles.h uses the same buffer type). */
-typedef spartanport_jmp_buf sigjmp_buf;
-#define sigsetjmp(buffer, save) spartanport_setjmp(buffer)
+typedef ratchetport_jmp_buf sigjmp_buf;
+#define sigsetjmp(buffer, save) ratchetport_setjmp(buffer)
 #else
 #include <setjmp.h>
 #endif

@@ -1,4 +1,4 @@
-// spartanport: replaces shadPS4's spdlog-based logger with a small fmt sink.
+// ratchetport: replaces shadPS4's spdlog-based logger with a small fmt sink.
 // Level from RATCHET_GPU_LOG (trace|debug|info|warning|error; default warning).
 #pragma once
 #include <algorithm>

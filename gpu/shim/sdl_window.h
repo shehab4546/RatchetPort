@@ -1,4 +1,4 @@
-// spartanport: the game window. Created by the VideoOut driver on first open; the
+// ratchetport: the game window. Created by the VideoOut driver on first open; the
 // event pump runs on the port's window thread (see window.cpp).
 #pragma once
 #include <atomic>

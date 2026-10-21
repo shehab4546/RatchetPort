@@ -1,4 +1,4 @@
-# spartanport GPU library: shadPS4 video core + shader recompiler + Gnm/VideoOut
+# ratchetport GPU library: shadPS4 video core + shader recompiler + Gnm/VideoOut
 # drivers, adapted to the native_probe runtime through shims in shim/.
 cmake_minimum_required(VERSION 3.24)
 project(ratchetgpu LANGUAGES C CXX)
@@ -11,7 +11,7 @@ endif()
 # Frame pointers keep the loader's thread dumps (watchdog, SIGUSR2 sampling) walkable.
 add_compile_options(-fno-omit-frame-pointer)
 
-# spartanport: link-time optimization (RATCHET_LTO, default on) and profile-guided optimization
+# ratchetport: link-time optimization (RATCHET_LTO, default on) and profile-guided optimization
 # (RATCHET_PGO: off, generate = instrumented build writing into RATCHET_PGO_DIR, use = build with that
 # profile). Covers ratchetgpu and the static libraries linked into it. No -march: the same build
 # runs on the Steam Deck.
@@ -20,11 +20,11 @@ set(RATCHET_PGO "off" CACHE STRING "Profile-guided optimization: off, generate, 
 set(RATCHET_PGO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../pgo" CACHE PATH "Profile directory")
 if (RATCHET_LTO)
     include(CheckIPOSupported)
-    check_ipo_supported(RESULT spartanport_ipo_ok OUTPUT spartanport_ipo_error)
-    if (spartanport_ipo_ok)
+    check_ipo_supported(RESULT ratchetport_ipo_ok OUTPUT ratchetport_ipo_error)
+    if (ratchetport_ipo_ok)
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
     else()
-        message(WARNING "LTO unavailable: ${spartanport_ipo_error}")
+        message(WARNING "LTO unavailable: ${ratchetport_ipo_error}")
     endif()
 endif()
 if (RATCHET_PGO STREQUAL "generate")
@@ -43,7 +43,7 @@ endif()
 find_package(Vulkan REQUIRED)
 find_package(fmt REQUIRED)
 find_package(Boost REQUIRED)
-# spartanport (Windows): MSYS2 has no magic_enum/miniz packages; the submodules are used instead.
+# ratchetport (Windows): MSYS2 has no magic_enum/miniz packages; the submodules are used instead.
 find_package(magic_enum QUIET)
 if (NOT magic_enum_FOUND)
     add_library(magic_enum INTERFACE)
@@ -83,7 +83,7 @@ find_program(GLSLANG_COMPILER NAMES glslang glslangValidator REQUIRED)
 set(SIRIT_USE_SYSTEM_SPIRV_HEADERS OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/sirit EXCLUDE_FROM_ALL)
 
-# spartanport: FSR 3.1 temporal upscaling / frame generation, native Vulkan (MIT, FireBurn/FSR-Vulkan).
+# ratchetport: FSR 3.1 temporal upscaling / frame generation, native Vulkan (MIT, FireBurn/FSR-Vulkan).
 set(FFX_VK_PORTABLE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(FFX_VK_PORTABLE_BUILD_PROBE OFF CACHE BOOL "" FORCE)
 add_subdirectory(third_party/fsr-vulkan EXCLUDE_FROM_ALL)
@@ -212,7 +212,7 @@ else()
     target_link_libraries(ratchetgpu PUBLIC PkgConfig::X11)
 endif()
 
-# spartanport (Windows): ratchetgpu is a static library there, so the loader and the HLE runtime are
+# ratchetport (Windows): ratchetgpu is a static library there, so the loader and the HLE runtime are
 # linked here, where CMake knows its dependencies (build.sh builds them with ninja).
 if (WIN32)
     enable_language(RC)
@@ -235,7 +235,7 @@ if (WIN32)
     set_target_properties(crash-unwind-test PROPERTIES C_STANDARD 11 C_EXTENSIONS OFF)
     target_include_directories(crash-unwind-test PRIVATE ../src)
     target_compile_options(crash-unwind-test PRIVATE -Wall -Wextra -Werror)
-    # spartanport: runtime unit tests (ninja -C out/gpu mp3-test videodec-test services-test).
+    # ratchetport: runtime unit tests (ninja -C out/gpu mp3-test videodec-test services-test).
     add_executable(mp3-test EXCLUDE_FROM_ALL ../tests/test_mp3.c ../src/runtime_mp3.c ../src/compat_win.c)
     add_executable(videodec-test EXCLUDE_FROM_ALL ../tests/test_videodec.c ../src/compat_win.c)
     add_executable(services-test EXCLUDE_FROM_ALL ../tests/test_services.c ../src/compat_win.c)
@@ -278,11 +278,11 @@ if (WIN32)
     target_compile_options(tsc-clock-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
     target_include_directories(tsc-clock-test PRIVATE .. ../src)
     target_link_libraries(tsc-clock-test PRIVATE bcrypt -pthread)
-    add_executable(ratchet-gpu-capabilities ../tools/gpu_capabilities.c ../packaging/windows/ratchet-gpu-capabilities.rc)
+    add_executable(ratchet-gpu-capabilities ../tools/gpu_capabilities.c)
     target_include_directories(ratchet-gpu-capabilities PRIVATE shadps4)
     target_link_libraries(ratchet-gpu-capabilities PRIVATE Vulkan::Vulkan)
-    # "Play SpartanPort.exe": the game with the launcher's saved settings, no launcher window.
-    add_executable(ratchet-play WIN32 ../packaging/windows/play.c ../packaging/windows/play.rc)
+    # "Play RatchetPort.exe": the game with the launcher's saved settings, no launcher window.
+    add_executable(ratchet-play WIN32 ../packaging/windows/play.c)
     target_compile_options(ratchet-play PRIVATE -municode)
     target_link_options(ratchet-play PRIVATE -municode)
 endif()
@@ -296,7 +296,7 @@ target_link_libraries(pipeline-binary-cache-test PRIVATE ratchetgpu)
 target_compile_options(pipeline-binary-cache-test PRIVATE -fPIC)
 if (WIN32)
     target_sources(pipeline-binary-cache-test PRIVATE ../src/compat_win.c)
-    target_compile_definitions(pipeline-binary-cache-test PRIVATE sigjmp_buf=spartanport_jmp_buf)
+    target_compile_definitions(pipeline-binary-cache-test PRIVATE sigjmp_buf=ratchetport_jmp_buf)
     target_compile_options(pipeline-binary-cache-test PRIVATE
         -include ${CMAKE_CURRENT_SOURCE_DIR}/../src/compat_win.h)
     target_link_libraries(pipeline-binary-cache-test PRIVATE onecore)
@@ -309,7 +309,7 @@ target_link_libraries(pipeline-binary-initialization-test PRIVATE ratchetgpu)
 target_compile_options(pipeline-binary-initialization-test PRIVATE -fPIC)
 if (WIN32)
     target_sources(pipeline-binary-initialization-test PRIVATE ../src/compat_win.c)
-    target_compile_definitions(pipeline-binary-initialization-test PRIVATE sigjmp_buf=spartanport_jmp_buf)
+    target_compile_definitions(pipeline-binary-initialization-test PRIVATE sigjmp_buf=ratchetport_jmp_buf)
     target_compile_options(pipeline-binary-initialization-test PRIVATE
         -include ${CMAKE_CURRENT_SOURCE_DIR}/../src/compat_win.h)
     target_link_libraries(pipeline-binary-initialization-test PRIVATE onecore)
@@ -406,7 +406,7 @@ target_compile_options(camera-motion-test PRIVATE -UNDEBUG -fPIC)
 target_link_libraries(camera-motion-test PRIVATE ratchetgpu)
 add_dependencies(camera-motion-test host_shaders)
 
-# spartanport: FSR 4 benchmark outside the game (tools/fsr4_bench.cpp): ninja -C out/gpu fsr4-bench.
+# ratchetport: FSR 4 benchmark outside the game (tools/fsr4_bench.cpp): ninja -C out/gpu fsr4-bench.
 add_executable(upscaler-support-test EXCLUDE_FROM_ALL ../tests/test_upscaler_support.cpp
     shim/ratchet_settings.cpp)
 target_include_directories(upscaler-support-test PRIVATE shim)
@@ -439,3 +439,20 @@ add_executable(fsr4-bench EXCLUDE_FROM_ALL tools/fsr4_bench.cpp
     shadps4/video_core/renderer_vulkan/fsr411/fsr411.cpp)
 target_include_directories(fsr4-bench PRIVATE shadps4/video_core/renderer_vulkan/fsr411)
 target_link_libraries(fsr4-bench PRIVATE ffx-vulkan::fsr4-v07-vulkan ffx-vulkan::fsr4-v07-assets Vulkan::Vulkan)
+
+# All renderer integration tests need the same Windows host services as the loader.
+if(WIN32)
+    foreach(test motion-shader-test scene-resolution-test taa-shader-test camera-motion-test)
+        target_sources(${test} PRIVATE ../src/compat_win.c)
+        target_compile_definitions(${test} PRIVATE sigjmp_buf=ratchetport_jmp_buf)
+        target_compile_options(${test} PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/../src/compat_win.h)
+        target_link_libraries(${test} PRIVATE onecore)
+    endforeach()
+endif()
+# Release-mode tests must still evaluate assertions.
+get_property(ratchet_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(test IN LISTS ratchet_targets)
+    if(test MATCHES "-test$")
+        target_compile_options(${test} PRIVATE -UNDEBUG)
+    endif()
+endforeach()

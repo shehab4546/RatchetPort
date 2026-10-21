@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: two-stage draw pipeline (docs/parallel_gpu.md, "Two-stage draw pipeline").
+// ratchetport: two-stage draw pipeline (docs/parallel_gpu.md, "Two-stage draw pipeline").
 //
 // The GPU command thread (stage A) decodes PM4, keeps the register file and selects pipelines;
 // for a direct draw it writes a packet (the register blocks changed since the previous packet,
@@ -157,7 +157,7 @@ private:
     }
 
     void Run(std::stop_token stop) {
-        Common::SetCurrentThreadName("spartanport:DrawRec");
+        Common::SetCurrentThreadName("ratchetport:DrawRec");
         on_stage_b = true;
         stage_b_tid.store(static_cast<u32>(gettid()), std::memory_order_release);
         u64 at = 0;
@@ -172,7 +172,7 @@ private:
                     if (const char* env = std::getenv("RATCHET_PIPE_SPIN_US")) {
                         return std::max(0, std::atoi(env));
                     }
-                    return SpartanThreads::Available() >= 12 ? 200 : 50;
+                    return RatchetThreads::Available() >= 12 ? 200 : 50;
                 }());
                 const auto spin_until = std::chrono::steady_clock::now() + spin_time;
                 for (u32 spins = 1; available == at; ++spins) {

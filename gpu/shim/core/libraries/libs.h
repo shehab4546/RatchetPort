@@ -1,4 +1,4 @@
-// spartanport: shadPS4 registers HLE functions with LIB_FUNCTION(nid, library,
+// ratchetport: shadPS4 registers HLE functions with LIB_FUNCTION(nid, library,
 // version, module, fn). Here the registrations fill a table that the C
 // loader queries by NID (see ratchetgpu.cpp: ratchetgpu_resolve).
 #pragma once

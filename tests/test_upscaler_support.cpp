@@ -5,11 +5,17 @@
 #include <cstdlib>
 #include <initializer_list>
 #include <unistd.h>
+#include <filesystem>
+#ifdef _WIN32
+static int setenv(const char* key, const char* value, int) { return _putenv_s(key, value); }
+static int unsetenv(const char* key) { return _putenv_s(key, ""); }
+#endif
 #include "ratchet_settings.h"
 
 int main() {
     using namespace RatchetSettings;
-    char path[] = "/tmp/spartanport-upscaler-test-XXXXXX";
+    auto temporary = (std::filesystem::temp_directory_path() / "ratchetport-upscaler-test-XXXXXX").string();
+    char* path = temporary.data();
     const int fd = mkstemp(path);
     assert(fd >= 0);
     close(fd);
@@ -46,7 +52,7 @@ int main() {
                 assert(s.fsr4_supported == fsr4);
                 assert(s.fsr411_supported == (fsr4 && fsr411));
                 assert(bool(s.fsr4_problem.load()) == unsupported);
-                assert(s.preset == Performance && s.output_res == 2);
+                assert(s.preset == Performance && OutputWidths[s.output_res] == 2560 && OutputHeights[s.output_res] == 1440);
                 // Startup patch settings still describe the already applied guest patches.
                 assert(s.startup_upscaler == requested);
                 ConfigureUpscalerSupport(fsr4, fsr411);

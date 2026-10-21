@@ -71,7 +71,7 @@ bool CollectExtensions(const VkExtensionProperties* required, u32 count,
 
 struct Dlss::Impl {
     HMODULE module{};
-    const SpartanDlssApi* api{};
+    const RatchetDlssApi* api{};
     std::vector<std::string> instance_extensions, device_extensions;
     std::optional<FeatureDesc> feature;
     std::string problem;
@@ -111,7 +111,7 @@ Dlss::Dlss() : impl{std::make_unique<Impl>()} {
     const auto directory = ExecutableDirectory();
     impl->module = LoadLibraryW((directory / BridgeName).c_str());
     const auto get_api =
-        impl->module ? reinterpret_cast<SpartanDlssGetApiFn>(GetProcAddress(impl->module, "SpartanDlssGetApi"))
+        impl->module ? reinterpret_cast<RatchetDlssGetApiFn>(GetProcAddress(impl->module, "RatchetDlssGetApi"))
                      : nullptr;
     impl->api = get_api ? get_api() : nullptr;
     if (!impl->api || impl->api->abi != RATCHET_DLSS_BRIDGE_ABI) {
@@ -204,7 +204,7 @@ bool Dlss::CreateFeature(vk::CommandBuffer command, const FeatureDesc& desc) {
         return false;
     }
     impl->feature.reset();
-    const SpartanDlssFeature feature{desc.input_width,  desc.input_height, desc.output_width,
+    const RatchetDlssFeature feature{desc.input_width,  desc.input_height, desc.output_width,
                                 desc.output_height, desc.quality,      0,
                                 0,                  desc.hdr ? 1 : 0};
     if (!impl->api->CreateFeature(command, &feature)) {
@@ -220,14 +220,14 @@ bool Dlss::Evaluate(vk::CommandBuffer command, const Frame& frame) {
     }
     const auto image = [](const Resource& r) {
         const vk::ImageSubresourceRange range{r.aspect, 0, 1, 0, 1};
-        return SpartanDlssImage{r.image,
+        return RatchetDlssImage{r.image,
                            r.view,
                            static_cast<VkImageSubresourceRange>(range),
                            static_cast<VkFormat>(r.format),
                            r.width,
                            r.height};
     };
-    const SpartanDlssEvaluate parameters{image(frame.color),  image(frame.depth), image(frame.motion),
+    const RatchetDlssEvaluate parameters{image(frame.color),  image(frame.depth), image(frame.motion),
                                     image(frame.output), frame.jitter_x,     frame.jitter_y,
                                     frame.reset ? 1 : 0, frame.frame_ms,     frame.sharpness};
     return impl->api->Evaluate(command, &parameters) != 0;

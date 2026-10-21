@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: user settings changed at run time from the in-game menu (ratchet_overlay.h) and kept
+// ratchetport: user settings changed at run time from the in-game menu (ratchet_overlay.h) and kept
 // in ratchet.ini (RATCHET_CONFIG overrides the path). Environment variables override the file at
 // start. Readers load the atomics every frame; writers are the menu and Load().
 
@@ -24,10 +24,10 @@ enum DebugView : int { DebugNone = 0, DebugReactive = 1, DebugMotion = 2, DebugV
 inline constexpr int OutputWidths[] = {960, 1280, 1600, 1920, 2560, 3840};
 inline constexpr int OutputHeights[] = {540, 720, 900, 1080, 1440, 2160};
 inline constexpr int OutputCount = 6;
-inline constexpr int OutputDefault = 3; ///< 1920x1080, the game's own size
+inline constexpr int OutputDefault = 1; ///< 1280x720, conservative host output
 
 struct Values {
-    std::atomic<int> upscaler{UpscalerFsr3};
+    std::atomic<int> upscaler{UpscalerOff};
     std::atomic<int> preset{NativeAA};
     std::atomic<bool> sharpen{true};
     std::atomic<float> sharpness{0.3f};
@@ -48,7 +48,7 @@ struct Values {
     // Graphics (ratchet_graphics.h). Live: applied on the next frame.
     std::atomic<int> display_mode{0};
     std::atomic<bool> vsync{true};
-    std::atomic<int> fps_limit{0};
+    std::atomic<int> fps_limit{30};
     std::atomic<bool> async_shaders{true};
     std::atomic<bool> fsr1{false};
     std::atomic<bool> rcas{true};
@@ -69,7 +69,7 @@ struct Values {
     std::atomic<int> mouse_aim_sensitivity{100};
     // Startup: run.py turns them into patches and environment variables; "Apply and restart".
     std::atomic<int> render_resolution{0};
-    std::atomic<int> engine_fps{120};
+    std::atomic<int> engine_fps{60};
     std::atomic<bool> deferred_readback{true};
     std::atomic<bool> stale_readback{true};
     /// RatchetGraphics::Anisotropies; the samplers read startup_anisotropy.
@@ -81,7 +81,7 @@ struct Values {
     int startup_render_resolution = 0;
     /// The engine rate this launch really runs at (run.py's RATCHET_ENGINE_FPS): 60 when the frame
     /// rate patch does not apply to this game build.
-    std::atomic<int> applied_engine_fps{120};
+    std::atomic<int> applied_engine_fps{60};
     /// The game's maximum frame rate, read every frame (src/probe.c finds it): as a float and
     /// rounded. Null when this eboot.bin's code does not match. engine_fps is written there live.
     std::atomic<float*> engine_fps_global{nullptr};

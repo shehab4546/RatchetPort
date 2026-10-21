@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 IFreemz, spartanport contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// spartanport: NVIDIA DLSS Super Resolution through the optional ratchet_dlss.dll bridge (gpu/
+// ratchetport: NVIDIA DLSS Super Resolution through the optional ratchet_dlss.dll bridge (gpu/
 // dlss_bridge, MIT), loaded at run time from next to ratchet-probe.exe together with NVIDIA's
 // nvngx_dlss.dll. The port itself contains no NVIDIA code; without the DLLs, on other GPUs or
 // with RATCHET_DLSS=0 nothing changes. Adapted from IFreemz/shadPS4-Bloodborne-DLSS-FSR

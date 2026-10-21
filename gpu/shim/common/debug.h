@@ -1,4 +1,4 @@
-// spartanport: shadPS4 debug/profiler helpers without Tracy.
+// ratchetport: shadPS4 debug/profiler helpers without Tracy.
 #pragma once
 #include <tracy/Tracy.hpp>
 #define BREAKPOINT __builtin_trap

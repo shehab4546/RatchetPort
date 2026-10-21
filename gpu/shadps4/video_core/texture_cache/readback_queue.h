@@ -41,7 +41,7 @@ public:
             }
         }
     }
-    /// spartanport: a CPU access to [address, address + size) that shares pages with small copies but
+    /// ratchetport: a CPU access to [address, address + size) that shares pages with small copies but
     /// not their bytes stops waiting for them: each such copy is unwatched (`release` drops its
     /// page protection) and still published when the GPU is done. Returns the copies released.
     template <typename Release>

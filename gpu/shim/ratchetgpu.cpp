@@ -1,5 +1,5 @@
 #include "ratchet_write_log.h"
-// spartanport: glue between the C loader and the vendored shadPS4 video core.
+// ratchetport: glue between the C loader and the vendored shadPS4 video core.
 #include "ratchet_overlay.h"
 #include "ratchet_png.h"
 #include "ratchet_settings.h"
@@ -122,7 +122,7 @@ static void CopySparseSerial(VAddr source, u8* dest, u64 size) {
     }
 }
 void MemoryManager::CopySparseMemory(VAddr source, u8* dest, u64 size) {
-    // spartanport: large uploads (streaming) are split across the copy threads.
+    // ratchetport: large uploads (streaming) are split across the copy threads.
     constexpr u64 Chunk = 512 * 1024;
     if (size < 4 * Chunk || !RatchetCopy::Enabled()) {
         return CopySparseSerial(source, dest, size);
@@ -189,7 +189,7 @@ std::condition_variable g_window_cv;
 bool g_window_ready;
 } // namespace
 
-u32 SpartanDisplayRefreshHz() {
+u32 RatchetDisplayRefreshHz() {
     static const u32 hz = [] {
         const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetPrimaryDisplay());
         const u32 rate = mode && mode->refresh_rate > 0 ? u32(mode->refresh_rate + 0.5f) : 60;
@@ -207,7 +207,7 @@ extern "C" void __gcov_reset(void);
 // intervals.
 static void StartProfileWriter() {
     std::thread([] {
-        Common::SetCurrentThreadName("spartanport:pgo");
+        Common::SetCurrentThreadName("ratchetport:pgo");
         for (;;) {
             std::this_thread::sleep_for(std::chrono::seconds(30));
             __gcov_dump();
@@ -231,10 +231,10 @@ extern "C" int ratchetgpu_init(const RatchetGpuConfig* config) {
 #endif
     Core::Emulator::FillElfInfo(*config);
     // The window carries the project name; the dump's own title stays in ElfInfo (above).
-    const std::string title = "SpartanPort";
+    const std::string title = "RatchetPort";
     const s32 width = config->width, height = config->height;
     g_window_thread = std::thread([title, width, height] {
-        Common::SetCurrentThreadName("spartanport:window");
+        Common::SetCurrentThreadName("ratchetport:window");
         auto* window = new Frontend::WindowSDL(width, height, title.c_str());
         {
             std::scoped_lock lock{g_window_mutex};
@@ -308,7 +308,7 @@ void KernelSignalRequest() {
 }
 
 static void KernelServiceThread(std::stop_token stoken) {
-    Common::SetCurrentThreadName("spartanport:kernel_service");
+    Common::SetCurrentThreadName("ratchetport:kernel_service");
     while (!stoken.stop_requested()) {
         {
             std::unique_lock lock{m_asio_req};
@@ -385,7 +385,7 @@ extern "C" void ratchetgpu_engine_fps_cycle(void) {
 }
 
 // src/probe.c: the game's maximum frame rate globals (RatchetSettings::SyncEngineFps writes them).
-extern "C" void spartanport_engine_fps_globals(uintptr_t fps, uintptr_t rounded) {
+extern "C" void ratchetport_engine_fps_globals(uintptr_t fps, uintptr_t rounded) {
     auto& s = RatchetSettings::Get();
     s.engine_fps_int_global = reinterpret_cast<int32_t*>(rounded);
     s.engine_fps_global = reinterpret_cast<float*>(fps);
@@ -401,9 +401,9 @@ extern "C" int ratchetgpu_choice_begin(const char* title, const char* const* ite
                                     int count, int focus) {
     if (!g_window || count <= 0) return 0;
     // Pictures are decoded here, on the game's thread, before the list is shown.
-    std::vector<SpartanPng::Image> pictures(count);
+    std::vector<RatchetPng::Image> pictures(count);
     for (int i = 0; images && i < count; ++i) {
-        if (images[i] && !SpartanPng::LoadRgba(images[i], pictures[i])) {
+        if (images[i] && !RatchetPng::LoadRgba(images[i], pictures[i])) {
             LOG_WARNING(Lib_SaveDataDialog, "save list: no picture from {}", images[i]);
         }
     }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// spartanport: histogram of the subgroup widths the driver compiled pipeline stages at, from
+// ratchetport: histogram of the subgroup widths the driver compiled pipeline stages at, from
 // VK_KHR_pipeline_executable_properties (RATCHET_WAVE_STATS=1; Pipeline::RecordWaveSizes in
 // vk_pipeline_common.cpp). The PS4 shaders assume 64 lanes; a fragment stage compiled at 32
 // covers 8x4 pixels per wave.
