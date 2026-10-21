@@ -18,7 +18,7 @@ RATCHET_BUILD_DIR=out/ratchet-clean bash build.sh
 Before making a public Windows package, build its isolated LGPL FFmpeg dependency:
 
 ```bash
-pacman -S --needed make nasm
+pacman -S --needed make nasm diffutils
 bash packaging/windows/build-ffmpeg.sh
 ```
 
