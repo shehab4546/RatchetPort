@@ -8,6 +8,7 @@ int ratchetgpu_text_input_begin(const char *text, const char *prompt) { (void)te
 int ratchetgpu_text_input_poll(char *text, uint64_t size) { (void)text; (void)size; return 0; }
 int64_t runtime_file_open(const char *path, int flags, int mode) { (void)path; (void)flags; (void)mode; return -1; }
 int64_t runtime_file_read(int fd, void *buffer, uint64_t size) { (void)fd; (void)buffer; (void)size; return -1; }
+int64_t runtime_file_lseek(int fd, int64_t offset, int whence) { (void)fd; (void)offset; (void)whence; return -1; }
 int64_t runtime_file_close(int fd) { (void)fd; return 0; }
 static int choice_next=-1;
 int ratchetgpu_choice_begin(const char *title, const char *const *items, const char *const *images, int count, int focus) { (void)title; (void)items; (void)images; (void)focus; return count>0; }
@@ -67,14 +68,13 @@ int main(void) {
     memcpy(&value,out+4,4); assert(value==SAVE_RESULT_CANCELED);
     assert(save_term()==0);
 
-    /* PlayGo: installed, full speed, progress never divides by zero. */
-    int32_t handle=0; uint64_t progress[2]; int32_t speed; uint16_t chunk=0;
-    assert(playgo_init(NULL)==0 && playgo_open(&handle,NULL)==0);
-    assert(playgo_get_speed(handle,&speed)==0 && speed==2);
-    assert(playgo_progress(handle,&chunk,1,progress)==0 && progress[0]==progress[1] && progress[1]);
-    assert(playgo_progress(handle,&chunk,0,progress)==PLAYGO_BAD_SIZE);
-    assert(playgo_todo(handle,&chunk,1)==0 && playgo_todo(handle,NULL,1)==PLAYGO_BAD_POINTER);
-    assert(playgo_close(handle)==0 && playgo_close(handle)==PLAYGO_BAD_HANDLE && playgo_terminate()==0);
+    /* No metadata is provided by this fixture: never invent one installed chunk.
+     * Full PlayGo contracts use test_playgo.c and the real resolver/file layer. */
+    char workspace;
+    PlayGoInit init={&workspace,0x200000,0};
+    uint32_t handle=99;
+    assert(playgo_init(&init)==PLAYGO_NOT_SUPPORTED);
+    assert(playgo_open(&handle,NULL)==PLAYGO_NOT_INITIALIZED && handle==99);
 
     /* Trophies: nothing unlocked. */
     uint32_t flags[4]={~0u,~0u,~0u,~0u}, count=7;

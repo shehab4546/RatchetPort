@@ -111,7 +111,7 @@ def main():
     for name in ('run.py', 'LICENSE', 'README.md', 'CREDITS.md'):
         shutil.copy2(ROOT / name, stage / name)
     (stage / 'docs/releases').mkdir(parents=True)
-    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md'):
+    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md', 'releases/V1.1-PlayGo.md'):
         shutil.copy2(ROOT / 'docs' / name, stage / 'docs' / name)
     shutil.copy2(ROOT / 'packaging/windows/README-Windows.txt', stage / 'README-Windows.txt')
     notices = stage / 'licenses'
@@ -137,7 +137,7 @@ def main():
         shutil.copy2(path, notices / f'{path.parent.name}-license.terms')
     source_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     (stage / 'build-info.json').write_text(json.dumps({
-        'release': 'V1 Pre-Alpha', 'source_commit': source_commit,
+        'release': 'V1.1 PlayGo Pre-Alpha', 'source_commit': source_commit,
         'ffmpeg_license': license_name,
         'ffmpeg_source': 'ffmpeg-9.0.2.tar.xz',
         'ffmpeg_source_sha256': '8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e',

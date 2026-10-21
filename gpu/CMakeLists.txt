@@ -145,6 +145,18 @@ target_compile_options(tiling-dispatch-test PRIVATE -UNDEBUG -Wall -Wextra -Werr
     -Wno-missing-field-initializers)
 target_link_libraries(tiling-dispatch-test PRIVATE Vulkan::Vulkan)
 
+# PlayGo integration test: production resolver, services and file layer; no GPU required.
+add_executable(playgo-resolver-test EXCLUDE_FROM_ALL ../tests/test_playgo.c
+    ../tests/playgo_backends.c ../src/runtime.c ../src/runtime_services.c ../src/runtime_file.c)
+set_target_properties(playgo-resolver-test PROPERTIES C_STANDARD 11 C_EXTENSIONS OFF)
+target_compile_options(playgo-resolver-test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(playgo-resolver-test PRIVATE .. ../src)
+target_link_libraries(playgo-resolver-test PRIVATE -pthread)
+if (WIN32)
+    target_sources(playgo-resolver-test PRIVATE ../src/compat_win.c)
+    target_link_libraries(playgo-resolver-test PRIVATE bcrypt ws2_32)
+endif()
+
 add_executable(scissor-test EXCLUDE_FROM_ALL ../tests/test_scissor.cpp)
 target_include_directories(scissor-test PRIVATE shadps4)
 target_compile_options(scissor-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)

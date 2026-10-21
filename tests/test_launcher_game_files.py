@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 from test_launcher_controls import launcher, sfo_bytes
 from ratchet_game import validate_game
+from playgo_fixture import playgo_bytes
 
 class LauncherGameFilesTests(unittest.TestCase):
     def setUp(self):
@@ -17,6 +18,7 @@ class LauncherGameFilesTests(unittest.TestCase):
         for name in ('eboot.bin', 'sce_module/libc.prx', 'sce_module/libSceFios2.prx'):
             (self.game / name).write_bytes(b'synthetic file')
         self.sfo()
+        (self.game / "sce_sys/playgo-chunk.dat").write_bytes(playgo_bytes())
 
     def sfo(self, title='CUSA01047', version='01.00'):
         (self.game / 'sce_sys/param.sfo').write_bytes(sfo_bytes(TITLE_ID=title, APP_VER=version))
@@ -42,7 +44,7 @@ class LauncherGameFilesTests(unittest.TestCase):
                 self.assertEqual(self.snapshot(), before)
 
     def test_missing_or_empty_required_files_are_rejected(self):
-        for name in ('eboot.bin', 'sce_sys/param.sfo', 'sce_module/libc.prx', 'sce_module/libSceFios2.prx'):
+        for name in ('eboot.bin', 'sce_sys/param.sfo', 'sce_module/libc.prx', 'sce_module/libSceFios2.prx', 'sce_sys/playgo-chunk.dat'):
             path = self.game / name
             data = path.read_bytes()
             for empty in (False, True):

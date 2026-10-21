@@ -44,6 +44,9 @@ def main():
             continue
         command = [str(exe), *extra.get(name, [])]
         if name == 'zero-clear-gpu-test': command.append(str(args.zero_clear_shader.resolve()))
+        if name == 'playgo-resolver-test':
+            env['RATCHET_PLAYGO_TEST'] = str(exe)
+            command = [sys.executable, '-m', 'unittest', 'discover', '-s', str(ROOT / 'tests'), '-p', 'test_playgo.py']
         if name == 'churn-trace-test':
             command = [sys.executable, str(ROOT / 'tests/test_texture_churn_trace.py'), str(exe)]
         try:

@@ -6,6 +6,7 @@
  * Every entry here is an explicit contract; unknown functions still stop. */
 #define _GNU_SOURCE
 #include "runtime.h"
+#include "playgo_metadata.h"
 #include "gpu/ratchetgpu.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,6 +35,11 @@
 #define NET_EINVAL ((int32_t)0x80410116)
 #define HTTP_NETWORK ((int32_t)0x80431063)
 #define DIALOG_NOT_INITIALIZED ((int32_t)0x80B80003)
+#define PLAYGO_INVALID_ARGUMENT ((int32_t)0x80B20004)
+#define PLAYGO_NOT_INITIALIZED ((int32_t)0x80B20005)
+#define PLAYGO_ALREADY_INITIALIZED ((int32_t)0x80B20006)
+#define PLAYGO_NOT_SUPPORTED ((int32_t)0x80B2000E)
+#define PLAYGO_BAD_LOCUS ((int32_t)0x80B20010)
 #define PLAYGO_BAD_HANDLE ((int32_t)0x80B20009)
 #define PLAYGO_BAD_POINTER ((int32_t)0x80B2000A)
 #define PLAYGO_BAD_SIZE ((int32_t)0x80B2000B)
@@ -478,26 +484,58 @@ static ABI int32_t trophy_unlock_state(int32_t ctx,int32_t handle,uint32_t *flag
 static ABI int32_t trophy_release(int32_t id) { return id>0 ? 0 : TROPHY_INVALID; }
 
 /* ---- PlayGo: fully installed package ---- */
-static int playgo_handle, playgo_chunks=-1;
-static ABI int32_t playgo_init(const void *params) {
-    (void)params;
-    int fd=(int)runtime_file_open("/app0/sce_sys/playgo-chunk.dat",0,0);
-    unsigned char header[12];
-    playgo_chunks=1;
+/* ABI and error values follow shadPS4 playgo.h / playgo_types.h. The
+ * installed-dump model still validates requests; unknown imports still stop. */
+typedef struct { const void *buffer; uint32_t size, reserved; } PlayGoInit;
+typedef struct { uint16_t chunk; int8_t locus, reserved; } PlayGoToDo;
+static uint32_t playgo_handle;
+static int playgo_chunks=-1;
+static ABI int32_t playgo_init(const PlayGoInit *params) {
+    if (!params || !params->buffer) return PLAYGO_BAD_POINTER;
+    if (params->size<0x200000) return PLAYGO_BAD_SIZE;
+    if (params->reserved) return PLAYGO_INVALID_ARGUMENT;
+    if (playgo_chunks>=0) return PLAYGO_ALREADY_INITIALIZED;
+    const char *path="/app0/sce_sys/playgo-chunk.dat";
+    int fd=(int)runtime_file_open(path,0,0);
+    unsigned char header[PLAYGO_HEADER_SIZE];
+    int chunks=-1;
     if (fd>=0) {
-        if (runtime_file_read(fd,header,sizeof(header))==sizeof(header)) playgo_chunks=header[10]|header[11]<<8;
+        int64_t size=runtime_file_lseek(fd,0,SEEK_END);
+        if (size>=PLAYGO_HEADER_SIZE && runtime_file_lseek(fd,0,SEEK_SET)==0) {
+            int64_t got=runtime_file_read(fd,header,sizeof(header));
+            if (got==sizeof(header)) chunks=playgo_metadata_chunks(header,sizeof(header),(uint64_t)size);
+        }
         runtime_file_close(fd);
     }
+    if (chunks<0) {
+        fprintf(stderr,"Runtime: missing or invalid required PlayGo metadata: %s; "
+                       "restore it from the matching original game dump.\n",path);
+        return PLAYGO_NOT_SUPPORTED;
+    }
+    playgo_chunks=chunks;
     printf("Runtime: PlayGo initialized; %d chunks, all installed locally\n",playgo_chunks);
     return 0;
 }
-static ABI int32_t playgo_open(int32_t *handle,const void *param) {
-    (void)param;
+static ABI int32_t playgo_open(uint32_t *handle,const void *param) {
     if (!handle) return PLAYGO_BAD_POINTER;
+    if (param) return PLAYGO_INVALID_ARGUMENT;
+    if (playgo_chunks<0) return PLAYGO_NOT_INITIALIZED;
     playgo_handle=1; *handle=1; return 0;
 }
-static ABI int32_t playgo_chunk_ids(int32_t handle,uint16_t *ids,uint32_t count,uint32_t *out) {
-    if (handle!=playgo_handle || !handle) return PLAYGO_BAD_HANDLE;
+static int32_t playgo_check(uint32_t handle) {
+    if (playgo_chunks<0) return PLAYGO_NOT_INITIALIZED;
+    return handle && handle==playgo_handle ? 0 : PLAYGO_BAD_HANDLE;
+}
+static int32_t playgo_ids(const uint16_t *ids,uint32_t count) {
+    if (!ids) return PLAYGO_BAD_POINTER;
+    /* One request cannot exceed the supported chunk-ID domain (duplicates are
+     * allowed). Bound count before walking caller memory. */
+    if (!count || count>PLAYGO_MAX_CHUNKS) return PLAYGO_BAD_SIZE;
+    for (uint32_t i=0;i<count;++i) if (ids[i]>=playgo_chunks) return PLAYGO_BAD_CHUNK;
+    return 0;
+}
+static ABI int32_t playgo_chunk_ids(uint32_t handle,uint16_t *ids,uint32_t count,uint32_t *out) {
+    int32_t error=playgo_check(handle); if (error) return error;
     if (!out) return PLAYGO_BAD_POINTER;
     if (ids && !count) return PLAYGO_BAD_SIZE;
     if (!ids) { *out=(uint32_t)playgo_chunks; return 0; }
@@ -505,40 +543,61 @@ static ABI int32_t playgo_chunk_ids(int32_t handle,uint16_t *ids,uint32_t count,
     for (uint32_t i=0;i<n;++i) ids[i]=(uint16_t)i;
     *out=n; return 0;
 }
-static ABI int32_t playgo_locus(int32_t handle,const uint16_t *ids,uint32_t count,int8_t *loci) {
-    if (handle!=playgo_handle || !handle) return PLAYGO_BAD_HANDLE;
-    if (!ids || !loci) return PLAYGO_BAD_POINTER;
-    if (!count) return PLAYGO_BAD_SIZE;
-    for (uint32_t i=0;i<count;++i) {
-        if (ids[i]>=playgo_chunks) return PLAYGO_BAD_CHUNK;
-        loci[i]=3; /* LocalFast */
-    }
+static ABI int32_t playgo_locus(uint32_t handle,const uint16_t *ids,uint32_t count,int8_t *loci) {
+    int32_t error=playgo_check(handle); if (error) return error;
+    if (!loci) return PLAYGO_BAD_POINTER;
+    error=playgo_ids(ids,count); if (error) return error;
+    memset(loci,3,count); /* LocalFast; validate the entire request before writing. */
     return 0;
 }
-static ABI int32_t playgo_speed(int32_t handle,int32_t speed) { (void)speed; return handle==playgo_handle && handle ? 0 : PLAYGO_BAD_HANDLE; }
-static ABI int32_t playgo_get_speed(int32_t handle,int32_t *speed) {
-    if (handle!=playgo_handle || !handle) return PLAYGO_BAD_HANDLE;
+static ABI int32_t playgo_prefetch(uint32_t handle,const uint16_t *ids,uint32_t count,int8_t locus) {
+    int32_t error=playgo_check(handle); if (error) return error;
+    error=playgo_ids(ids,count); if (error) return error;
+    if (locus!=0 && locus!=2 && locus!=3) return PLAYGO_BAD_LOCUS;
+    return 0; /* Every requested chunk is already LocalFast. */
+}
+static ABI int32_t playgo_eta(uint32_t handle,const uint16_t *ids,uint32_t count,int64_t *eta) {
+    int32_t error=playgo_check(handle); if (error) return error;
+    if (!eta) return PLAYGO_BAD_POINTER;
+    error=playgo_ids(ids,count); if (error) return error;
+    *eta=0; /* signed 64-bit ETA; no installation remains. */
+    return 0;
+}
+static ABI int32_t playgo_speed(uint32_t handle,int32_t speed) {
+    int32_t error=playgo_check(handle); if (error) return error;
+    return speed>=0 && speed<=2 ? 0 : PLAYGO_INVALID_ARGUMENT;
+}
+static ABI int32_t playgo_get_speed(uint32_t handle,int32_t *speed) {
+    int32_t error=playgo_check(handle); if (error) return error;
     if (!speed) return PLAYGO_BAD_POINTER;
     *speed=2; return 0; /* Full: nothing left to install */
 }
-/* Progress of installed chunks: done (1 of 1, never a zero total to divide by). */
-static ABI int32_t playgo_progress(int32_t handle,const uint16_t *ids,uint32_t count,uint64_t *out) {
-    if (handle!=playgo_handle || !handle) return PLAYGO_BAD_HANDLE;
-    if (!ids || !out) return PLAYGO_BAD_POINTER;
-    if (!count) return PLAYGO_BAD_SIZE;
-    for (uint32_t i=0;i<count;++i) if (ids[i]>=playgo_chunks) return PLAYGO_BAD_CHUNK;
+/* Preserve the existing completed progress unit (1/1), not a byte-size claim. */
+static ABI int32_t playgo_progress(uint32_t handle,const uint16_t *ids,uint32_t count,uint64_t *out) {
+    int32_t error=playgo_check(handle); if (error) return error;
+    if (!out) return PLAYGO_BAD_POINTER;
+    error=playgo_ids(ids,count); if (error) return error;
     out[0]=out[1]=1; return 0;
 }
-static ABI int32_t playgo_todo(int32_t handle,const void *list,uint32_t count) {
-    if (handle!=playgo_handle || !handle) return PLAYGO_BAD_HANDLE;
+static ABI int32_t playgo_todo(uint32_t handle,const PlayGoToDo *list,uint32_t count) {
+    int32_t error=playgo_check(handle); if (error) return error;
     if (!list) return PLAYGO_BAD_POINTER;
-    return count ? 0 : PLAYGO_BAD_SIZE; /* everything is installed: nothing to schedule */
+    if (!count || count>PLAYGO_MAX_CHUNKS) return PLAYGO_BAD_SIZE;
+    for (uint32_t i=0;i<count;++i) {
+        if (list[i].chunk>=playgo_chunks) return PLAYGO_BAD_CHUNK;
+        if (list[i].locus!=0 && list[i].locus!=2 && list[i].locus!=3) return PLAYGO_BAD_LOCUS;
+        if (list[i].reserved) return PLAYGO_INVALID_ARGUMENT;
+    }
+    return 0; /* everything is installed: nothing to schedule */
 }
-static ABI int32_t playgo_close(int32_t handle) {
-    if (handle!=playgo_handle || !handle) return PLAYGO_BAD_HANDLE;
+static ABI int32_t playgo_close(uint32_t handle) {
+    int32_t error=playgo_check(handle); if (error) return error;
     playgo_handle=0; return 0;
 }
-static ABI int32_t playgo_terminate(void) { playgo_handle=0; return 0; }
+static ABI int32_t playgo_terminate(void) {
+    if (playgo_chunks<0) return PLAYGO_NOT_INITIALIZED;
+    playgo_handle=0; playgo_chunks=-1; return 0;
+}
 
 /* ---- DiscMap: the game is fully installed, no disc bitmap exists ---- */
 #define DISC_MAP_NO_BITMAP ((int32_t)0x81100004)
@@ -679,6 +738,7 @@ static const RuntimeExport exports[]={
     {"sceNpTrophyGetTrophyUnlockState",trophy_unlock_state}, {"sceNpTrophyAbortHandle",trophy_release},
     {"sceNpTrophyDestroyHandle",trophy_release}, {"sceNpTrophyDestroyContext",trophy_release},
     {"scePlayGoInitialize",playgo_init}, {"scePlayGoOpen",playgo_open}, {"scePlayGoGetChunkId",playgo_chunk_ids},
+    {"scePlayGoPrefetch",playgo_prefetch}, {"scePlayGoGetEta",playgo_eta},
     {"scePlayGoGetLocus",playgo_locus}, {"scePlayGoSetInstallSpeed",playgo_speed},
     {"scePlayGoGetInstallSpeed",playgo_get_speed}, {"scePlayGoGetProgress",playgo_progress},
     {"scePlayGoSetToDoList",playgo_todo}, {"scePlayGoClose",playgo_close}, {"scePlayGoTerminate",playgo_terminate},

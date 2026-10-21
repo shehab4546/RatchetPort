@@ -793,9 +793,24 @@ def sfo_state(path):
     return 'ok'
 
 
+def playgo_state(path):
+    state = file_state(path)
+    if state != 'ok':
+        return state
+    from ratchet_game import validate_playgo
+    try:
+        validate_playgo(path)
+    except OSError:
+        return 'unreadable'
+    except ValueError:
+        return 'invalid_playgo'
+    return 'ok'
+
+
 # The files the port loads from a dump, each with the check it must pass.
 REQUIRED_GAME_FILES = (('eboot.bin', file_state), ('sce_sys/param.sfo', sfo_state),
-                       ('sce_module/libc.prx', file_state), ('sce_module/libSceFios2.prx', file_state))
+                       ('sce_module/libc.prx', file_state), ('sce_module/libSceFios2.prx', file_state),
+                       ('sce_sys/playgo-chunk.dat', playgo_state))
 REQUIRED_UPDATE_FILES = REQUIRED_GAME_FILES[:2]
 
 
@@ -810,6 +825,7 @@ def missing_game_files(folder, requirements=REQUIRED_GAME_FILES):
 def describe_missing(missing):
     """The entries of missing_game_files as shown to the player."""
     labels = {'empty': _('{} (empty)'), 'unreadable': _('{} (unreadable)'),
+              'invalid_playgo': '{} (invalid PlayGo metadata)',
               'invalid': _('{} (not a param.sfo)'), 'folder': _('{} (a folder, not a file)')}
     return [labels[state].format(name) if state in labels else name for name, state in missing]
 
@@ -828,38 +844,57 @@ def same_folder(a, b):
     return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
 
 
+def system_source_identity(source, game, reference=None):
+    """Recheck Sc0 identity at discovery AND copy time; never mix titles/versions."""
+    from ratchet_game import validate_identity
+    values = validate_identity(load_sfo(Path(source) / 'param.sfo'))
+    target = Path(game) / 'sce_sys/param.sfo'
+    state = sfo_state(target)
+    if state == 'unreadable':
+        raise OSError(f'Cannot read {target}')
+    identities = [reference] if reference is not None else []
+    if state == 'ok':
+        identities.append(load_sfo(target))
+    for identity in identities:
+        for key in ('TITLE_ID', 'APP_VER'):
+            if values.get(key) != identity.get(key):
+                raise ValueError(f'Sc0 {key} does not match the selected game')
+        if identity.get('CONTENT_ID') and values.get('CONTENT_ID') != identity['CONTENT_ID']:
+            raise ValueError('Sc0 CONTENT_ID does not match the selected game')
+    return values
+
+
+def system_file_check(relative):
+    name = relative.as_posix()
+    return sfo_state if name == 'param.sfo' else playgo_state if name == 'playgo-chunk.dat' else file_state
+
+
 def system_files_beside(folder, reference=None, base=None):
-    """PKG extractors write the system files (param.sfo, icon0.png, pic1.png, trophy/) to Sc0/
-    beside the game files (Image0/), while the port reads them from the folder's sce_sys/: the
-    Sc0 folder beside `folder` holding a RatchetPort param.sfo (patches.game_profile), while
-    `folder` has none worth keeping (an unreadable one is a different problem). For an update
-    folder the title must be that of `reference` (the base game's param.sfo values); an Sc0
-    beside the base game itself (`base`) is the base game's own unless the base game's param.sfo
-    says another version."""
+    """Find matching Sc0 files still needed, even with a valid destination param.sfo.
+
+    Separate update directories remain unsupported. Discovery does not modify files.
+    """
     folder = Path(os.path.abspath(folder or '.'))
-    if sfo_state(folder / 'sce_sys/param.sfo') in ('ok', 'unreadable') or folder.parent == folder:
+    if base is not None or folder.parent == folder:
         return None
     try:
-        with os.scandir(folder.parent) as entries:  # a linked Sc0 (mklink /J) counts too
+        with os.scandir(folder.parent) as entries:
             names = [e.name for e in entries if e.is_dir() and e.name.casefold() == 'sc0']
-    except OSError:
-        return None
-    if len(names) != 1 or os.path.normcase(names[0]) == os.path.normcase(folder.name):
-        return None
-    sibling = folder.parent / names[0]
-    try:
-        values = load_sfo(sibling / 'param.sfo')
+        if len(names) != 1 or os.path.normcase(names[0]) == os.path.normcase(folder.name):
+            return None
+        sibling = folder.parent / names[0]
+        system_source_identity(sibling, folder, reference)
+        for source in sibling.rglob('*'):
+            if not source.is_file():
+                continue
+            relative = source.relative_to(sibling)
+            check = system_file_check(relative)
+            if check(source) == 'ok' and check(folder / 'sce_sys' / relative) in (
+                    'missing', 'empty', 'invalid', 'invalid_playgo'):
+                return sibling
     except (OSError, ValueError):
         return None
-    title = values.get('TITLE')
-    if values.get('TITLE_ID') != 'CUSA01047':
-        return None
-    if reference is not None and values.get('TITLE_ID') != reference.get('TITLE_ID'):
-        return None
-    if base is not None and same_folder(folder.parent, Path(os.path.abspath(base)).parent) and (
-            reference is None or values.get('APP_VER') == reference.get('APP_VER')):
-        return None
-    return sibling
+    return None
 
 
 @contextlib.contextmanager
@@ -881,23 +916,35 @@ def adopt_system_files(source, game):
     returns the relative names copied. Each file lands whole or not at all, and param.sfo goes
     last: while it is missing, a copy that failed halfway is offered again."""
     source, target = Path(source), Path(game) / 'sce_sys'
+    system_source_identity(source, game)
 
     def unreadable(error):  # os.walk would skip the folder silently
         raise error
     files = sorted(((Path(directory) / name).relative_to(source)
                     for directory, _folders, names in os.walk(source, onerror=unreadable) for name in names),
                    key=lambda relative: (relative.as_posix() == 'param.sfo', relative.as_posix()))
+    # Validate planned sources before copying anything; a bad Sc0 cannot partially
+    # repair the selected dump. Nonempty valid destination files always win.
+    for relative in files:
+        check = system_file_check(relative)
+        if check(target / relative) != 'ok' and check(source / relative) != 'ok':
+            raise ValueError(f'Invalid source system file: {source / relative}')
     copied = []
     for relative in files:
         destination = target / relative
         if destination.is_dir():
             raise OSError(f'{destination} is a folder: {source / relative} cannot replace it')
-        check = sfo_state if relative.as_posix() == 'param.sfo' else file_state
-        if check(destination) == 'ok':
+        check = system_file_check(relative)
+        state = check(destination)
+        if state == 'ok':
             continue
+        if state == 'unreadable':
+            raise OSError(f'Cannot read {destination}; refusing to replace it')
         destination.parent.mkdir(parents=True, exist_ok=True)
         with replacing(destination) as part:
             shutil.copy2(source / relative, part)
+            if check(part) != 'ok':
+                raise ValueError(f'Invalid copied system file: {source / relative}')
         copied.append(relative.as_posix())
     return copied
 
@@ -2648,7 +2695,7 @@ class Launcher:
             error = None
             try:
                 adopt_system_files(source, folder)
-            except OSError as failure:
+            except (OSError, ValueError) as failure:
                 error = failure
 
             def done():
@@ -2666,6 +2713,8 @@ class Launcher:
         if self.process or getattr(self, 'copying_system_files', False):
             return
         if not self.collect():
+            return
+        if not self.offer_system_files():
             return
         if not game_info(self.app['game_dir']):
             self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01047).',

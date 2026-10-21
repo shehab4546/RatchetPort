@@ -9,6 +9,7 @@ import unittest
 from unittest import mock
 
 from paths import ROOT
+from playgo_fixture import playgo_bytes
 sys.path.insert(0, str(ROOT / 'launcher'))
 import ratchetport_launcher_win as launcher  # noqa: E402
 
@@ -294,8 +295,9 @@ class GameFilesTest(unittest.TestCase):
             (folder / 'sce_module').mkdir()
             (folder / 'sce_module/libSceFios2.prx').write_bytes(b'x')
             self.assertEqual(launcher.missing_game_files(folder),
-                             [('eboot.bin', 'missing'), ('sce_sys/param.sfo', 'missing'), ('sce_module/libc.prx', 'missing')])
+                             [('eboot.bin', 'missing'), ('sce_sys/param.sfo', 'missing'), ('sce_module/libc.prx', 'missing'), ('sce_sys/playgo-chunk.dat', 'missing')])
             (folder / 'sce_sys').mkdir()
+            (folder / 'sce_sys/playgo-chunk.dat').write_bytes(playgo_bytes())
             (folder / 'eboot.bin').write_bytes(b'x')
             (folder / 'sce_sys/param.sfo').write_bytes(BASE_SFO)
             (folder / 'sce_module/libc.prx').write_bytes(b'x')
@@ -360,7 +362,7 @@ class GameFilesTest(unittest.TestCase):
             (folder / 'sce_sys').mkdir()
             (folder / 'sce_module').mkdir()
             for name, _check in launcher.REQUIRED_GAME_FILES:
-                (folder / name).write_bytes(BASE_SFO if name.endswith('param.sfo') else b'x')
+                (folder / name).write_bytes(BASE_SFO if name.endswith('param.sfo') else playgo_bytes() if name.endswith('playgo-chunk.dat') else b'x')
             self.assertTrue(launcher.ready_to_play(folder))
             self.assertFalse(launcher.ready_to_play(folder, str(folder)))  # one folder for both
             # The update folder, when set, must be complete as well.
@@ -381,13 +383,13 @@ class GameFilesTest(unittest.TestCase):
             root = Path(root)
             game = root / 'Image0'
             (game / 'sce_sys').mkdir(parents=True)
-            (game / 'sce_sys/playgo-chunk.dat').write_bytes(b'game')
+            (game / 'sce_sys/playgo-chunk.dat').write_bytes(playgo_bytes())
             (root / 'Sc1').mkdir()  # a sibling without param.sfo is not the one
             self.assertIsNone(launcher.system_files_beside(game))
             (root / 'Sc0/trophy').mkdir(parents=True)
             (root / 'Sc0/param.sfo').write_bytes(BASE_SFO)
             (root / 'Sc0/icon0.png').write_bytes(b'icon')
-            (root / 'Sc0/playgo-chunk.dat').write_bytes(b'other')
+            (root / 'Sc0/playgo-chunk.dat').write_bytes(playgo_bytes(4))
             (root / 'Sc0/trophy/trophy00.trp').write_bytes(b'trophies')
             self.assertEqual(launcher.system_files_beside(game), root / 'Sc0')
             # param.sfo goes last: while it is missing the copy is offered again after a failure.
@@ -396,7 +398,7 @@ class GameFilesTest(unittest.TestCase):
             self.assertEqual((game / 'sce_sys/param.sfo').read_bytes(), BASE_SFO)
             self.assertEqual((game / 'sce_sys/trophy/trophy00.trp').read_bytes(), b'trophies')
             # The game's own files are never replaced, and once param.sfo is there nothing is offered.
-            self.assertEqual((game / 'sce_sys/playgo-chunk.dat').read_bytes(), b'game')
+            self.assertEqual((game / 'sce_sys/playgo-chunk.dat').read_bytes(), playgo_bytes())
             self.assertIsNone(launcher.system_files_beside(game))
             self.assertEqual(launcher.adopt_system_files(root / 'Sc0', game), [])
             # An empty param.sfo made by hand to get past the old check counts as missing and is replaced.
@@ -422,22 +424,15 @@ class GameFilesTest(unittest.TestCase):
             # A file that would land on one of the game's folders is refused, not copied inside it.
             (root / 'Clash').mkdir()
             (root / 'Clash/trophy').write_bytes(b'file')
-            with self.assertRaises(OSError):
+            with self.assertRaises((OSError, ValueError)):
                 launcher.adopt_system_files(root / 'Clash', game)
             self.assertFalse((game / 'sce_sys/trophy/trophy').exists())
-            # For an update folder the candidate must be the same title in another version: the
-            # base game's own Sc0 is not it.
+            # Separate update directories are unsupported, including a matching title.
             base = launcher.load_sfo(root / 'Sc0/param.sfo')
-            self.assertEqual(base['APP_VER'], '01.00')
-            beside = root / 'Base0'  # the base game beside this folder: Sc0 at its version is its own
+            beside = root / 'Base0'
             self.assertIsNone(launcher.system_files_beside(game, reference=base, base=beside))
-            self.assertEqual(launcher.system_files_beside(game, reference={'TITLE_ID': 'CUSA01047', 'APP_VER': '01.02'},
-                                                         base=beside), root / 'Sc0')
-            self.assertIsNone(launcher.system_files_beside(game, reference={'TITLE_ID': 'CUSA00001', 'APP_VER': '01.02'},
-                                                           base=beside))
-            # In its own folder, an update at the base game's version is still this title's Sc0.
-            self.assertEqual(launcher.system_files_beside(game, reference=base, base=root / 'elsewhere' / 'Image0'),
-                             root / 'Sc0')
+            self.assertIsNone(launcher.system_files_beside(game, reference={
+                'TITLE_ID': 'CUSA01047', 'APP_VER': '01.02'}))
             # An unreadable param.sfo in the folder is a different problem: nothing is offered.
             (game / 'sce_sys/param.sfo').write_bytes(BASE_SFO)
             real_stat = Path.stat

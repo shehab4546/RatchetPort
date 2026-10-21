@@ -16,6 +16,12 @@ See the [V1 release notes](docs/releases/V1.md) and [tested hardware and results
 · [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
 · [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
 
+**PlayGo fix builds (V1.1 Pre-Alpha):** see the [separate build notes](docs/releases/V1.1-PlayGo.md)
+and [Windows build artifacts](https://github.com/shehab4546/RatchetPort/actions/workflows/windows-zip.yml).
+V1 is unchanged. New builds require valid `sce_sys/playgo-chunk.dat`; the launcher
+can restore missing system files from a matching sibling Sc0 in your own dump.
+Automated checks do not establish game compatibility.
+
 A Windows-first, **Pre-Alpha** native runtime for **Ratchet & Clank (PS4), CUSA01047, USA, version 1.00**. RatchetPort is derived directly from [FelipePrado0/SpartanPort](https://github.com/FelipePrado0/SpartanPort) and uses renderer and shader-recompiler work from [shadPS4](https://github.com/shadps4-emu/shadPS4).
 
 This is experimental software. Intel UHD 730 has previously reproduced `VK_ERROR_DEVICE_LOST`, including with the zero-clear mirror disabled. Successful compilation or a launcher opening does not establish playable or stable gameplay. Other title IDs, updates and regions are not supported by this configuration.
@@ -25,7 +31,7 @@ This is experimental software. Intel UHD 730 has previously reproduced `VK_ERROR
 - Windows 10 1903+ or Windows 11, 64-bit; an x86-64 CPU with AVX.
 - A Vulkan 1.3-capable GPU and driver. Compatibility depends on the device's reported features; there is no validated minimum performance specification yet.
 - Enough RAM and page-file capacity for the guest memory pool and renderer. Out-of-memory errors remain possible.
-- **You must own the original PS4 game disc and make your own dump from that disc using your own PS4.** V1 targets CUSA01047 USA v1.00 only. Extract your dump into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
+- **You must own the original PS4 game disc and make your own dump from that disc using your own PS4.** V1 targets CUSA01047 USA v1.00 only. Extract your dump into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, `sce_sys/playgo-chunk.dat`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
 
 **No game files, PS4 system modules, keys or game artwork are included.** RatchetPort does not download or decrypt a game. Keep the original dump unchanged.
 
