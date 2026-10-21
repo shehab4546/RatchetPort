@@ -198,7 +198,9 @@ def main():
         patches.write_patches(out, [])
         (out / 'patch_status.json').write_text('{"applied": [], "skipped": {}}')
         print('Patches: none (CUSA01047 v1.00)', flush=True)
-        icon_file = game / 'sce_sys' / 'icon0.png'
+        icon_file = PORT / 'launcher' / 'ratchet-probe.png'
+        if not icon_file.is_file():
+            icon_file = PORT / 'launcher' / 'ratchetport.png'
         try:
             from PIL import Image
             with Image.open(icon_file) as icon:

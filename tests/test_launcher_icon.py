@@ -26,11 +26,7 @@ class WindowIconTest(unittest.TestCase):
         self.root = tk.Tk()
         self.root.geometry('200x100+0+0')
         self.tmp = Path(tempfile.mkdtemp())
-        from PIL import Image
-        self.ico, self.png = self.tmp / 'fixture.ico', self.tmp / 'fixture.png'
-        image = Image.new('RGBA', (256, 256), (20, 120, 180, 255))
-        image.save(self.png)
-        image.save(self.ico, sizes=[(n, n) for n in (16, 24, 32, 48, 64, 128, 256)])
+        self.ico, self.png = OWN_ICO, OWN_PNG
 
     def tearDown(self):
         self.root.destroy()

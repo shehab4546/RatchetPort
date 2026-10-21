@@ -47,7 +47,8 @@ def dependencies(executable, destination, clang):
 
 def copy_launcher_assets(stage):
     (stage / 'launcher').mkdir()
-    for name in ('Cinzel-Black.ttf', 'OFL-Cinzel.txt'):
+    for name in ('Cinzel-Black.ttf', 'OFL-Cinzel.txt', 'ratchetport.ico', 'ratchetport.png',
+                 'ratchet-probe.png'):
         shutil.copy2(ROOT / 'launcher' / name, stage / 'launcher' / name)
 
 def main():
@@ -66,7 +67,8 @@ def main():
               'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']
     command = [sys.executable, '-m', 'PyInstaller', '--noconfirm', '--windowed', '--log-level', 'WARN',
                '--name', 'RatchetPort', '--distpath', str(work / 'frozen'), '--workpath', str(work / 'build'),
-               '--specpath', str(work), '--paths', str(ROOT / 'scripts')]
+               '--specpath', str(work), '--paths', str(ROOT / 'scripts'),
+               '--icon', str(ROOT / 'launcher/ratchetport.ico')]
     for module in hidden: command += ['--hidden-import', module]
     subprocess.run([*command, str(ROOT / 'launcher/ratchetport_launcher_win.py')], check=True, cwd=ROOT)
     stage = work / 'RatchetPort'

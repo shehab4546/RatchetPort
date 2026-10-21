@@ -284,13 +284,18 @@ if (WIN32)
     target_compile_options(tsc-clock-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
     target_include_directories(tsc-clock-test PRIVATE .. ../src)
     target_link_libraries(tsc-clock-test PRIVATE bcrypt -pthread)
-    add_executable(ratchet-gpu-capabilities ../tools/gpu_capabilities.c)
+    add_executable(ratchet-gpu-capabilities ../tools/gpu_capabilities.c
+        ../packaging/windows/ratchet-gpu-capabilities.rc)
     target_include_directories(ratchet-gpu-capabilities PRIVATE shadps4)
     target_link_libraries(ratchet-gpu-capabilities PRIVATE Vulkan::Vulkan)
     # "Play RatchetPort.exe": the game with the launcher's saved settings, no launcher window.
-    add_executable(ratchet-play WIN32 ../packaging/windows/play.c)
+    add_executable(ratchet-play WIN32 ../packaging/windows/play.c ../packaging/windows/ratchet-play.rc)
     target_compile_options(ratchet-play PRIVATE -municode)
     target_link_options(ratchet-play PRIVATE -municode)
+    foreach(product ratchet-probe ratchet-play ratchet-gpu-capabilities)
+        set_source_files_properties(../packaging/windows/${product}.rc PROPERTIES
+            OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../launcher/${product}.ico")
+    endforeach()
 endif()
 
 # Explicit test targets; neither launches the game nor needs a Vulkan device.

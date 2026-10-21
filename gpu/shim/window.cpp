@@ -57,7 +57,7 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     window = SDL_CreateWindowWithProperties(props);
     SDL_DestroyProperties(props);
     ASSERT_MSG(window, "Failed to create window: {}", SDL_GetError());
-    // ratchetport: the game's own icon (run.py converts sce_sys/icon0.png to BMP, SDL's built-in format).
+    // RatchetPort's own runtime icon, converted by run.py to SDL's built-in BMP format.
     if (const char* icon_path = std::getenv("RATCHET_WINDOW_ICON")) {
         if (SDL_Surface* icon = SDL_LoadBMP(icon_path)) {
             SDL_SetWindowIcon(window, icon);
