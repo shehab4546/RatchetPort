@@ -1,5 +1,11 @@
 # Test records
 
+## RP-01 baseline — 22 October 2026
+
+The independent source build, automated checks, and a short unattended UHD 730
+boot session are recorded in [RP-01 baseline validation](RP01_BASELINE.md).
+Gameplay, audible audio, save/load and the proposed 30-minute route remain pending.
+
 ## V1.1 PlayGo — RTX 5070 Laptop, 22 October 2026
 
 The project owner confirmed actual gameplay at a steady **30 FPS** on their

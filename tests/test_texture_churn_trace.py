@@ -81,7 +81,7 @@ def main():
         dedicated = subprocess.run([str(args.executable), 'on'], env=env, capture_output=True, check=True)
         assert not dedicated.stdout and not dedicated.stderr
         assert rows(log.read_text(), 'producer') == producers
-        analyzer_path = Path(__file__).resolve().parents[1] / 'ratchet_opt10_stability/analyze_churn.py'
+        analyzer_path = Path(__file__).resolve().parents[1] / 'scripts/analyze_churn.py'
         spec = importlib.util.spec_from_file_location('analyze_churn', analyzer_path)
         analyzer = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(analyzer)
@@ -95,6 +95,24 @@ def main():
         removed = next(line for line in lines if line.startswith('RATCHET CHURN producer window=3 '))
         log.write_text('\n'.join(line for line in lines if line != removed) + '\n')
         assert analyzer.analyze(log, 6)['incomplete_or_inconsistent_windows_excluded'] == [3]
+        # Corrupt real trace output: aggregate counters must not conceal missing or duplicate rows.
+        image = next(line for line in lines if line.startswith('RATCHET CHURN image window=3 '))
+        summary = next(line for line in lines if line.startswith('RATCHET CHURN summary window=3 '))
+        corruptions = [
+            lines + [image], lines + [summary],
+            [line for line in lines if line != summary],
+            [line.replace('dropped_producer_events=0', 'dropped_producer_events=1')
+             if line == summary else line for line in lines],
+            [re.sub(r'copy_payload_bytes=\d+', 'copy_payload_bytes=999999', line)
+             if line == summary else line for line in lines],
+        ]
+        for corrupted in corruptions:
+            log.write_text('\n'.join(corrupted) + '\n')
+            result = analyzer.analyze(log, 6)
+            assert result['incomplete_or_inconsistent_windows_excluded'] == [3]
+            assert not result['window_totals_verified']
+        log.write_text('')
+        assert not analyzer.analyze(log, 6)['window_totals_verified']
     print('PASS: accounting, producer/source attribution, nesting, threads, report boundaries, dedicated log, opt-out')
 
 
