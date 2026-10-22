@@ -2,23 +2,26 @@
 
 RatchetPort is an **unofficial, experimental PC port project for Ratchet & Clank
 (2016), the PS4 game**, using a native Windows runtime. It targets **CUSA01047 USA
-v1.00** and requires a self-made dump of your own original disc. **Pre-Alpha:
-stable gameplay is not established.**
+v1.00** and requires a self-made dump of your own original disc. **Pre-Alpha:**
+the project owner reports actual gameplay at a steady **30 FPS on an NVIDIA
+GeForce RTX 5070 Laptop GPU** with V1.1 PlayGo. General hardware compatibility and
+long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**V1 — Pre-Alpha · Windows x64 · CUSA01047 USA v1.00**
+**V1.1 PlayGo — Pre-Alpha · Windows x64 · CUSA01047 USA v1.00**
 
-V1 is the first public experimental release, **not a stable or fully playable 1.0**.
-See the [V1 release notes](docs/releases/V1.md) and [tested hardware and results](docs/TESTING.md).
+V1.1 fixes the PlayGo imports, metadata validation and matching-Sc0 recovery.
+See the [V1.1 release notes](docs/releases/V1.1-PlayGo.md) and
+[tested hardware and results](docs/TESTING.md). V1 remains available unchanged.
 
-[Download V1 and its sources](https://github.com/shehab4546/RatchetPort/releases/tag/v1)
+[Download V1.1 PlayGo and its sources](https://github.com/shehab4546/RatchetPort/releases/tag/v1.1-playgo)
+· [Previous V1 release](https://github.com/shehab4546/RatchetPort/releases/tag/v1)
 · [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
 · [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
 
-**PlayGo fix builds (V1.1 Pre-Alpha):** see the [separate build notes](docs/releases/V1.1-PlayGo.md)
-and [Windows build artifacts](https://github.com/shehab4546/RatchetPort/actions/workflows/windows-zip.yml).
-V1 is unchanged. New builds require valid `sce_sys/playgo-chunk.dat`; the launcher
+**PlayGo update:** the [Windows build and package checks passed](https://github.com/shehab4546/RatchetPort/actions/runs/39695590075).
+V1.1 requires valid `sce_sys/playgo-chunk.dat`; the launcher
 can restore missing system files from a matching sibling Sc0 in your own dump.
 Automated checks do not establish game compatibility.
 
@@ -41,7 +44,9 @@ accordance with applicable law; this repository provides no bypass keys or game 
 
 **بالعربية:** يجب أن تمتلك قرص اللعبة الأصلي وأن تعمل dump بنفسك من قرصك باستخدام
 جهاز PS4 الخاص بك. المشروع لا يتضمن اللعبة أو ملفات نظام PS4 أو المفاتيح، ولا يوفر
-روابط لتنزيلها. إصدار V1 تجريبي؛ ظهور القائمة والمشهد الافتتاحي لا يعني أن اللعب مستقر.
+روابط لتنزيلها. أكد مالك المشروع اللعب الفعلي بمعدل **30 إطارًا/ثانية ثابتًا على جهازه
+المزوّد بـ RTX 5070 Laptop** مع تحديث V1.1 PlayGo. يبقى الإصدار تجريبيًا؛ هذه النتيجة
+خاصة بالجهاز المختبر ولا تثبت التوافق مع جميع الأجهزة أو استقرار الجلسات الطويلة.
 
 RatchetPort مشروع غير رسمي لنقل راتشت أند كلانك (Ratchet & Clank 2016) من PS4
 إلى الكمبيوتر بنظام Windows. هذه نسخة تجريبية تتطلب ملفات قرصك الخاص، وليست
@@ -49,22 +54,28 @@ RatchetPort مشروع غير رسمي لنقل راتشت أند كلانك (Ra
 
 ## What was actually tested
 
-Local testing used **Windows 11 Pro build 26300, Intel Core i5-12400, Intel UHD
-Graphics 730 (driver 32.0.101.7088), and 12 GB RAM**. No AMD/NVIDIA or Linux game
-compatibility is claimed. The initial settings were 30 FPS limit, VSync on,
-1280x720 output, upscaling off and zero-clear mirror off; this is not a measured
-sustained 30 FPS result.
+| Tested hardware | Version / evidence | Result |
+| --- | --- | --- |
+| NVIDIA GeForce RTX 5070 Laptop GPU | V1.1 PlayGo; owner confirmation and two runtime logs reviewed on 22 October 2026 | Owner confirms actual gameplay at a steady **30 FPS**; logged sessions of **621 s** and **294 s** both ended with exit code **0** |
+| Intel Core i5-12400, Intel UHD Graphics 730 (driver 32.0.101.7088), 12 GB RAM, Windows 11 Pro build 26300 | Earlier V1 bring-up tests | Title/menu, difficulty selection, loading and opening movie reached; a freeze and `VK_ERROR_DEVICE_LOST` were reported; sustained 30 FPS gameplay was not validated |
 
-The title/main menu and difficulty selection were reached. With linear readbacks
-on and deferred readbacks off, the tester confirmed the loading screen and opening
-movie. A freeze followed several button presses during an attempted skip. Actual
-playable movement, reliable cutscene skipping, audible audio, a physical controller,
-save/load and long sessions remain unverified. See [the detailed evidence and test
-counts](docs/TESTING.md); automated tests are listed separately from game observations.
+The RTX 5070 Laptop logs show fullscreen, VSync on, a 30 FPS limit, PlayGo
+initialized with 72 chunks and an Xbox One Controller detected. They contain no
+Prefetch unsupported-import stop or `VK_ERROR_DEVICE_LOST`. The steady 30 FPS
+gameplay result is the owner's observation; the logs record the frame limit,
+not a sampled FPS trace. CPU model, RAM, driver and output resolution are not
+identified in these logs. This evidence does not establish performance on other GPUs, higher
+FPS, reliable cutscene skipping, audio/controller behavior, save/load or long
+sessions. AMD and Linux gameplay remain unvalidated.
+
+The earlier UHD 730 settings were 30 FPS limit, VSync on, 1280x720 output,
+upscaling off, zero-clear mirror off, linear readbacks on and deferred readbacks
+off. Those settings are not a measured 30 FPS result for that device.
+See [the detailed evidence and test counts](docs/TESTING.md).
 
 ## Starting on Windows
 
-1. Extract `RatchetPort-Windows-PreAlpha.zip` into a writable folder.
+1. Extract `RatchetPort-Windows-V1.1-PlayGo-PreAlpha.zip` into a new writable folder.
 2. Open `RatchetPort.exe`, choose the game directory and save the settings.
 3. Leave the initial settings at **30 FPS, VSync on, 1280x720 output, windowed, upscaling off, Deferred GPU readbacks off** and start the game.
 4. `Play RatchetPort.exe` can subsequently start using the saved configuration.
@@ -83,7 +94,7 @@ Insert or R3+L2 opens the runtime graphics overlay. Window mode, output size, VS
 
 - `VK_ERROR_DEVICE_LOST` has been reproduced on Intel UHD 730 around scheduler submission. Stability is not established.
 - Linear image readbacks default to on. Deferred GPU readbacks default to off: enabling them reproduced a black screen after difficulty selection. If using an older configuration, turn that option off explicitly. Stale readbacks are inactive while deferral is off. This scene-entry correction does not fix Device Lost.
-- A user reported a freeze after pressing several buttons during the opening movie. The exact trigger and cause remain unconfirmed; gameplay and cutscene skipping still require validation.
+- Earlier UHD 730 testing reported a freeze after pressing several buttons during the opening movie. The exact trigger and cause remain unconfirmed; reliable cutscene skipping still requires validation.
 - Rendering correctness, long play sessions, audio, controller behavior and save/load require real-game verification; automated unit tests cannot validate these.
 - Shader compilation can stall or omit effects. Linux support is inherited and unvalidated for this Pre-Alpha Windows delivery.
 - Windows error 1450 means the guest memory pool could not be committed (6080 MiB at the default). The renderer needs additional memory. Close unused applications and ensure sufficient Windows commit capacity before retrying.

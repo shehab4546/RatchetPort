@@ -1,6 +1,44 @@
-# V1 test record
+# Test records
 
-This record describes local pre-release checks on 21 October 2026. It does not
+## V1.1 PlayGo — RTX 5070 Laptop, 22 October 2026
+
+The project owner confirmed actual gameplay at a steady **30 FPS** on their
+**NVIDIA GeForce RTX 5070 Laptop GPU** with the PlayGo update for CUSA01047 USA
+v1.00. This is owner-reported real-game testing, not an automated benchmark.
+
+Two supplied runtime logs dated 22 October 2026 were reviewed:
+
+| Observation | Earlier session | Later session |
+| --- | --- | --- |
+| Selected GPU | NVIDIA GeForce RTX 5070 Laptop GPU | Same |
+| Window / presentation | Fullscreen, VSync on (Fifo), 30 FPS limit | Same |
+| PlayGo | 72 chunks initialized, all installed locally | Same |
+| Runtime session duration | 621 s (10 min 21 s) | 294 s (4 min 54 s) |
+| Exit | Code 0 | Code 0 |
+| Input device | Xbox One Controller detected; 18,408 pad reads | Xbox One Controller detected; 8,769 pad reads |
+| Unsupported Prefetch / Device Lost | Neither appears | Neither appears |
+
+The durations cover the runtime session, not a measured continuous gameplay
+interval. The logs record a 30 FPS limit, not sampled frame rates; steady 30 FPS
+gameplay is confirmed by the owner. CPU model, installed RAM, driver version and
+output resolution are not identified in these logs. Audio output and save-mount
+counters are present, but do not establish audible correctness or a successful
+save/load round trip. Nonfatal Vulkan capability/format warnings remain; the
+earlier log also reports an initially missing shader-profile cache file.
+Raw logs and local paths are not published. Other GPUs, higher FPS, detailed rendering/audio/controller
+checks, save/load and long-session stability are not established by this report.
+
+The [V1.1 PlayGo release](https://github.com/shehab4546/RatchetPort/releases/tag/v1.1-playgo)
+contains the package built from `0cd2570f4c2b9778b92df43cfedfaae871299679`.
+[Windows CI run #1](https://github.com/shehab4546/RatchetPort/actions/runs/39695590075)
+passed the full build, native services test, six PlayGo test methods with the
+production resolver, packaging/source checks and a separate package-startup
+smoke test without MSYS2 on PATH. Python: **463 discovered; 417 passed, 46 skipped,
+zero failures/errors**. These checks are separate from the owner's game report.
+
+## Historical V1 test record
+
+The following record describes local pre-release checks on 21 October 2026. It does not
 certify general hardware compatibility or stable gameplay.
 
 ## Test machine
