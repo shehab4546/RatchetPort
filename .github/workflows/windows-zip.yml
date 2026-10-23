@@ -57,9 +57,10 @@ jobs:
       - name: Build
         run: |
           bash build.sh
-          cmake --build out/ratchet-clean --target playgo-resolver-test services-test --parallel 3
+          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test --parallel 3
           out/ratchet-clean/services-test.exe
           RATCHET_PLAYGO_TEST="$PWD/out/ratchet-clean/playgo-resolver-test.exe" python -m unittest discover -s tests -p 'test_playgo.py'
+          python tests/test_texture_churn_trace.py "$PWD/out/ratchet-clean/churn-trace-test.exe"
 
       - name: Build LGPL release libraries
         run: |
