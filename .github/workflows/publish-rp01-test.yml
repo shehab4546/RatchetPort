@@ -40,12 +40,24 @@ jobs:
           merged = '3cc2a50d5f4fb81550994b858ad3df3e310cb743'
           head = 'ad79d74ccf73df8451f3de4c750fe60b2bbfb132'
           tag = 'rp01-test-1'
+          release_title = 'RatchetPort V1.2 — Baseline Preview'
 
           def gh(*args):
               return subprocess.check_output(['gh', *args], text=True)
 
           def api(path):
               return json.loads(gh('api', 'repos/' + repo + '/' + path))
+
+          # An existing release needs only a title update; preserve its assets and notes.
+          existing_release = subprocess.run(
+              ['gh', 'api', 'repos/' + repo + '/releases/tags/' + tag],
+              capture_output=True, text=True)
+          if existing_release.returncode == 0:
+              release = json.loads(existing_release.stdout)
+              assert release['target_commitish'] == merged and release['prerelease']
+              assert not release['draft']
+              gh('release', 'edit', tag, '--repo', repo, '--title', release_title)
+              raise SystemExit(0)
 
           run = api(f'actions/runs/{run_id}')
           assert run['conclusion'] == 'success' and run['status'] == 'completed'
@@ -121,5 +133,5 @@ jobs:
           if existing.returncode == 0:
               raise SystemExit('Release already exists; refusing to replace it.')
           gh('release', 'create', tag, *map(str, assets), '--repo', repo,
-             '--target', merged, '--title', 'RatchetPort RP-01 — Test 1',
+             '--target', merged, '--title', release_title,
              '--notes-file', str(notes), '--prerelease', '--latest=false')
