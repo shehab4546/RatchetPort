@@ -1,0 +1,310 @@
+{
+  "schema_version": 1,
+  "title_id": "CUSA01047",
+  "app_version": "01.00",
+  "binary": {
+    "source_format": "SELF",
+    "source_size": 79129828,
+    "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+    "elf_sha256": "dc1a8862016cb80060928e911ab933d6e380014c1128e537642f9f569f3a05cf",
+    "entry_elf_vaddr": 34448912,
+    "address_convention": "ELF p_vaddr equals prepare.py pre-link image offset; not a host pointer",
+    "segments": [
+      {
+        "type": 1,
+        "flags": 5,
+        "offset": 16384,
+        "vaddr": 0,
+        "paddr": 0,
+        "filesz": 58841604,
+        "memsz": 58841604,
+        "align": 16384,
+        "index": 0,
+        "source_offset": 117232,
+        "file_bytes_sha256": "f21f4f9d998744f6ac11c4d48e815a7ed5557dc1ea3b3f73e79e8be32a28ff8b"
+      },
+      {
+        "type": 1627389968,
+        "flags": 4,
+        "offset": 58867712,
+        "vaddr": 58851328,
+        "paddr": 58851328,
+        "filesz": 2414192,
+        "memsz": 2424832,
+        "align": 16384,
+        "index": 1,
+        "source_offset": 58963584,
+        "file_bytes_sha256": "41983195a4a98c8c4e9b54bc34a9ef23b9c4fe264c80c68e32584a290249d177"
+      },
+      {
+        "type": 1,
+        "flags": 6,
+        "offset": 61292544,
+        "vaddr": 61276160,
+        "paddr": 61276160,
+        "filesz": 4250048,
+        "memsz": 21814080,
+        "align": 16384,
+        "index": 2,
+        "source_offset": 61386096,
+        "file_bytes_sha256": "b48db1491c3a4a10f1a3a855486db5d2c0bbc3ab0e893588baad800604fe34aa"
+      }
+    ],
+    "string_hints_not_proof": {
+      "MotionBlurEnable": {
+        "matches_capped_at_two": [
+          49318450
+        ]
+      },
+      "RenderSettingsUser": {
+        "matches_capped_at_two": [
+          49318196
+        ]
+      },
+      "FrameRate": {
+        "matches_capped_at_two": []
+      },
+      "Resolution": {
+        "matches_capped_at_two": [
+          48931368,
+          49459667
+        ]
+      }
+    }
+  },
+  "candidate_results": [
+    {
+      "id": "frame_interval_default",
+      "mechanical_status": "matched",
+      "feature": "fps",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24675638,
+        "prelink_image_offset": 24675638,
+        "elf_file_offset": 24692022,
+        "source_file_offset": 24792870
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 24868457,
+        "prelink_image_offset": 24868457,
+        "elf_file_offset": 24884841,
+        "source_file_offset": 24985689
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "frame_interval_wait",
+      "mechanical_status": "matched",
+      "feature": "fps",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24869265,
+        "prelink_image_offset": 24869265,
+        "elf_file_offset": 24885649,
+        "source_file_offset": 24986497
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 24869481,
+        "prelink_image_offset": 24869481,
+        "elf_file_offset": 24885865,
+        "source_file_offset": 24986713
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "clock_initial_floor",
+      "mechanical_status": "matched",
+      "feature": "fps",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24242044,
+        "prelink_image_offset": 24242044,
+        "elf_file_offset": 24258428,
+        "source_file_offset": 24359276
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 15124467,
+        "prelink_image_offset": 15124467,
+        "elf_file_offset": 15140851,
+        "source_file_offset": 15241699
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "clock_tick_elapsed",
+      "mechanical_status": "matched",
+      "feature": "fps",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 15124334,
+        "prelink_image_offset": 15124334,
+        "elf_file_offset": 15140718,
+        "source_file_offset": 15241566
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 15124486,
+        "prelink_image_offset": 15124486,
+        "elf_file_offset": 15140870,
+        "source_file_offset": 15241718
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "motion_blur_gate",
+      "mechanical_status": "matched",
+      "feature": "motion_blur",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24948911,
+        "prelink_image_offset": 24948911,
+        "elf_file_offset": 24965295,
+        "source_file_offset": 25066143
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 24560457,
+        "prelink_image_offset": 24560457,
+        "elf_file_offset": 24576841,
+        "source_file_offset": 24677689
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "motion_blur_default",
+      "mechanical_status": "matched",
+      "feature": "motion_blur",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 27894668,
+        "prelink_image_offset": 27894668,
+        "elf_file_offset": 27911052,
+        "source_file_offset": 28011900
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 24948918,
+        "prelink_image_offset": 24948918,
+        "elf_file_offset": 24965302,
+        "source_file_offset": 25066150
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "resolution_selector",
+      "mechanical_status": "matched",
+      "feature": "internal_resolution",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 25419869,
+        "prelink_image_offset": 25419869,
+        "elf_file_offset": 25436253,
+        "source_file_offset": 25537101
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 25420197,
+        "prelink_image_offset": 25420197,
+        "elf_file_offset": 25436581,
+        "source_file_offset": 25537429
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "resolution_720",
+      "mechanical_status": "matched",
+      "feature": "internal_resolution",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24687830,
+        "prelink_image_offset": 24687830,
+        "elf_file_offset": 24704214,
+        "source_file_offset": 24805062
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 25419887,
+        "prelink_image_offset": 25419887,
+        "elf_file_offset": 25436271,
+        "source_file_offset": 25537119
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "resolution_900",
+      "mechanical_status": "matched",
+      "feature": "internal_resolution",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24687844,
+        "prelink_image_offset": 24687844,
+        "elf_file_offset": 24704228,
+        "source_file_offset": 24805076
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 25419887,
+        "prelink_image_offset": 25419887,
+        "elf_file_offset": 25436271,
+        "source_file_offset": 25537119
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "resolution_1080",
+      "mechanical_status": "matched",
+      "feature": "internal_resolution",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24687858,
+        "prelink_image_offset": 24687858,
+        "elf_file_offset": 24704242,
+        "source_file_offset": 24805090
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 25419887,
+        "prelink_image_offset": 25419887,
+        "elf_file_offset": 25436271,
+        "source_file_offset": 25537119
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    },
+    {
+      "id": "resolution_resize",
+      "mechanical_status": "matched",
+      "feature": "internal_resolution",
+      "location": {
+        "segment_index": 0,
+        "elf_vaddr": 24634239,
+        "prelink_image_offset": 24634239,
+        "elf_file_offset": 24650623,
+        "source_file_offset": 24751471
+      },
+      "consumer_location": {
+        "segment_index": 0,
+        "elf_vaddr": 24628464,
+        "prelink_image_offset": 24628464,
+        "elf_file_offset": 24644848,
+        "source_file_offset": 24745696
+      },
+      "semantic_status": "review_required",
+      "runtime_status": "not_tested"
+    }
+  ],
+  "runtime_tested": false,
+  "patches_applied": false
+}

@@ -1,30 +1,18 @@
-# RP-02 binary evidence — work in progress
+# RP-02 binary evidence audit
 
-Status: **blocked on the target binary and its matching identity metadata**.
-No FPS, motion-blur or internal-resolution site has been verified by this work.
-No feature is enabled, no patch list is changed, and RP-02 is not complete.
+Status: **target inputs received; static paths traced**. See
+[the 01.00 findings](RP02_BASE_100_FINDINGS.md) for build identity, original
+instructions, xrefs, initialization order and limits. The checked-in
+[evidence manifest](evidence/ratchet-cusa01047-0100-candidates.json) verifies
+11 unique sites against the owner's supplied SELF. The
+[capability registry](evidence/ratchet-cusa01047-0100-capabilities.json) keeps
+static research separate from runtime support; every runtime feature is disabled.
 
 Source baseline: `8ea873c654110a8d42697c8cfae515103a522b37`.
 
-## Inputs needed
-
-- Original, unmodified `eboot.bin` from the CUSA01047 USA 01.00 dump used by
-  RatchetPort, together with that dump's `sce_sys/param.sfo`.
-- `pkg_settings.set`, if present in the same dump, for tracing initialization
-  and possible overrides. It is not required for the inventory command.
-- Existing local research reports, especially FINDINGS.json, SIGNATURES.json,
-  RATCHETPORT_TASKS.json and the RP-02 report/scripts if another researcher has
-  already produced them. Findings from 1.09 are research leads, not 1.00 offsets.
-
-Keep original game files and private diagnostics out of Git and release assets.
-If the source SELF is not plaintext, the tool rejects it; a matching unpacked ELF
-may be needed for static analysis, with its provenance and both hashes retained.
-Renaming a file or changing APP_VER does not establish version compatibility.
-
-Older owner diagnostics include a MotionBlurEnable string and configuration
-excerpts. They have not established a source fingerprint, global signature
-uniqueness, the final consumer or initialization ordering for this work.
-Their raw contents and local filesystem paths are not copied into the repository.
+Keep game binaries and raw private diagnostics outside Git and release assets.
+A source hash mismatch requires independent investigation; do not copy offsets
+from 1.09 or change APP_VERSION to bypass verification.
 
 ## Read-only inventory
 
@@ -81,9 +69,9 @@ rp02_complete false and all runtime capabilities disabled.
 
 27 synthetic tests passed locally on 23 October 2026. They cover coordinate
 mapping, fingerprints, uniqueness, original bytes, loaded ranges, consumer
-permissions, malformed evidence and read-only CLI behavior. No real Ratchet
-binary was available. Full Windows CI and actual-game checks are not claimed.
+permissions, malformed evidence and read-only CLI behavior. The supplied real SELF additionally passed all 11 candidate checks.
+Actual-game execution is not claimed.
 
-Resume by hashing and inspecting the supplied originals, then tracing each
-candidate through disassembly, recording reproducible signatures and explicit
-supported/unresolved results. Keep this PR a draft until that evidence is reviewed.
+The tool never declares semantic acceptance. The separate findings document
+records the reviewed static data flow. Byte matching and static review are not
+runtime validation; feature enablement belongs to RP-03 and later tasks.
