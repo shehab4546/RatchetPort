@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "title_id": "CUSA01047",
+  "app_version": "01.00",
+  "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+  "elf_sha256": "dc1a8862016cb80060928e911ab933d6e380014c1128e537642f9f569f3a05cf",
+  "sites": [
+    {
+      "id": "frame_interval_default",
+      "feature": "fps",
+      "signature": "C7 43 24 00 00 00 40 C7 43 28 00 00 E0 40 C6 43 48 00 48 C7 83 90 00 00 00 00 00 00 00 48 C7 83",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x1788536",
+      "original_hex": "C7 43 24 00 00 00 40",
+      "consumer": {
+        "elf_vaddr": "0x17b7669",
+        "original_hex": "C5 FA 11 47 1C"
+      },
+      "purpose": "Constructor stores float 2.0 at render settings +0x24; renderer copies it to frame state +0x1c. This is a pacing multiplier, not a host FPS cap.",
+      "initialization": "Constructor 0x17884e0 precedes renderer initialization 0x1788570; frame state receives settings at 0x17b7620.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#fps"
+    },
+    {
+      "id": "frame_interval_wait",
+      "feature": "fps",
+      "signature": "C5 FA 10 4B 1C 80 7B 24 00 75 05 C5 F2 5F 4B 20 C5 F2 58 0D 2F 1D 73 01 C5 FA 59 C1 C5 FA 5A C0",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x17b7991",
+      "original_hex": "C5 FA 10 4B 1C 80 7B 24 00 75 05 C5 F2 5F 4B 20",
+      "consumer": {
+        "elf_vaddr": "0x17b7a69",
+        "original_hex": "E8 92 DB FD FF"
+      },
+      "purpose": "Wait path uses interval from frame state +0x1c, or max(interval,+0x20) when +0x24 is false, multiplied by base period and TSC frequency.",
+      "initialization": "Per-frame consumer 0x17b78a0; alternate throttle remains an independent constraint.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#fps"
+    },
+    {
+      "id": "clock_initial_floor",
+      "feature": "fps",
+      "signature": "48 8D 05 DD B2 32 03 C5 FA 10 40 1C 80 78 24 00 75 05 C5 FA 5F 40 20 C5 FA 59 40 18 C5 FA 5A C0",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x171e77c",
+      "original_hex": "48 8D 05 DD B2 32 03",
+      "consumer": {
+        "elf_vaddr": "0xe6c7f3",
+        "original_hex": "C5 EB 5F 43 40"
+      },
+      "purpose": "Clock initialization derives its minimum from frame period times interval and caller minimum. Tick update clamps elapsed time to that minimum.",
+      "initialization": "Renderer initialization call 0x18710c7 precedes clock initialization call 0x18713e1 in the same initialization function.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#fps"
+    },
+    {
+      "id": "clock_tick_elapsed",
+      "feature": "fps",
+      "signature": "E8 25 BA E1 01 48 2B 03 C5 F8 57 C0 C4 E1 FB 2A C0 C5 FB 5E 43 08 C5 FB 10 4B 10 C5 FB 10 6B 48",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0xe6c76e",
+      "original_hex": "E8 25 BA E1 01",
+      "consumer": {
+        "elf_vaddr": "0xe6c806",
+        "original_hex": "C5 FB 11 43 38"
+      },
+      "purpose": "Reads TSC, converts elapsed ticks using frequency, applies maximum/minimum and time scale, then stores clock delta at +0x38.",
+      "initialization": "Clock initialization supplies limits and frequency before this tick path. RP-04 must preserve game speed and smoothing.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#fps"
+    },
+    {
+      "id": "motion_blur_gate",
+      "feature": "motion_blur",
+      "signature": "48 8D 35 02 BC 71 03 80 7E 01 00 0F 94 C3 44 08 EB 0F B6 F3 83 FE 01 75 0C 41 C7 84 24 A4 00 02",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x17cb0af",
+      "original_hex": "48 8D 35 02 BC 71 03 80 7E 01 00",
+      "consumer": {
+        "elf_vaddr": "0x176c349",
+        "original_hex": "C5 FA 10 81 A4 00 02 00"
+      },
+      "purpose": "Reads RenderSettingsUser.MotionBlurEnable at global 0x4ee6cb8 +1; false clears render parameter +0x200a4, consumed in blur-strength calculation.",
+      "initialization": "Config registry registers Render at 0x1a9aaa6; gate consumes the configured value during render-state preparation, after settings parsing.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#motion-blur"
+    },
+    {
+      "id": "motion_blur_default",
+      "feature": "motion_blur",
+      "signature": "66 C7 03 01 01 E8 7A 8E 3D FF 48 89 04 24 48 8D 0D A6 E5 46 01 41 B8 1C 00 00 00 41 B9 85 3E 2A",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x1a9a38c",
+      "original_hex": "66 C7 03 01 01",
+      "consumer": {
+        "elf_vaddr": "0x17cb0b6",
+        "original_hex": "80 7E 01 00"
+      },
+      "purpose": "Reset/default constructor sets RenderEnable and MotionBlurEnable to true with word 0x0101; reflection offsets are 0,1,8.",
+      "initialization": "Default initialization is not the last settings writer. Config can override it; the consumer gate is the evidence anchor for later patch design.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#motion-blur"
+    },
+    {
+      "id": "resolution_selector",
+      "feature": "internal_resolution",
+      "signature": "48 8D 05 FC F5 1F 03 8B 78 0C 48 8D 75 CC 48 8D 55 C8 E8 2C D4 F4 FF 84 C0 74 04 31 DB EB 1E 48",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x183e05d",
+      "original_hex": "48 8D 05 FC F5 1F 03 8B 78 0C",
+      "consumer": {
+        "elf_vaddr": "0x183e1a5",
+        "original_hex": "E8 86 01 F4 FF"
+      },
+      "purpose": "Reads selector at 0x4a3d660 +0x0c, maps it through 0x178b4a0, and passes selected dimensions to shared render-buffer resize.",
+      "initialization": "Per-frame resolution reconciliation follows command/config setters. Mode zero falls back to existing dimensions; do not patch unbacked BSS in the source SELF.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#internal-resolution"
+    },
+    {
+      "id": "resolution_720",
+      "feature": "internal_resolution",
+      "signature": "C7 06 00 05 00 00 C7 02 D0 02 00 00 EB 28 C7 06 40 06 00 00 C7 02 84 03 00 00 EB 1A C7 06 80 07",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x178b4d6",
+      "original_hex": "C7 06 00 05 00 00 C7 02 D0 02 00 00",
+      "consumer": {
+        "elf_vaddr": "0x183e06f",
+        "original_hex": "E8 2C D4 F4 FF"
+      },
+      "purpose": "Selector mode 3 returns 1280 by 720.",
+      "initialization": "Jump table 0x178b510 maps mode-1 to case; dimensions are returned at each call.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#internal-resolution"
+    },
+    {
+      "id": "resolution_900",
+      "feature": "internal_resolution",
+      "signature": "C7 06 40 06 00 00 C7 02 84 03 00 00 EB 1A C7 06 80 07 00 00 C7 02 38 04 00 00 EB 0C C7 06 80 07",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x178b4e4",
+      "original_hex": "C7 06 40 06 00 00 C7 02 84 03 00 00",
+      "consumer": {
+        "elf_vaddr": "0x183e06f",
+        "original_hex": "E8 2C D4 F4 FF"
+      },
+      "purpose": "Selector mode 4 returns 1600 by 900.",
+      "initialization": "Jump table 0x178b510 maps mode-1 to case; dimensions are returned at each call.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#internal-resolution"
+    },
+    {
+      "id": "resolution_1080",
+      "feature": "internal_resolution",
+      "signature": "C7 06 80 07 00 00 C7 02 38 04 00 00 EB 0C C7 06 80 07 00 00 C7 02 20 03 00 00 B0 01 C3 90 AA FF",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x178b4f2",
+      "original_hex": "C7 06 80 07 00 00 C7 02 38 04 00 00",
+      "consumer": {
+        "elf_vaddr": "0x183e06f",
+        "original_hex": "E8 2C D4 F4 FF"
+      },
+      "purpose": "Selector mode 5 returns 1920 by 1080.",
+      "initialization": "Jump table 0x178b510 maps mode-1 to case; dimensions are returned at each call.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#internal-resolution"
+    },
+    {
+      "id": "resolution_resize",
+      "feature": "internal_resolution",
+      "signature": "89 83 3C 26 00 00 89 8B 40 26 00 00 48 89 DF E8 7D FD FF FF 48 89 DF E8 25 E9 FF FF 8B 8B 3C 26",
+      "offset_in_signature": 0,
+      "elf_vaddr": "0x177e37f",
+      "original_hex": "89 83 3C 26 00 00 89 8B 40 26 00 00",
+      "consumer": {
+        "elf_vaddr": "0x177ccf0",
+        "original_hex": "4D 63 A7 3C 26 00 00 4D 63 B7 40 26 00 00"
+      },
+      "purpose": "Stores width/height at render-buffer object +0x263c/+0x2640, releases/recreates buffers; creation routine reads those same fields.",
+      "initialization": "Called only when dimensions change; alignment is four pixels, with minimum four. This is separate from VideoOut buffer size.",
+      "evidence_reference": "docs/RP02_BASE_100_FINDINGS.md#internal-resolution"
+    }
+  ]
+}

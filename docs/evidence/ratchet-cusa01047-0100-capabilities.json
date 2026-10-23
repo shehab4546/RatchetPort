@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "title_id": "CUSA01047",
+  "app_version": "01.00",
+  "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+  "elf_sha256": "dc1a8862016cb80060928e911ab933d6e380014c1128e537642f9f569f3a05cf",
+  "scope": "Static RP-02 evidence only; not a runtime patch allowlist",
+  "capabilities": {
+    "fps": {
+      "static_status": "traced",
+      "runtime_status": "not_tested",
+      "runtime_enabled": false,
+      "sites": [
+        "frame_interval_default",
+        "frame_interval_wait",
+        "clock_initial_floor",
+        "clock_tick_elapsed"
+      ],
+      "next_gate": "RP-03 original-byte-safe patching, then RP-04 timing policy and speed/audio/cutscene validation"
+    },
+    "motion_blur": {
+      "static_status": "traced",
+      "runtime_status": "not_tested",
+      "runtime_enabled": false,
+      "sites": [
+        "motion_blur_gate",
+        "motion_blur_default"
+      ],
+      "next_gate": "RP-03 patching, then RP-05 visual and render-pass validation"
+    },
+    "internal_resolution": {
+      "static_status": "traced",
+      "runtime_status": "not_tested",
+      "runtime_enabled": false,
+      "modes": {
+        "720p": 3,
+        "900p": 4,
+        "1080p": 5
+      },
+      "sites": [
+        "resolution_selector",
+        "resolution_720",
+        "resolution_900",
+        "resolution_1080",
+        "resolution_resize"
+      ],
+      "next_gate": "RP-03 patching, then RP-06 actual render-target and UI/output separation validation"
+    },
+    "neo_109": {
+      "static_status": "not_established_for_this_build",
+      "runtime_status": "not_tested",
+      "runtime_enabled": false,
+      "sites": [],
+      "next_gate": "Independent version-specific research; no 1.09 offsets imported"
+    }
+  },
+  "research_report": "docs/RP02_BASE_100_FINDINGS.md"
+}
