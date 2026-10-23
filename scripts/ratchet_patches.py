@@ -237,6 +237,8 @@ def status(out):
     out = Path(out)
     try:
         report = json.loads((out / 'patch_status.json').read_text())
+        if not isinstance(report, dict):
+            raise ValueError('patch status must be an object')
         if report.get('schema_version') != 3:
             return {'applied': [], 'skipped': {}, 'phase': 'unconfirmed_legacy_status'}
         report['applied'] = []

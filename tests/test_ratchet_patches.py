@@ -227,7 +227,7 @@ class LifecycleTests(unittest.TestCase):
         self.assertFalse((self.game / 'out').exists())
 
     def test_invalid_status_or_legacy_cannot_claim_applied(self):
-        for report in ('broken JSON', '{"applied":["fps"]}'):
+        for report in ('broken JSON', '[]', 'null', '{"applied":["fps"]}'):
             (self.out / 'patch_status.json').write_text(report)
             self.assertEqual(rp.status(self.out)['applied'], [])
 
