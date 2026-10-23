@@ -209,11 +209,9 @@ def game_patchable(game):
 
 
 def patch_status(out):
-    """The last start's patch report (patches.py writes it): {'applied': [...], 'skipped': {...}}."""
-    try:
-        return json.loads((Path(out)/'patch_status.json').read_text())
-    except (OSError, ValueError):
-        return None
+    """Current verified transaction; file generation alone never means applied."""
+    from ratchet_patches import status
+    return status(out)
 
 
 def available_patches(xml, app_version):

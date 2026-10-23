@@ -479,3 +479,6 @@ foreach(test IN LISTS ratchet_targets)
         target_compile_options(${test} PRIVATE -UNDEBUG)
     endif()
 endforeach()
+
+add_executable(verified-patches-test EXCLUDE_FROM_ALL ../tests/test_verified_patches.c)
+target_compile_options(verified-patches-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)

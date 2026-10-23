@@ -125,7 +125,6 @@ def main():
     sys.path.insert(0, str(PORT / 'scripts'))
     data = Path(env.get('RATCHET_DATA_DIR', PORT))
     out = data / 'out'
-    out.mkdir(parents=True, exist_ok=True)
     env.setdefault('RATCHET_CONFIG', str(data / 'ratchet.ini'))
     # Values this script derived on the previous start ("Apply and restart" inherits them) are
     # derived again from the new options.
@@ -138,7 +137,11 @@ def main():
     except Exception:
         discord_presence = None
     import mods
-    import patches
+    import ratchet_patches
+    game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
+    if out.resolve().is_relative_to(game.resolve()):
+        fail('Data output must be outside the original game directory.')
+    ratchet_patches.reset(out)
     extra_resolutions = []
     graphics, reverted = graphics_options.prepare(env['RATCHET_CONFIG'], out / 'graphics_state.json', extra_resolutions)
     if reverted:
@@ -194,10 +197,8 @@ def main():
                 isa_args = ['--isa-rewrite', str(out / 'isa-rewrite.bin')]
         run_script('content_profile.py', game, '--out', out, '--sku', env.get('RATCHET_CONTENT_SKU', 'full'))
 
-        # No verified Ratchet patches are shipped. Never apply patches from another title.
-        patches.write_patches(out, [])
-        (out / 'patch_status.json').write_text('{"applied": [], "skipped": {}}')
-        print('Patches: none (CUSA01047 v1.00)', flush=True)
+        requested = [n.strip() for n in env.get('RATCHET_PATCHES', '').split(';') if n.strip()]
+        ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
         icon_file = PORT / 'launcher' / 'ratchet-probe.png'
         if not icon_file.is_file():
             icon_file = PORT / 'launcher' / 'ratchetport.png'
@@ -244,7 +245,8 @@ def main():
         restart = [sys.executable, *this, *after, *args]
         env['RATCHET_RESTART_COMMAND'] = subprocess.list2cmdline(restart) if WINDOWS else shlex.join(restart)
         command = [*launch_prefix(env), str(probe), str(out / 'boot-linked.bin'), '--content-profile', str(out / 'content.bin'),
-                   '--patches', str(out / 'patches.bin'), '--app0', str(game),
+                   '--patches', str(out / 'patches.bin'), '--patch-receipt', str(out / 'patch_receipt.bin'),
+                   '--app0', str(game),
                    '--user', str(user_dir),
                    '--timeout', env.get('RATCHET_TIMEOUT', '0'), *isa_args, *mount_args, *args]
         # No stdin: an inherited pipe (shells such as Git Bash) cost the game its console output.
@@ -255,7 +257,9 @@ def main():
                 presence = discord_presence.Presence(pid=process.pid) if discord_presence else None
             except (OSError, RuntimeError):
                 print('Discord presence unavailable; the game will continue', flush=True)
-            return process.wait()
+            returncode = process.wait()
+            ratchet_patches.finish(out, returncode)
+            return returncode
         finally:
             if presence:
                 presence.close()

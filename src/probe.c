@@ -5,10 +5,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <errno.h>
 #include "runtime.h"
 #include "cpu_check.h"
 #include "isa_rewrite.h"
 #include "signature.h"
+#include "verified_patches.h"
 #include "gpu/ratchetgpu.h"
 #if !defined(__x86_64__) || !defined(__GNUC__)
 #error This prototype requires x86-64 GCC or Clang (including MinGW).
@@ -827,41 +829,24 @@ static int mapped(Segment *segments, uint64_t count, uint64_t address, uint64_t 
             address - segments[i].address <= segments[i].size - bytes) return 1;
     return 0;
 }
-/* G3PATCH2 (patches.py): the patches' image base, then byte writes at image offsets, applied
- * after relocation. A write may replace a whole base-relative pointer slot (60/90 FPS++ swap
- * function pointers): the patch holds the address at the patches' base, rebased here. */
-static void apply_patches(const char *path, Segment *segments, uint64_t ns, const Reloc *relocs, uint64_t nr) {
-    FILE *f=fopen(path,"rb");
-    char magic[8];
-    if (!f || fread(magic,1,8,f)!=8 || memcmp(magic,"G3PATCH2",8)) fail("invalid patch file");
-    uint64_t base=read64(f), count=read64(f), bytes=0, rebased=0;
-    unsigned char data[4096];
-    for (uint64_t i=0;i<count;++i) {
-        uint64_t offset=read64(f), length=read64(f);
-        if (!length || length>sizeof(data) || !mapped(segments,ns,offset,length) || fread(data,1,length,f)!=length)
-            fail("bad patch entry");
-        uint64_t slots[sizeof(data)/8]; size_t nslots=0;
-        for (uint64_t r=0;r<nr;++r) {
-            if (!(relocs[r].target<offset+length && offset<relocs[r].target+8)) continue;
-            uint64_t target=relocs[r].target, value;
-            if (relocs[r].kind || target<offset || target+8>offset+length) fail("patch overlaps a relocation");
-            memcpy(&value,data+(target-offset),8);
-            if (value<base || !mapped(segments,ns,value-base,1)) fail("patch writes a pointer outside the image");
-            slots[nslots++]=target;
-        }
-        memcpy(image+offset,data,length);
-        for (size_t s=0;s<nslots;++s) {
-            uint64_t value;
-            memcpy(&value,image+slots[s],8);
-            value=(uint64_t)(uintptr_t)image+(value-base);
-            memcpy(image+slots[s],&value,8);
-        }
-        rebased+=nslots;
-        bytes+=length;
+/* Reject transformations even when they happen to leave the edited bytes unchanged. */
+typedef struct { Segment *segments; uint64_t ns; Reloc *relocs; uint64_t nr; } PatchContext;
+static const char *patch_range(uint64_t address, uint64_t length, void *opaque) {
+    PatchContext *c = (PatchContext *)opaque;
+    if (!mapped(c->segments, c->ns, address, length)) return "patch outside mapped segment";
+    for (uint64_t i = 0; i < c->nr; ++i)
+        if (rp_overlap(address, length, c->relocs[i].target, 8)) return "patch overlaps relocation";
+    if (isa_table) for (uint32_t i = 0; i < isa_table->count; ++i) {
+        const IsaSite *s = &isa_table->sites[i];
+        uint64_t n = s->length + (s->mode == ISA_MODE_JMP_RELOCATE ? s->relocated_length : 0);
+        if (rp_overlap(address, length, s->offset, n)) return "patch overlaps ISA rewrite";
     }
-    if (fgetc(f)!=EOF) fail("trailing data in patch file");
-    fclose(f);
-    printf("Patches: %" PRIu64 " writes, %" PRIu64 " bytes applied, %" PRIu64 " pointers rebased\n",count,bytes,rebased);
+    /* A TCB instruction can start up to eight bytes before the write. */
+    static const unsigned char tcb[9] = {0x65,0x48,0x8b,0x04,0x25,0,0,0,0};
+    for (uint64_t at = address > 8 ? address - 8 : 0; at < address + length; ++at)
+        if (mapped(c->segments, c->ns, at, sizeof(tcb)) && !memcmp(image + at, tcb, sizeof(tcb)))
+            return "patch overlaps TCB rewrite";
+    return NULL;
 }
 /* Restarts the game through run.sh (the settings menu: a new render resolution is a patch
  * applied at start). Descriptors are closed first so the old GPU device and its memory are
@@ -946,7 +931,7 @@ int main(int argc, char **argv) {
 #endif
     int cpu_only = 0, strict_imports = 0, check_imports = 0;
     unsigned timeout_seconds = 10;
-    const char *content_profile=NULL, *app0=NULL, *user_dir=NULL, *patch_file=NULL, *isa_file=NULL;
+    const char *content_profile=NULL, *app0=NULL, *user_dir=NULL, *patch_file=NULL, *patch_receipt=NULL, *isa_file=NULL;
     const char *mounts[8]; int mount_count=0;
     for (int i = 2; i < argc; ++i) {
         if (!strcmp(argv[i], "--cpu-only")) cpu_only = 1;
@@ -955,6 +940,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--content-profile") && i+1<argc) content_profile=argv[++i];
         else if (!strcmp(argv[i], "--app0") && i+1<argc) app0=argv[++i];
         else if (!strcmp(argv[i], "--user") && i+1<argc) user_dir=argv[++i];
+        else if (!strcmp(argv[i], "--patch-receipt") && i+1<argc) patch_receipt=argv[++i];
         else if (!strcmp(argv[i], "--patches") && i+1<argc) patch_file=argv[++i];
         else if (!strcmp(argv[i], "--isa-rewrite") && i+1<argc) isa_file=argv[++i];
         else if (!strcmp(argv[i], "--mount") && i+1<argc) {
@@ -967,9 +953,11 @@ int main(int argc, char **argv) {
         else { fprintf(stderr, "Unknown option: %s\n", argv[i]); return 1; }
     }
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s boot.bin [--cpu-only] [--strict-imports] [--check-imports] [--content-profile file] [--app0 dir] [--user dir] [--patches file] [--isa-rewrite file] [--mount guest=host]... [--timeout seconds] | --vulkan-only | --cpu-features | --gamepad\n", argv[0]);
+        fprintf(stderr, "Usage: %s boot.bin [--cpu-only] [--strict-imports] [--check-imports] [--content-profile file] [--app0 dir] [--user dir] [--patches file] [--patch-receipt file] [--isa-rewrite file] [--mount guest=host]... [--timeout seconds] | --vulkan-only | --cpu-features | --gamepad\n", argv[0]);
         return 1;
     }
+    /* Invalidate even if CPU/image validation fails; never reuse an old acknowledgement. */
+    if (patch_receipt && remove(patch_receipt) && errno != ENOENT) fail("cannot invalidate patch receipt");
     if (!cpu_supported(missing, sizeof missing)) return 20;
     if (cpu_missing_sets) printf("CPU: missing %s\n", missing);
     /* RATCHET_ISA_REWRITE=0 never rewrites, =1 rewrites every site; by default the sets the CPU lacks. */
@@ -1146,6 +1134,12 @@ int main(int argc, char **argv) {
     unsigned char *stubs = image + round_page(size);
     if (fread(image, 1, size, f) != size || fgetc(f) != EOF) fail("incorrect memory image size");
     fclose(f);
+    RpPlan patch_plan = {0};
+    PatchContext patch_context = {segments, ns, relocs, nr};
+    if (patch_file) {
+        const char *error = rp_load(&patch_plan, patch_file, image, size, patch_range, &patch_context);
+        if (error) fail(error);
+    }
     if (isa_table && isa_table_matches(isa_table, image, size)) {
         printf("STOP: this CPU lacks %s and no rewrite table matches the image\n", missing);
         return 20;
@@ -1210,7 +1204,6 @@ int main(int argc, char **argv) {
         fflush(NULL);
         _exit(missing ? 1 : 0); /* no destructors: GPU threads are running */
     }
-    if (patch_file) apply_patches(patch_file, segments, ns, relocs, nr);
 #ifdef _WIN32
     printf("Guest TCB loads redirected to the TEB TLS slot: %" PRIu64 "\n", patch_tcb_loads(segments, ns));
 #endif
@@ -1226,6 +1219,10 @@ int main(int argc, char **argv) {
                     missing, r.rewritten, r.jmp, r.relocated, r.int3, r.skipped);
         protect(stubs, stub_area, 5);
     }
+    if (patch_file) {
+        const char *error = rp_apply(&patch_plan, image);
+        if (error) fail(error);
+    }
     runtime_set_report_hook(loader_report_hook);
     protect(traps, round_page((import_count + 1) * 32), 5);
     protect(image, round_page(size), 0);
@@ -1236,6 +1233,12 @@ int main(int argc, char **argv) {
             executable_entry = 1;
     }
     if (!executable_entry) fail("entry is not executable");
+    if (patch_file) {
+        const char *error = patch_receipt ? rp_receipt(&patch_plan, patch_receipt) : NULL;
+        if (error) fail(error);
+        printf("Patches: %" PRIu64 " verified writes applied in memory\n", patch_plan.count);
+        rp_free(&patch_plan);
+    }
     printf("Mapped %" PRIu64 " bytes, %" PRIu64 " segments; applied %" PRIu64 " relocations\n", size, ns, nr);
     if (native_libc) {
         for (uint64_t m=0;m<module_count;++m) {
