@@ -109,8 +109,21 @@ jobs:
               assert release['target_commitish'] == merged and release['name'] == title
               if not release['draft']:
                   existing = {a['name']: a for a in release['assets']}
-                  assert release['prerelease'] and all(existing[n]['digest'] == d for n, d in expected.items())
-                  print(release['html_url'])
+                  assert all(existing[n]['digest'] == d for n, d in expected.items())
+                  assert release['id'] == 422691789 and release['tag_name'] == tag
+                  assert api('git/ref/tags/' + tag)['object']['sha'] == merged
+                  before_assets = [(a['id'], a['name'], a['size'], a['digest']) for a in release['assets']]
+                  body = release['body'].replace(
+                      'This is an experimental prerelease; the existing Latest release is preserved.',
+                      'This is the Latest release. The 60 FPS mode remains experimental; gameplay validation is pending.')
+                  release = write_api('PATCH', f"releases/{release['id']}", {
+                      'prerelease': False, 'make_latest': 'true', 'body': body})
+                  assert not release['draft'] and not release['prerelease']
+                  assert release['name'] == title and release['target_commitish'] == merged
+                  assert [(a['id'], a['name'], a['size'], a['digest']) for a in release['assets']] == before_assets
+                  assert api('releases/latest')['id'] == release['id']
+                  assert api('git/ref/tags/' + tag)['object']['sha'] == merged
+                  print('Latest release: ' + release['html_url'])
                   raise SystemExit(0)
           ref = subprocess.run(['gh', 'api', f'repos/{repo}/git/ref/tags/{tag}'], capture_output=True, text=True)
           if ref.returncode == 0:
