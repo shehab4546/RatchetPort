@@ -30,17 +30,21 @@ jobs:
         run: |
           import hashlib
           import json
+          import os
+          import urllib.request
           import pathlib
           import subprocess
           import zipfile
 
           repo = 'shehab4546/RatchetPort'
-          run_id = 40012267670
-          tested = 'f458a255c8a2f6922c2fb22197cb787760f865b5'
-          merged = '23ef23523d1dcc6d913656314239f453265d84dc'
-          head = '582987750143acc89435adcfed88de58318c0081'
-          tree = '83cc5399cfc2e2ca10eb29ff3d3e372fb190afb7'
-          tag = 'v1.3-verified-preview'
+          run_id = 40048122917
+          tested = '95d8ec5104ab2d7e0bb0cc8a2676db3c6e64eac5'
+          merged = '0afac33887de7cff9844db86dd6ed268d424cc20'
+          head = 'ebf6a28bcc93a8f5dff3c10782e1d99e3800f801'
+          tree = '3d07b838ffcef72aa5783a14a898a541a608d844'
+          tag = 'v1.3-verified-preview-r2'
+          release_id = 422418421
+          previous_tag = 'v1.3-verified-preview'
           title = 'RatchetPort V1.3 — Verified Preview'
 
           def gh(*args):
@@ -49,13 +53,11 @@ jobs:
           def api(path):
               return json.loads(gh('api', 'repos/' + repo + '/' + path))
 
-          # Drafts are resolved from the collection: their tag may not exist yet.
-          existing = [r for r in api('releases?per_page=100') if r['tag_name'] == tag]
-          assert len(existing) <= 1
-          release = existing[0] if existing else None
-          if release:
-              assert release['draft'], 'Already published; refusing replacement.'
-              assert release['target_commitish'] == merged and release['name'] == title
+          # Refresh the existing release entry; never create a second release.
+          release = api(f'releases/{release_id}')
+          assert release['id'] == release_id and release['name'] == title
+          assert release['tag_name'] in (previous_tag, tag)
+          assert release['target_commitish'] in ('23ef23523d1dcc6d913656314239f453265d84dc', merged)
 
           run = api(f'actions/runs/{run_id}')
           assert run['conclusion'] == 'success' and run['status'] == 'completed'
@@ -66,10 +68,10 @@ jobs:
                      for name in ('build', 'smoke'))
           assert api('git/commits/' + tested)['tree']['sha'] == tree
           assert api('git/commits/' + merged)['tree']['sha'] == tree
-          pr = api('pulls/3')
+          pr = api('pulls/6')
           assert pr['merged'] and pr['merge_commit_sha'] == merged and pr['head']['sha'] == head
           artifacts = api(f'actions/runs/{run_id}/artifacts')['artifacts']
-          names = [f'RatchetPort-Windows-PlayGo-{tested}', f'RatchetPort-PlayGo-source-{tested}']
+          names = [f'RatchetPort-Windows-{tested}', f'RatchetPort-source-{tested}']
           for name in names:
               matches = [a for a in artifacts if a['name'] == name and not a['expired']]
               assert len(matches) == 1
@@ -78,8 +80,8 @@ jobs:
           incoming, output = pathlib.Path('incoming'), pathlib.Path('release')
           output.mkdir()
           mapping = {
-              'RatchetPort-Windows-PreAlpha.zip': 'RatchetPort-V1.3-Verified-Preview-Windows.zip',
-              'RatchetPort-V1.1-PlayGo-Source.zip': 'RatchetPort-V1.3-Verified-Preview-Source.zip',
+              'RatchetPort-V1.3-Verified-Preview-Windows.zip': 'RatchetPort-V1.3-Verified-Preview-Windows.zip',
+              'RatchetPort-V1.3-Verified-Preview-Source.zip': 'RatchetPort-V1.3-Verified-Preview-Source.zip',
               'ffmpeg-9.0.2.tar.xz': 'ffmpeg-9.0.2.tar.xz',
           }
           assets = []
@@ -91,17 +93,23 @@ jobs:
               target = output / destination
               target.write_bytes(data)
               assets.append(target)
-          with zipfile.ZipFile(output / mapping['RatchetPort-V1.1-PlayGo-Source.zip']) as archive:
+          with zipfile.ZipFile(output / mapping['RatchetPort-V1.3-Verified-Preview-Source.zip']) as archive:
               assert archive.testzip() is None
-              assert archive.read('RatchetPort-V1.1-PlayGo/SOURCE_REVISION.txt').decode().strip() == tested
-          with zipfile.ZipFile(output / mapping['RatchetPort-Windows-PreAlpha.zip']) as archive:
+              assert archive.read('RatchetPort-V1.3-Verified-Preview/SOURCE_REVISION.txt').decode().strip() == tested
+          with zipfile.ZipFile(output / mapping['RatchetPort-V1.3-Verified-Preview-Windows.zip']) as archive:
               assert archive.testzip() is None
+              info = json.loads(archive.read('RatchetPort/build-info.json'))
+              assert info['version'] == '1.3' and info['app_title'] == title
+              assert info['source_commit'] == tested
+              assert archive.read('RatchetPort/README-Windows.txt').decode('utf-8').startswith(title)
           provenance = {
+              'release_id': release_id, 'release_tag': tag, 'previous_tag_preserved': previous_tag,
+              'previous_release_commit': '23ef23523d1dcc6d913656314239f453265d84dc',
               'release_commit': merged, 'build_commit': tested, 'source_tree': tree,
-              'pull_request': 3, 'workflow_run': run_id,
+              'pull_request': 6, 'workflow_run': run_id,
               'workflow_url': f'https://github.com/{repo}/actions/runs/{run_id}',
               'gameplay_acceptance': 'pending owner testing of this build',
-              'note': 'CI ZIP contents are unchanged. Only download filenames are renamed. The tested PR merge and release target have identical source trees.',
+              'note': 'CI ZIP contents are unchanged. The tested PR merge and release target have identical source trees.',
           }
           provenance_path = output / 'BUILD_PROVENANCE.json'
           provenance_path.write_text(json.dumps(provenance, indent=2) + '\n')
@@ -111,46 +119,72 @@ jobs:
                                   for p in sorted(assets)))
           assets.append(sums)
           notes = pathlib.Path('release-notes.md')
-          notes.write_text('''Verified Preview for Ratchet & Clank PS4 CUSA01047 USA 01.00.
+          notes.write_text(f"""Verified Preview version-label correction for CUSA01047 USA 01.00.
 
-          Download **RatchetPort-V1.3-Verified-Preview-Windows.zip** to play using your own supported game dump. The Source ZIP and FFmpeg archive are for source distribution, not required to launch.
+          Download **RatchetPort-V1.3-Verified-Preview-Windows.zip**. Extract into a new folder and open RatchetPort.exe. The title bar must show **RatchetPort V1.3 — Verified Preview**, the home page **RatchetPort V1.3**, and sidebar/Advanced **v1.3**.
 
-          Changes:
-          - Exact source/ELF fingerprint, unique signature, original-byte and segment-boundary checks for reviewed patch groups.
-          - Whole-group rejection, conflict prevention and protection against relocation, ISA and TCB rewrite overlap.
-          - In-memory transactions with loader acknowledgement; generated files alone never count as applied.
-          - Fresh empty transactions when disabled, preventing stale patches or stale activation reports. Original game files remain unchanged.
-          - Read-only binary evidence and verified-build documentation from the preceding research stage.
+          V1.3 included the new verified patch framework, but its launcher still displayed 1.0.0-prealpha and its build metadata named V1.1 PlayGo. This release corrects that oversight with a shared version source for the launcher, executable version properties, package metadata, README and archive names. The home page now explains the preview's scope. The general launcher layout is unchanged.
 
-          Validation: Windows native build and transaction tests, Python tests (including the Python-to-C transaction/receipt test), packaging and the package smoke test without MSYS2 passed. CI: https://github.com/shehab4546/RatchetPort/actions/runs/40012267670
+          Validation: Windows build and Python tests, packaging, and the package smoke test without MSYS2 passed. Smoke checks verified the frozen version metadata, actual launcher title and Windows executable version resource against build-info.json. CI: https://github.com/{repo}/actions/runs/{run_id}
 
-          Test: extract the Windows ZIP to a new folder, open RatchetPort.exe and select CUSA01047 USA 01.00. Leave RATCHET_PATCHES unset and use the baseline settings. Verify startup, movement/combat, a cutscene and save/load after restarting. No feature patch should be reported applied. A developer-selected unreviewed patch name must be skipped with a reason; clearing it and restarting must leave no stale activation.
+          Inherited from V1.3: source/ELF fingerprint and original-byte checks, unique signatures, whole-group rejection, conflict checks, in-memory transactions and loader acknowledgements. Original game files are not patched. FPS, motion-blur and internal-resolution feature patches remain disabled. This is not a new tearing or cutscene-stutter fix. Gameplay acceptance of this exact build is pending owner testing.
 
-          Scope: this build supplies the verified patch framework. It does not enable 60 FPS, motion-blur removal or internal-resolution patches, and does not claim a new tearing/cutscene-stutter fix. Gameplay acceptance of this exact build remains pending owner testing. No game data is included.
+          The attached Windows and source ZIPs are unchanged CI artifacts from {tested}; their source tree matches release target {merged}. BUILD_PROVENANCE.json identifies the tested source and SHA256SUMS.txt lists the file hashes. No game data is included. This updates the existing V1.3 release entry. Its original tag remains unchanged; a new immutable source tag identifies the corrected build. No force update of the original tag is used.
 
-          These are unchanged CI archives, built from f458a255c8a2f6922c2fb22197cb787760f865b5. Its source tree matches merged commit 23ef23523d1dcc6d913656314239f453265d84dc. Internal source archive folder names retain their original labels. See BUILD_PROVENANCE.json and SHA256SUMS.txt.
+          Published as Latest at the owner's request. Verified Preview remains an experimental build designation.
+          """.replace('          ', ''))
+          expected_assets = {p.name: 'sha256:' + hashlib.sha256(p.read_bytes()).hexdigest() for p in assets}
+          if release['tag_name'] == tag and not release['draft']:
+              existing_assets = {a['name']: a for a in release['assets']}
+              assert release['target_commitish'] == merged
+              assert all(existing_assets[name]['digest'] == digest for name, digest in expected_assets.items())
+              print('The existing V1.3 release is already refreshed: ' + release['html_url'])
+              raise SystemExit(0)
 
-          Published as Latest at the owner's request; Verified Preview remains a test-build designation, not a claim of completed gameplay validation.
-          '''.replace('          ', ''))
-          # Upload and verify a draft first, so incomplete uploads never become Latest.
-          if release is None:
-              gh('release', 'create', tag, *map(str, assets), '--repo', repo, '--target', merged,
-                 '--title', title, '--notes-file', str(notes), '--draft', '--latest=false')
-              matches = [r for r in api('releases?per_page=100') if r['tag_name'] == tag]
-              assert len(matches) == 1
-              release = matches[0]
-          release = api(f'releases/{release["id"]}')
-          assert release['draft'] and release['target_commitish'] == merged
+          assert api('git/ref/tags/' + previous_tag)['object']['sha'] == '23ef23523d1dcc6d913656314239f453265d84dc'
+          # New immutable source ref: preserve the old tag rather than force-moving it.
+          ref_path = f'repos/{repo}/git/ref/tags/{tag}'
+          found = subprocess.run(['gh', 'api', ref_path], capture_output=True, text=True)
+          if found.returncode == 0:
+              assert json.loads(found.stdout)['object']['sha'] == merged
+          else:
+              assert '404' in found.stderr, found.stderr
+              tag_file = pathlib.Path('tag.json')
+              tag_file.write_text(json.dumps({'ref': 'refs/tags/' + tag, 'sha': merged}))
+              gh('api', '--method', 'POST', f'repos/{repo}/git/refs', '--input', str(tag_file))
+
+          # Hide the entry during replacement; publish Latest only after every digest matches.
+          metadata = pathlib.Path('publish.json')
+          metadata.write_text(json.dumps({'draft': True}))
+          gh('api', '--method', 'PATCH', f'repos/{repo}/releases/{release_id}', '--input', str(metadata))
+          release = api(f'releases/{release_id}')
+          for asset in release['assets']:
+              if asset['name'] in expected_assets:
+                  gh('api', '--method', 'DELETE', f'repos/{repo}/releases/assets/{asset["id"]}')
+          for path in assets:
+              request = urllib.request.Request(
+                  f'https://uploads.github.com/repos/{repo}/releases/{release_id}/assets?name={path.name}',
+                  data=path.read_bytes(), method='POST', headers={
+                      'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                      'Content-Type': 'application/octet-stream',
+                      'Accept': 'application/vnd.github+json',
+                      'X-GitHub-Api-Version': '2022-11-28'})
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  uploaded_asset = json.load(response)
+              assert uploaded_asset['name'] == path.name
+          release = api(f'releases/{release_id}')
+          assert release['draft']
           uploaded = {a['name']: a for a in release['assets']}
-          assert set(uploaded) == {p.name for p in assets}
           for path in assets:
               asset = uploaded[path.name]
               assert asset['state'] == 'uploaded' and asset['size'] == path.stat().st_size
-              expected = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
-              assert asset.get('digest') == expected, (path.name, asset.get('digest'))
-          metadata = pathlib.Path('publish.json')
-          metadata.write_text(json.dumps({'draft': False, 'prerelease': False, 'make_latest': 'true'}))
-          gh('api', '--method', 'PATCH', f'repos/{repo}/releases/{release["id"]}', '--input', str(metadata))
+              assert asset.get('digest') == expected_assets[path.name]
+          metadata.write_text(json.dumps({
+              'draft': False, 'prerelease': False, 'make_latest': 'true',
+              'tag_name': tag, 'target_commitish': merged, 'name': title, 'body': notes.read_text()}))
+          gh('api', '--method', 'PATCH', f'repos/{repo}/releases/{release_id}', '--input', str(metadata))
           latest = api('releases/latest')
-          assert latest['tag_name'] == tag and not latest['draft'] and not latest['prerelease']
+          assert latest['id'] == release_id and latest['tag_name'] == tag
+          assert not latest['draft'] and not latest['prerelease']
+          assert api('git/ref/tags/' + tag)['object']['sha'] == merged
           print(latest['html_url'])
