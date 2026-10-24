@@ -1,0 +1,139 @@
+name: Publish Visual Controls Preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-visual-controls-preview.yml']
+permissions:
+  contents: read
+concurrency:
+  group: publish-visual-controls-preview
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'shehab4546/RatchetPort' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Verify and publish the tested Windows package
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, urllib.request, zipfile
+          repo = 'shehab4546/RatchetPort'
+          run_id = 40123571344
+          tested = '182e7d70dc8a7c7578a365376e7921eec7a3c327'
+          tree = '4612ce89f395f465217c23d1b909806efe3782ba'
+          head = '7c158c45ca864d4ee115b194d35c873172f0f0d7'
+          tag = 'v1.5-visual-controls-preview'
+          title = 'RatchetPort V1.5 — Visual Controls Preview'
+          stem = 'RatchetPort-V1.5-Visual-Controls-Preview'
+          def gh(*args):
+              return subprocess.check_output(['gh', *args], text=True)
+          def api(path):
+              return json.loads(gh('api', 'repos/' + repo + '/' + path))
+          def write_api(method, path, data):
+              payload = pathlib.Path('payload.json')
+              payload.write_text(json.dumps(data))
+              return json.loads(gh('api', '--method', method, 'repos/' + repo + '/' + path, '--input', str(payload)))
+          run = api(f'actions/runs/{run_id}')
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['head_sha'] == tested and run['event'] == 'push'
+          assert run['head_branch'] == 'main' and run['path'] == '.github/workflows/windows-zip.yml'
+          jobs = api(f'actions/runs/{run_id}/jobs')['jobs']
+          assert all(any(j['name'] == n and j['conclusion'] == 'success' for j in jobs) for n in ('build', 'smoke'))
+          assert api('git/commits/' + tested)['tree']['sha'] == tree
+          pr = api('pulls/9')
+          assert pr['merged'] and pr['head']['sha'] == head and pr['merge_commit_sha'] == tested
+          latest = api('releases/latest')
+          assert latest['tag_name'] in ('v1.4-frame-timing-preview', tag), 'A different release is already Latest'
+          for name in (f'RatchetPort-Windows-{tested}', f'RatchetPort-source-{tested}'):
+              gh('run', 'download', str(run_id), '--repo', repo, '--name', name, '--dir', 'incoming')
+          incoming, output = pathlib.Path('incoming'), pathlib.Path('release')
+          output.mkdir()
+          names = [stem + '-Windows.zip', stem + '-Source.zip', 'ffmpeg-9.0.2.tar.xz']
+          assets = []
+          for name in names:
+              matches = list(incoming.rglob(name))
+              assert len(matches) == 1
+              target = output / name
+              target.write_bytes(matches[0].read_bytes())
+              assert target.stat().st_size > 0
+              assets.append(target)
+          with zipfile.ZipFile(assets[0]) as archive:
+              assert archive.testzip() is None
+              info = json.loads(archive.read('RatchetPort/build-info.json'))
+              assert info['version'] == '1.5' and info['app_title'] == title and info['source_commit'] == tested
+              assert archive.read('RatchetPort/README-Windows.txt').decode().startswith(title)
+              assert b'Ratchet Motion Blur Off (experimental)' in archive.read('RatchetPort/scripts/motion_blur.py')
+              assert b"CAPS = ('1024', '512', '256')" in archive.read('RatchetPort/scripts/shadow_resolution.py')
+              notes_bytes = archive.read('RatchetPort/docs/releases/V1.5-Visual-Controls-Preview.md')
+              notes = notes_bytes.decode().replace('../RP05_VISUAL_CONTROLS.md',
+                  f'https://github.com/{repo}/blob/{tag}/docs/RP05_VISUAL_CONTROLS.md')
+              assert '## New visual controls' in notes and '## Settings improvements' in notes
+          with zipfile.ZipFile(assets[1]) as archive:
+              assert archive.testzip() is None
+              assert archive.read(stem + '/SOURCE_REVISION.txt').decode().strip() == tested
+              assert archive.read(stem + '/docs/releases/V1.5-Visual-Controls-Preview.md') == notes_bytes
+          notes += f'\n\n**[Download for Windows x64](https://github.com/{repo}/releases/download/{tag}/{stem}-Windows.zip)**\n'
+          provenance = output / 'BUILD_PROVENANCE.json'
+          provenance.write_text(json.dumps({
+              'release_tag': tag, 'release_commit': tested, 'build_commit': tested, 'source_tree': tree,
+              'pull_request': 9, 'workflow_run': run_id,
+              'workflow_url': f'https://github.com/{repo}/actions/runs/{run_id}',
+              'jobs': [{k: j[k] for k in ('id', 'name', 'conclusion')} for j in jobs],
+              'gameplay_acceptance': 'pending motion blur and shadow-map comparisons at 30/60 FPS',
+              'defaults': {'game_fps': '30', 'motion_blur': 'original', 'shadow_resolution': 'original'},
+              'note': 'Unchanged CI artifacts from the tested main commit.'}, indent=2) + '\n')
+          assets.append(provenance)
+          sums = output / 'SHA256SUMS.txt'
+          sums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in sorted(assets)))
+          assets.append(sums)
+          expected = {p.name: 'sha256:' + hashlib.sha256(p.read_bytes()).hexdigest() for p in assets}
+          matches = [r for r in api('releases?per_page=100') if r['tag_name'] == tag]
+          assert len(matches) <= 1
+          if matches:
+              release = matches[0]
+              assert release['target_commitish'] == tested and release['name'] == title
+          ref = subprocess.run(['gh', 'api', f'repos/{repo}/git/ref/tags/{tag}'], capture_output=True, text=True)
+          if ref.returncode == 0:
+              assert json.loads(ref.stdout)['object']['sha'] == tested
+          else:
+              assert '404' in ref.stderr, ref.stderr
+              write_api('POST', 'git/refs', {'ref': 'refs/tags/' + tag, 'sha': tested})
+          if not matches:
+              release = write_api('POST', 'releases', {'tag_name': tag, 'target_commitish': tested,
+                  'name': title, 'body': notes, 'draft': True, 'prerelease': False, 'make_latest': 'false'})
+          release_id = release['id']
+          existing = {a['name']: a for a in release['assets']}
+          for path in assets:
+              if path.name in existing:
+                  assert existing[path.name]['digest'] == expected[path.name]
+                  continue
+              assert release['draft'], 'Do not change assets of an already published release'
+              request = urllib.request.Request(
+                  f'https://uploads.github.com/repos/{repo}/releases/{release_id}/assets?name={path.name}',
+                  data=path.read_bytes(), method='POST', headers={
+                      'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                      'Content-Type': 'application/octet-stream',
+                      'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'})
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  uploaded = json.load(response)
+              assert uploaded['name'] == path.name
+          release = api(f'releases/{release_id}')
+          uploaded = {a['name']: a for a in release['assets']}
+          for path in assets:
+              a = uploaded[path.name]
+              assert a['state'] == 'uploaded' and a['size'] == path.stat().st_size
+              assert a['digest'] == expected[path.name]
+          release = write_api('PATCH', f'releases/{release_id}', {'draft': False, 'prerelease': False,
+              'make_latest': 'true', 'name': title, 'body': notes})
+          assert not release['draft'] and not release['prerelease'] and release['tag_name'] == tag
+          assert api('git/ref/tags/' + tag)['object']['sha'] == tested
+          assert api('releases/latest')['id'] == release_id
+          print('Latest release: ' + release['html_url'])
