@@ -47,7 +47,7 @@ out/ratchet-tools/Scripts/python.exe -m unittest discover -s tests
 out/ratchet-tools/Scripts/python.exe tests/test_liverpool_commands.py
 out/ratchet-tools/Scripts/python.exe tests/run_native.py --build-dir out/ratchet-clean --runtime-dir out/ffmpeg-lgpl/bin
 out/ratchet-tools/Scripts/python.exe packaging/windows/package.py --build-dir out/ratchet-clean
-powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-V1.4-Frame-Timing-Preview-Windows.zip
+powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-V1.5-Visual-Controls-Preview-Windows.zip
 ```
 
 Build the `*-test` targets listed in `gpu/CMakeLists.txt` before running the native suite. Pass `--zero-clear-shader` with your local captured shader to run that GPU check; otherwise the runner explicitly reports it skipped.
@@ -61,7 +61,7 @@ Python, source and native tests remain separate from packaged game data. Never s
 After committing the release changes, run `python packaging/windows/source_archive.py`
 to create the explicit source ZIP, which includes the pinned submodules. Attach it
 and `out/release-sources/ffmpeg-9.0.2.tar.xz` alongside the Windows ZIP and checksums.
-See [distribution notes](../../docs/DISTRIBUTION.md). Frame Timing Preview remains experimental even
+See [distribution notes](../../docs/DISTRIBUTION.md). Visual Controls Preview remains experimental even
 when these automated checks pass. Version labels and archive names come from
 `scripts/release_info.py`; package smoke checks compare the executable resource,
 frozen metadata and visible launcher title with `build-info.json`.

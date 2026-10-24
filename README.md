@@ -9,16 +9,19 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**V1.4 — Frame Timing Preview · Windows x64 · CUSA01047 USA v1.00**
+**V1.5 — Visual Controls Preview · Windows x64 · CUSA01047 USA v1.00**
 
-This development version adds **30 FPS / Original** and **60 FPS (experimental)**
-to the launcher's Game frame rate selector. Original remains the default. The
-60 target uses a fingerprinted pair of guest pacing/clock patches and requires
-restart. Gameplay acceptance is pending; this is not a sustained-60 guarantee.
-Motion-blur and internal-resolution patches remain disabled. See
-[release notes](docs/releases/V1.4-Frame-Timing-Preview.md),
+This development version adds **Motion blur: On / Original or Off** and
+**Shadow-map resolution: Original, 1024, 512 or 256 px maximum** to Home and
+Graphics. Save and restart the game to apply a choice. Both default to Original;
+smaller shadow caps reduce detail without changing the fixed atlas allocation.
+The earlier **30 FPS / Original** and **60 FPS (experimental)** selector remains.
+These features need gameplay comparison; no sustained frame rate is guaranteed.
+See [release notes](docs/releases/V1.5-Visual-Controls-Preview.md),
+[visual-control evidence and test steps](docs/RP05_VISUAL_CONTROLS.md),
 [timing evidence](docs/RP04_FRAME_TIMING.md) and [tested hardware](docs/TESTING.md).
 Earlier hardware results describe their original builds, not this preview.
+V1.5 publication is pending build validation; the download below remains V1.4.
 
 [Download V1.4 Frame Timing Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.4-frame-timing-preview)
 · [Latest non-prerelease build](https://github.com/shehab4546/RatchetPort/releases/latest)
@@ -81,7 +84,7 @@ See [the detailed evidence and test counts](docs/TESTING.md).
 
 ## Starting on Windows
 
-1. Extract `RatchetPort-V1.4-Frame-Timing-Preview-Windows.zip` into a new writable folder.
+1. Extract the downloaded Windows ZIP into a new writable folder.
 2. Open `RatchetPort.exe`, choose the game directory and save the settings.
 3. Leave the initial settings at **30 FPS, VSync on, 1280x720 output, windowed, upscaling off, Deferred GPU readbacks off** and start the game.
 4. `Play RatchetPort.exe` can subsequently start using the saved configuration.
@@ -94,7 +97,7 @@ Settings (`settings.json`, `ratchet.ini`), prepared executable files (`out/`), s
 
 Generic SDL controller support and remappable keyboard/mouse input are retained. The Game page configures PS4 button mappings. Default keyboard mappings include WASD for movement, arrows for the right stick, Space/Left Shift/E/Q for Cross/Circle/Square/Triangle, 1/3 for L1/R1, R/F for L2/R2, Enter for Options, and Tab/Backspace for the touchpad regions. These are mappings to PS4 buttons; they do not inject game-specific actions.
 
-Insert or R3+L2 opens the runtime graphics overlay. Window mode, output size, VSync, graphics diagnostics and advanced renderer options remain available. Higher FPS, upscalers, higher output sizes and advanced options are not validated Ratchet features. The launcher offers Original/30 and experimental 60 FPS; changing the target requires restarting the game. `RATCHET_ZERO_CLEAR=0` remains the default; enabling it is a diagnostic experiment, not a Device Lost fix.
+Insert or R3+L2 opens the runtime graphics overlay. Window mode, output size, VSync, graphics diagnostics and advanced renderer options remain available. Higher FPS, upscalers, higher output sizes and advanced options are not validated Ratchet features. The launcher offers Original/30 and experimental 60 FPS; changing the target requires restarting the game. V1.5 also offers general motion blur and shadow-map caps in Home / Graphics; their applied launch state appears in the in-game Graphics information rows. `RATCHET_ZERO_CLEAR=0` remains the default; enabling it is a diagnostic experiment, not a Device Lost fix.
 
 ## Known issues and reporting
 

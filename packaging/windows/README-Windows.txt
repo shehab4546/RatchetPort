@@ -28,9 +28,13 @@ result establishes gameplay acceptance of this exact build. See docs/TESTING.md.
 
 Choose Game frame rate: 30 FPS / Original (default) or 60 FPS (experimental), then
 close and restart the game. 60 requires the exact reviewed game build and applies
-pacing/clock patches together. Gameplay acceptance is pending. Motion-blur and
-internal-resolution patches remain disabled. See docs/RP04_FRAME_TIMING.md and
-docs/releases/V1.4-Frame-Timing-Preview.md.
+pacing/clock patches together. Gameplay acceptance is pending.
+Home / Graphics also offer Motion blur: On / Original or Off, and Shadow-map
+resolution: Original, 1024, 512 or 256 px maximum. Save and restart to apply.
+Lower caps reduce shadow detail; the fixed atlas allocation stays unchanged.
+The in-game Graphics information rows show the launch mode. Restore Original
+and restart to remove a feature. Internal-resolution patches remain disabled.
+See docs/RP05_VISUAL_CONTROLS.md and docs/releases/V1.5-Visual-Controls-Preview.md.
 
 Settings and generated data are kept beside the application unless a custom path is
 selected. Preserve settings.json, ratchet.ini and user/ when replacing the application.

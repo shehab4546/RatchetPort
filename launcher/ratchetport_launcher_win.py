@@ -396,6 +396,7 @@ INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
                 'live_resolution': 'auto', 'display_mode': 'windowed', 'vsync': '1', 'fps_limit': '30',
                 'async_shaders': '1', 'deferred_readback': '0', 'stale_readback': '1',
                 'render_resolution': 'native', 'engine_fps': '60', 'game_fps': '30',
+                'motion_blur': 'original', 'shadow_resolution': 'original',
                 'frames_queued': '1',
                 'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
                 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
@@ -403,6 +404,11 @@ DISPLAY_MODES = [('windowed', ('Windowed',)), ('borderless', ('Borderless',)), (
 ANISOTROPY = [('0', ('Game default',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
 FPS_LIMITS = [('30', ('30',))]
 GAME_FPS = [('30', ('30 FPS / Original',)), ('60', ('60 FPS (experimental)',))]
+MOTION_BLUR = [('original', ('On / Original',)), ('off', ('Off (experimental)',))]
+SHADOW_RESOLUTION = [('original', ('Original',)),
+                     ('1024', ('1024 px maximum (experimental)',)),
+                     ('512', ('512 px maximum (experimental)',)),
+                     ('256', ('256 px maximum (experimental)',))]
 # The sidebar's pages, top to bottom, and the methods that refresh a page's lists when it is shown.
 PAGES = ('home', 'graphics', 'performance', 'game', 'controls', 'mods', 'advanced')
 PAGE_REFRESH = {'home': ('refresh_status',), 'game': ('refresh_game_patches',), 'mods': ('refresh_lists',)}
@@ -1665,8 +1671,8 @@ class Launcher:
     def build_home(self):
         f = self.scrolled_page('home', f'RatchetPort V{VERSION}',
                                f'{CODENAME} · CUSA01047 USA · Game v1.00')
-        self.note(f, 'Choose 30 FPS / Original or opt into experimental 60 FPS, then restart the game. '
-                     '60 FPS gameplay validation is pending. Motion-blur and internal-resolution patches remain disabled.')
+        self.note(f, 'Choose the frame rate, motion blur and shadow-map resolution, then restart the game. '
+                     'Experimental options need gameplay testing. Original restores the game settings.')
         self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
         self.folder(f, 'game_dir', 'Game folder', 'Select the folder containing eboot.bin',
                     'Requires sce_sys/param.sfo and sce_module.', on_change=self.game_changed)
@@ -1675,6 +1681,7 @@ class Launcher:
         self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS),
                  '60 FPS requires the verified CUSA01047 v1.00 build. Rejected patches use Original.', restart=True)
         self.check(f, 'vsync', 'ini', 'VSync')
+        self.build_game_effects(f)
         self.banner = self.tk.Canvas(f, height=self.px(160), bg=BG, highlightthickness=0)
         self.banner.grid(row=self.next_row(f), column=0, columnspan=2, sticky='we')
         self.banner_button = self.ttk.Button(self.banner, text='Choose game folder', command=lambda: self.show('game'))
@@ -1744,6 +1751,7 @@ class Launcher:
         """Window and overlay controls; temporal upscaling stays commented out."""
         f = self.scrolled_page('graphics', _('Graphics', 'Графика'), _('How the game appears on your screen.'))
         self.build_display(f)
+        self.build_game_effects(f)
         # Temporal upscaling is parked until its image quality is validated.
         # self.section(f, _('Experimental'))
         # self.check(f, 'experimental_upscaler', 'app', _('Enable the upscaler (experimental)'),
@@ -1768,6 +1776,14 @@ class Launcher:
         # self.check(f, 'object_motion', 'ini', _('Object motion vectors', 'Векторы движения объектов'),
         #            _('Less ghosting on characters, cloth and weapons; costs about 10% FPS.',
         #              'Меньше гостинга на персонажах и одежде; стоит около 10% FPS.'))
+
+    def build_game_effects(self, f):
+        self.section(f, 'Game effects')
+        self.row(f, 'Motion blur', self.choice(f, 'motion_blur', 'ini', MOTION_BLUR),
+                 'Original follows the game settings. Off disables its general motion-blur strength.', restart=True)
+        self.row(f, 'Shadow-map resolution', self.choice(f, 'shadow_resolution', 'ini', SHADOW_RESOLUTION),
+                 'Lower caps reduce shadow detail. Maps may be smaller than the selected maximum. '
+                 'Original restores the game limit; separate sun shadows are not verified.', restart=True)
 
     def build_display(self, f):
         """Window and overlay: the top of the Graphics page."""

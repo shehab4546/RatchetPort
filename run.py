@@ -139,6 +139,8 @@ def main():
     import mods
     import ratchet_patches
     import frame_timing
+    import motion_blur
+    import shadow_resolution
     game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
     if out.resolve().is_relative_to(game.resolve()):
         fail('Data output must be outside the original game directory.')
@@ -200,10 +202,20 @@ def main():
 
         requested = [n.strip() for n in env.get('RATCHET_PATCHES', '').split(';') if n.strip()]
         requested = frame_timing.requested_groups(graphics['game_fps'], requested)
+        requested = motion_blur.requested_groups(graphics['motion_blur'], requested)
+        requested = shadow_resolution.requested_groups(graphics['shadow_resolution'], requested)
         patch_report = ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
         timing = frame_timing.launch_environment(patch_report, env.get('RATCHET_FPS_LIMIT'))
         env.update(timing)
         derived.extend(timing)
+        effects = {**motion_blur.launch_environment(patch_report),
+                   **shadow_resolution.launch_environment(patch_report)}
+        env.update(effects)
+        derived.extend(effects)
+        print(f"Graphics effects: requested blur={graphics['motion_blur']}, "
+              f"shadow cap={graphics['shadow_resolution']}; prepared "
+              f"blur={effects['RATCHET_MOTION_BLUR']}, "
+              f"shadow cap={effects['RATCHET_SHADOW_RESOLUTION']}; loader confirmation required", flush=True)
         print(f"Frame timing: requested {graphics['game_fps']}, launch ceiling "
               f"{timing['RATCHET_ENGINE_FPS']} FPS; loader confirmation required", flush=True)
         icon_file = PORT / 'launcher' / 'ratchet-probe.png'

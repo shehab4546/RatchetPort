@@ -30,6 +30,7 @@ int main(int argc, char** argv) {
     assert(EmulatorSettings.IsReadbackLinearImagesEnabled());
     assert(!RatchetSettings::Get().deferred_readback);
     assert(RatchetSettings::EngineFpsNow() == 30);
+    assert(!RatchetSettings::Get().motion_blur_off && RatchetSettings::Get().shadow_resolution == 0);
     assert(RatchetSettings::CycleEngineFps() == 0);
     assert(G::ParseDisplayMode("borderless") == G::Borderless && G::ParseDisplayMode("bogus") == G::Windowed);
     assert(G::ParseFpsLimit(240) == 240 && G::ParseFpsLimit(144) == 144 && G::ParseFpsLimit(180) == 180 && G::ParseFpsLimit(100) == 100 && G::ParseFpsLimit(75) == 0);
@@ -70,7 +71,7 @@ int main(int argc, char** argv) {
         std::ofstream out(path);
         out << "display_mode=borderless\nvsync=0\nfps_limit=240\nasync_shaders=0\n"
                "render_resolution=1440p\nengine_fps=240\ngame_fps=60\ndeferred_readback=0\nstale_readback=1\n"
-               "fsr1=1\nrcas=0\nrcas_strength=40\nframes_queued=2\n";
+               "fsr1=1\nrcas=0\nrcas_strength=40\nframes_queued=2\nmotion_blur=off\nshadow_resolution=512\n";
     }
     _putenv_s("RATCHET_CONFIG", path);
     _putenv_s("RATCHET_ASYNC_SHADERS", "");
@@ -79,6 +80,8 @@ int main(int argc, char** argv) {
     assert(v.display_mode == G::Borderless && !v.vsync && v.fps_limit == 240 && !v.async_shaders);
     assert(v.render_resolution == 4 && v.engine_fps == 240 && !v.deferred_readback && v.stale_readback);
     assert(v.game_fps == 60 && RatchetSettings::EngineFpsNow() == 30);
+    assert(v.motion_blur_off && v.shadow_resolution == 512);
+    assert(!v.applied_motion_blur_off && v.applied_shadow_resolution == 0);
     float untouched_fps = 30.f;
     int32_t untouched_int = 30;
     v.engine_fps_global = &untouched_fps;
@@ -89,6 +92,18 @@ int main(int argc, char** argv) {
     assert(RatchetSettings::EngineFpsNow() == 60 && RatchetSettings::CycleEngineFps() == 0);
     RatchetSettings::Save();
     assert(Read(path).find("game_fps=60\n") != std::string::npos);
+    assert(Read(path).find("motion_blur=off\nshadow_resolution=512\n") != std::string::npos);
+    _putenv_s("RATCHET_MOTION_BLUR", "off");
+    _putenv_s("RATCHET_SHADOW_RESOLUTION", "256");
+    RatchetSettings::Load();
+    assert(v.applied_motion_blur_off && v.applied_shadow_resolution == 256);
+    assert(v.motion_blur_off && v.shadow_resolution == 512); // requested settings survive fallback/override
+    _putenv_s("RATCHET_MOTION_BLUR", "original");
+    _putenv_s("RATCHET_SHADOW_RESOLUTION", "1024junk");
+    RatchetSettings::Load();
+    assert(!v.applied_motion_blur_off && v.applied_shadow_resolution == 0);
+    _putenv_s("RATCHET_MOTION_BLUR", "");
+    _putenv_s("RATCHET_SHADOW_RESOLUTION", "");
     v.engine_fps_global = nullptr;
     v.engine_fps_int_global = nullptr;
     // FSR 1 left the menus in 2.2.0: a saved fsr1=1 (or RATCHET_FSR1) no longer turns it on.
@@ -151,13 +166,14 @@ int main(int argc, char** argv) {
     {
         std::ofstream out(path);
         out << "display_mode=huge\nfps_limit=7\nrender_resolution=invalid\nengine_fps=1\n"
-               "rcas_strength=250\nframes_queued=9\n";
+               "rcas_strength=250\nframes_queued=9\nmotion_blur=OFF\nshadow_resolution=512junk\n";
     }
     _putenv_s("RATCHET_ASYNC_SHADERS", "1");  // the environment still wins at start
     v.async_shaders = false;
     RatchetSettings::Load();
     assert(v.display_mode == G::Windowed && v.fps_limit == 0 && v.render_resolution == 0 && v.engine_fps == 120);
     assert(v.rcas_strength == 75 && v.frames_queued == 1);
+    assert(!v.motion_blur_off && v.shadow_resolution == 0);
     assert(v.async_shaders);
     {
         std::ofstream out(path);

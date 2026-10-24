@@ -71,6 +71,10 @@ struct Values {
     std::atomic<int> render_resolution{0};
     std::atomic<int> engine_fps{60}; // Legacy preference; never activates a patch.
     std::atomic<int> game_fps{30}; // Requested startup mode; retained when saving the overlay.
+    std::atomic<bool> motion_blur_off{false}; // Requested startup effects, retained on fallback.
+    std::atomic<int> shadow_resolution{0}; // 0 original, or 1024 / 512 / 256 pixel cap.
+    bool applied_motion_blur_off = false;
+    int applied_shadow_resolution = 0;
     // Synchronous readbacks are the Ratchet baseline: deferred reads stalled scene entry.
     std::atomic<bool> deferred_readback{false};
     std::atomic<bool> stale_readback{true};
