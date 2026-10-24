@@ -395,13 +395,14 @@ INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
                 'object_motion': '1', 'show_fps': '1', 'output_res': '1280x720',
                 'live_resolution': 'auto', 'display_mode': 'windowed', 'vsync': '1', 'fps_limit': '30',
                 'async_shaders': '1', 'deferred_readback': '0', 'stale_readback': '1',
-                'render_resolution': 'native', 'engine_fps': '60',
+                'render_resolution': 'native', 'engine_fps': '60', 'game_fps': '30',
                 'frames_queued': '1',
                 'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
                 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
 DISPLAY_MODES = [('windowed', ('Windowed',)), ('borderless', ('Borderless',)), ('fullscreen', ('Fullscreen',))]
 ANISOTROPY = [('0', ('Game default',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
 FPS_LIMITS = [('30', ('30',))]
+GAME_FPS = [('30', ('30 FPS / Original',)), ('60', ('60 FPS (experimental)',))]
 # The sidebar's pages, top to bottom, and the methods that refresh a page's lists when it is shown.
 PAGES = ('home', 'graphics', 'performance', 'game', 'controls', 'mods', 'advanced')
 PAGE_REFRESH = {'home': ('refresh_status',), 'game': ('refresh_game_patches',), 'mods': ('refresh_lists',)}
@@ -1664,14 +1665,15 @@ class Launcher:
     def build_home(self):
         f = self.scrolled_page('home', f'RatchetPort V{VERSION}',
                                f'{CODENAME} · CUSA01047 USA · Game v1.00')
-        self.note(f, 'This preview adds verified patch loading and clean patch disable/restart. '
-                     'FPS, motion-blur and internal-resolution patches are not enabled.')
+        self.note(f, 'Choose 30 FPS / Original or opt into experimental 60 FPS, then restart the game. '
+                     '60 FPS gameplay validation is pending. Motion-blur and internal-resolution patches remain disabled.')
         self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
         self.folder(f, 'game_dir', 'Game folder', 'Select the folder containing eboot.bin',
                     'Requires sce_sys/param.sfo and sce_module.', on_change=self.game_changed)
         self.row(f, 'Output resolution', self.choice(f, 'output_res', 'ini', OUTPUTS))
         self.row(f, 'Display mode', self.choice(f, 'display_mode', 'ini', DISPLAY_MODES))
-        self.row(f, 'FPS', self.choice(f, 'fps_limit', 'ini', FPS_LIMITS))
+        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS),
+                 '60 FPS requires the verified CUSA01047 v1.00 build. Rejected patches use Original.', restart=True)
         self.check(f, 'vsync', 'ini', 'VSync')
         self.banner = self.tk.Canvas(f, height=self.px(160), bg=BG, highlightthickness=0)
         self.banner.grid(row=self.next_row(f), column=0, columnspan=2, sticky='we')
@@ -1793,7 +1795,8 @@ class Launcher:
 
     def build_performance(self):
         f = self.scrolled_page('performance', 'Performance', 'Conservative defaults; higher frame rates are unverified.')
-        self.row(f, 'FPS', self.choice(f, 'fps_limit', 'ini', FPS_LIMITS))
+        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS),
+                 '60 FPS requires the verified CUSA01047 v1.00 build. Rejected patches use Original.', restart=True)
         self.row(f, 'Frames queued', self.choice(f, 'frames_queued', 'ini', FRAMES_QUEUED))
         self.check(f, 'async_shaders', 'ini', 'Compile shaders in the background')
         self.check(f, 'background_warmup', 'app', 'Load shader cache in the background')
@@ -2319,7 +2322,8 @@ class Launcher:
                                                                      'Сначала выберите папку игры.'), fg=MUTED)
 
     def summary(self):
-        return f'V{VERSION} · {CODENAME} · CUSA01047 USA v1.00 · no feature patches'
+        return (f'V{VERSION} · {CODENAME} · CUSA01047 USA v1.00 · '
+                f"requested {self.var('game_fps', 'ini').get()} FPS (applied state in launch log)")
 
     def refresh_lists(self):
         if not hasattr(self, 'patches_frame'):

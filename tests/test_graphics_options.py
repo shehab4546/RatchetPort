@@ -27,6 +27,7 @@ class GraphicsOptionsTest(unittest.TestCase):
         self.assertEqual(
             options,
             {
+                'game_fps': '30',
                 'render_resolution': 'native',
                 'engine_fps': '60',
                 'deferred_readback': '0',

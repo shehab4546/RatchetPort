@@ -1,12 +1,20 @@
 # Verified binary patches in RatchetPort
 
-CUSA01047 USA version 1.00 starts with **no binary feature patches**. RP-03 implements the verified application and rollback path. The production `PROFILE['groups']` in `scripts/ratchet_patches.py` is deliberately empty: RP-02 candidates are evidence, not approved replacements. FPS, motion blur and internal resolution are separate RP-04, RP-05 and RP-06 work. Host output size, VSync and FPS limiting remain runtime settings; the guest display clock is not an engine-speed patch.
+CUSA01047 USA version 1.00 defaults to **Original/30 with no binary feature patches**.
+RP-04 adds one opt-in, fingerprinted experimental 60 FPS group containing paired
+interval/clock replacements. Gameplay acceptance remains pending; see
+[frame timing evidence and tests](RP04_FRAME_TIMING.md). Motion blur and internal
+resolution patches remain disabled. Host output size and VSync are separate.
 
 The exact supported source and extracted ELF SHA-256 hashes are recorded in that profile and `docs/RP02_BASE_100_FINDINGS.md`. Requested groups are checked against TITLE_ID, APP_VER and both hashes. An unknown dump may run the unpatched baseline, but cannot receive a verified feature patch.
 
 ## Selection and checks
 
-`run.py` accepts reviewed group names from `RATCHET_PATCHES`, separated by semicolons. An empty/unset value disables all. Unknown names are skipped with an explicit reason. Saved XML selections, third-party patch XML and mod patch files cannot activate executable patches through the Ratchet launch path. The old generic XML compiler remains for its synthetic tests; the native loader rejects every nonempty `G3PATCH2` packet.
+`game_fps=60` in ratchet.ini selects the experimental group; any other value
+selects Original. It overrides stale selections of that group in RATCHET_PATCHES.
+Other reviewed names may be supplied via RATCHET_PATCHES (semicolon separated);
+unknown names are skipped explicitly. XML/mod patch files cannot activate
+executable patches. The loader rejects nonempty legacy G3PATCH2 packets.
 
 Each reviewed group must list writes with `signature`, `offset`, `elf_vaddr`, `original_hex` and `replacement_hex`. A signature must match exactly once in source file-backed loadable segments. The original bytes, address, segment boundary and unchanged write length must match. Writes into BSS or across segments are rejected. A group is accepted whole or rejected whole. Conflicting groups are both rejected; valid independent groups can still be prepared.
 
@@ -34,4 +42,7 @@ The 32-byte receipt is `RCPACK3\0`, the 16-byte token and the u64 write count. T
 
 `tests/test_ratchet_patches.py` covers identity/fingerprint rejection, signature absence/ambiguity, original-byte and boundary failures, conflicts, whole-group rejection, transformation exclusions, stale acknowledgements and disable/restart behavior. `tests/test_verified_patches.c` tests the native parser, truncated packets, bad hashes, bounds, overlapping writes and atomic rejection of a late original-byte mismatch. Set `RATCHET_PATCH_TEST` to the compiled native test executable to run the Python-to-C transaction/receipt test. Windows CI builds and runs both.
 
-For this stage, test the baseline launch with `RATCHET_PATCHES` unset. Setting an unreviewed name should print a skip reason and still run without that feature; clearing it and restarting must show no applied groups. Do not use synthetic test replacements in the real game. There is no FPS/blur/resolution toggle to test until its corresponding feature task is implemented and reviewed.
+For the 30/60 comparison, follow [RP-04 testing](RP04_FRAME_TIMING.md#owner-gameplay-acceptance-still-required).
+A default launch is still Original. Selecting 60 requests an experiment, not a
+claim of successful gameplay. Returning to Original and restarting must remove
+both writes and the previous receipt. Never use synthetic test patches in-game.

@@ -1,0 +1,169 @@
+{
+  "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+  "verified_writes": 2,
+  "clock_only_experiment": true,
+  "gameplay_tested": false,
+  "cases": [
+    {
+      "patched": false,
+      "smoothing": 0,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.0,
+      "floor": 0.03336720168590546,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.66157304910705,
+      "ratio": 1.0000000063323602
+    },
+    {
+      "patched": false,
+      "smoothing": 0,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.03336720168590546,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.66157304910705,
+      "ratio": 1.0000000063323602
+    },
+    {
+      "patched": false,
+      "smoothing": 0,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.0,
+      "floor": 0.050050802528858185,
+      "wall_seconds": 90.99235899746418,
+      "game_seconds": 90.99235944071202,
+      "ratio": 1.0000000048712645
+    },
+    {
+      "patched": false,
+      "smoothing": 0,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.050050802528858185,
+      "wall_seconds": 90.99235899746418,
+      "game_seconds": 90.99235944071202,
+      "ratio": 1.0000000048712645
+    },
+    {
+      "patched": false,
+      "smoothing": 1,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.0,
+      "floor": 0.03336720168590546,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.636547346161905,
+      "ratio": 0.9995874601050582
+    },
+    {
+      "patched": false,
+      "smoothing": 1,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.03336720168590546,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.636547346161905,
+      "ratio": 0.9995874601050582
+    },
+    {
+      "patched": false,
+      "smoothing": 1,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.0,
+      "floor": 0.050050802528858185,
+      "wall_seconds": 90.99235899746418,
+      "game_seconds": 90.95482093918227,
+      "ratio": 0.9995874592251976
+    },
+    {
+      "patched": false,
+      "smoothing": 1,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.050050802528858185,
+      "wall_seconds": 90.99235899746418,
+      "game_seconds": 90.95482093918227,
+      "ratio": 0.9995874592251976
+    },
+    {
+      "patched": true,
+      "smoothing": 0,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.0,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.661573137053544,
+      "ratio": 1.0000000077821494
+    },
+    {
+      "patched": true,
+      "smoothing": 0,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.661573137053544,
+      "ratio": 1.0000000077821494
+    },
+    {
+      "patched": true,
+      "smoothing": 0,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.0,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.661573137053544,
+      "ratio": 1.0000000077821494
+    },
+    {
+      "patched": true,
+      "smoothing": 0,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.661573137053544,
+      "ratio": 1.0000000077821494
+    },
+    {
+      "patched": true,
+      "smoothing": 1,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.0,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.649060166013584,
+      "ratio": 0.9997937326974419
+    },
+    {
+      "patched": true,
+      "smoothing": 1,
+      "settings_interval": 2.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.649060166013584,
+      "ratio": 0.9997937326974419
+    },
+    {
+      "patched": true,
+      "smoothing": 1,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.0,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.649060166013584,
+      "ratio": 0.9997937326974419
+    },
+    {
+      "patched": true,
+      "smoothing": 1,
+      "settings_interval": 3.0,
+      "caller_minimum": 0.03333333333333333,
+      "floor": 0.01668360084295273,
+      "wall_seconds": 60.66157266497612,
+      "game_seconds": 60.649060166013584,
+      "ratio": 0.9997937326974419
+    }
+  ],
+  "interval_only_speed_ratio": 1.9979699614674244
+}

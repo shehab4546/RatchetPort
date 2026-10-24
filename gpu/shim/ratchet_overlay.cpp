@@ -371,19 +371,9 @@ void PerformanceTab() {
     auto& s = RatchetSettings::Get();
     ImGui::SeparatorText("Live");
     if (BeginRows("##live")) {
-        static const char* const fps_labels[] = {"30"};
-        static const int verified_limits[] = {30};
-        ChoiceRow("Frame rate limit", s.fps_limit, fps_labels, verified_limits, 1,
-                  "Conservative pre-alpha limit; higher frame rates are unverified.");
-        const int effective = G::EffectiveFps(s.fps_limit, RatchetSettings::EngineFpsNow());
-        if (s.fps_limit == 0 || effective < s.fps_limit) {
-            char text[48];
-            std::snprintf(text, sizeof(text), "%d FPS (engine frame rate)", effective);
-            InfoRow("Effective limit", text);
-        }
-        if (s.applied_engine_fps <= 60 && s.engine_fps > 60) {
-            InfoRow("Engine frame rate", "60 FPS: the frame rate patch is not available for this game build");
-        }
+        InfoRow("Game frame rate", RatchetSettings::EngineFpsNow() == 60
+            ? "60 FPS target (experimental)" : "30 FPS / Original");
+        InfoRow("Change frame rate", "Select 30/60 in the launcher, then restart the game");
         static const char* const queued_labels[] = {"1 (lowest latency)", "2", "Unlimited"};
         ChoiceRow("Frames queued", s.frames_queued, queued_labels, G::FramesQueued.data(),
                   int(G::FramesQueued.size()), "More frames queued: steadier FPS, slower response to input.");

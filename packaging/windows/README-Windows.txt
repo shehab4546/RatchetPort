@@ -26,9 +26,11 @@ on an NVIDIA RTX 5070 Laptop GPU with V1.1 PlayGo. Intel UHD 730 reached the
 menu/loading/opening movie and also exhibited device-loss failures. Neither
 result establishes gameplay acceptance of this exact build. See docs/TESTING.md.
 
-This preview contains verified patch loading and acknowledgement, but no enabled
-FPS, motion-blur or internal-resolution feature patches. Version 1.3 corrects
-stale launcher and package branding. See docs/releases/V1.3-Verified-Preview.md.
+Choose Game frame rate: 30 FPS / Original (default) or 60 FPS (experimental), then
+close and restart the game. 60 requires the exact reviewed game build and applies
+pacing/clock patches together. Gameplay acceptance is pending. Motion-blur and
+internal-resolution patches remain disabled. See docs/RP04_FRAME_TIMING.md and
+docs/releases/V1.4-Frame-Timing-Preview.md.
 
 Settings and generated data are kept beside the application unless a custom path is
 selected. Preserve settings.json, ratchet.ini and user/ when replacing the application.

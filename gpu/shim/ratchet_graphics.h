@@ -63,8 +63,8 @@ inline std::pair<int, int> ResolutionSize(std::string_view name) {
     }
     return ResolutionSizes[0].second;
 }
-/// Engine frame rates: 60 is the game's own (59.94). The launch takes the 240 FPS patch and the
-/// rate is written live (RatchetSettings::SyncEngineFps); 100, 144 and 180 fit common high-refresh displays.
+/// Legacy settings values retained for parsing only. These do not enable Ratchet
+/// patches or live clock writes; the verified startup target is separately 30/60.
 inline constexpr std::array<int, 6> EngineFps = {60, 100, 120, 144, 180, 240};
 
 template <typename T, std::size_t N>
@@ -126,9 +126,8 @@ inline int EffectiveFps(int limit, int engine_fps) {
     return limit == 0 || limit > engine_fps ? engine_fps : limit;
 }
 
-/// The present thread's frame limit: never above the engine rate, since the engine steps a fixed
-/// time per frame and faster flips speed the game up. 0 stays vblank paced while the vblank is
-/// the engine rate; a live rate below it (the vblank runs at the highest one) caps it.
+/// Bound host presentation by the nominal guest target. This does not implement
+/// guest timing: the interval and clock floor are patched together at startup.
 inline int PresentLimit(int limit, int engine_fps, int vblank_hz) {
     return limit == 0 && vblank_hz <= engine_fps ? 0 : EffectiveFps(limit, engine_fps);
 }

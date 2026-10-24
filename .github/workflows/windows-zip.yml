@@ -59,7 +59,8 @@ jobs:
       - name: Build
         run: |
           bash build.sh
-          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test --parallel 3
+          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test --parallel 3
+          out/ratchet-clean/graphics-settings-test.exe
           out/ratchet-clean/verified-patches-test.exe
           out/ratchet-clean/services-test.exe
           RATCHET_PLAYGO_TEST="$PWD/out/ratchet-clean/playgo-resolver-test.exe" python -m unittest discover -s tests -p 'test_playgo.py'

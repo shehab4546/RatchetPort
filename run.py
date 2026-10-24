@@ -138,6 +138,7 @@ def main():
         discord_presence = None
     import mods
     import ratchet_patches
+    import frame_timing
     game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
     if out.resolve().is_relative_to(game.resolve()):
         fail('Data output must be outside the original game directory.')
@@ -198,7 +199,13 @@ def main():
         run_script('content_profile.py', game, '--out', out, '--sku', env.get('RATCHET_CONTENT_SKU', 'full'))
 
         requested = [n.strip() for n in env.get('RATCHET_PATCHES', '').split(';') if n.strip()]
-        ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
+        requested = frame_timing.requested_groups(graphics['game_fps'], requested)
+        patch_report = ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
+        timing = frame_timing.launch_environment(patch_report, env.get('RATCHET_FPS_LIMIT'))
+        env.update(timing)
+        derived.extend(timing)
+        print(f"Frame timing: requested {graphics['game_fps']}, launch ceiling "
+              f"{timing['RATCHET_ENGINE_FPS']} FPS; loader confirmation required", flush=True)
         icon_file = PORT / 'launcher' / 'ratchet-probe.png'
         if not icon_file.is_file():
             icon_file = PORT / 'launcher' / 'ratchetport.png'
@@ -212,12 +219,8 @@ def main():
         env.setdefault('RATCHET_UPSCALER', 'none')
         env.setdefault('RATCHET_READBACK_LINEAR', '1')
         env.setdefault('RATCHET_ZERO_CLEAR', '0')
-        env.setdefault('RATCHET_FPS_LIMIT', '30')
         env.setdefault('RATCHET_VSYNC', '1')
         env.setdefault('RATCHET_OUTPUT_RES', '1280x720')
-        # Retain the guest display clock. This is not an engine FPS patch.
-        env.setdefault('RATCHET_VBLANK_HZ', '60')
-        env['RATCHET_ENGINE_FPS'] = '60'
         env['RATCHET_DERIVED'] = ','.join(derived)
         mount_args = []
         # The guest memory pool is committed in full at start: a resolution patch above 1080p

@@ -69,7 +69,8 @@ struct Values {
     std::atomic<int> mouse_aim_sensitivity{100};
     // Startup: run.py turns them into patches and environment variables; "Apply and restart".
     std::atomic<int> render_resolution{0};
-    std::atomic<int> engine_fps{60};
+    std::atomic<int> engine_fps{60}; // Legacy preference; never activates a patch.
+    std::atomic<int> game_fps{30}; // Requested startup mode; retained when saving the overlay.
     // Synchronous readbacks are the Ratchet baseline: deferred reads stalled scene entry.
     std::atomic<bool> deferred_readback{false};
     std::atomic<bool> stale_readback{true};
@@ -80,11 +81,10 @@ struct Values {
     /// restores the previous startup options when a launch never cleared it.
     std::atomic<bool> restart_unconfirmed{false};
     int startup_render_resolution = 0;
-    /// The engine rate this launch really runs at (run.py's RATCHET_ENGINE_FPS): 60 when the frame
-    /// rate patch does not apply to this game build.
-    std::atomic<int> applied_engine_fps{60};
-    /// The game's maximum frame rate, read every frame (src/probe.c finds it): as a float and
-    /// rounded. Null when this eboot.bin's code does not match. engine_fps is written there live.
+    /// Nominal target from the verified startup transaction, not measured FPS.
+    /// Original is 30; 60 is experimental and requires restart.
+    std::atomic<int> applied_engine_fps{30};
+    /// Legacy ABI storage; never written through by Ratchet timing.
     std::atomic<float*> engine_fps_global{nullptr};
     std::atomic<int32_t*> engine_fps_int_global{nullptr};
     bool startup_deferred_readback = false, startup_stale_readback = true;
@@ -125,12 +125,11 @@ int RenderPreset();
 bool ResolutionNeedsRestart();
 /// A startup graphics option differs from the one this launch started with.
 bool GraphicsNeedRestart();
-/// The engine rate in effect: engine_fps, up to what this launch's patch allows.
+/// Nominal startup target; not measured gameplay throughput.
 int EngineFpsNow();
-/// Present thread, every vblank: writes EngineFpsNow() into the game once the game has set its
-/// own rate (a frame rate patch applied), when they differ.
+/// Compatibility no-op: Ratchet does not rewrite live FPS globals.
 void SyncEngineFps();
-/// R3 + L1 + R1 / F9: the next engine rate (saved); 0 when this launch cannot change it.
+/// Returns zero: Ratchet requires restart to change the guest timing.
 int CycleEngineFps();
 /// Writes the file (menu changes).
 void Save();

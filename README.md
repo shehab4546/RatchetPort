@@ -9,14 +9,16 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**V1.3 — Verified Preview · Windows x64 · CUSA01047 USA v1.00**
+**V1.4 — Frame Timing Preview · Windows x64 · CUSA01047 USA v1.00**
 
-V1.3 corrects stale launcher and package version labels. The window title,
-home page, Windows executable properties and build metadata share one release
-identity. It includes verified patch loading; FPS, motion-blur and internal-resolution
-feature patches remain disabled. See [release notes](docs/releases/V1.3-Verified-Preview.md)
-and [tested hardware](docs/TESTING.md). Earlier hardware results remain specific
-to the builds tested.
+This development version adds **30 FPS / Original** and **60 FPS (experimental)**
+to the launcher's Game frame rate selector. Original remains the default. The
+60 target uses a fingerprinted pair of guest pacing/clock patches and requires
+restart. Gameplay acceptance is pending; this is not a sustained-60 guarantee.
+Motion-blur and internal-resolution patches remain disabled. See
+[release notes](docs/releases/V1.4-Frame-Timing-Preview.md),
+[timing evidence](docs/RP04_FRAME_TIMING.md) and [tested hardware](docs/TESTING.md).
+Earlier hardware results describe their original builds, not this preview.
 
 [Download the latest release and sources](https://github.com/shehab4546/RatchetPort/releases/latest)
 · [Earlier releases](https://github.com/shehab4546/RatchetPort/releases)
@@ -78,7 +80,7 @@ See [the detailed evidence and test counts](docs/TESTING.md).
 
 ## Starting on Windows
 
-1. Extract `RatchetPort-V1.3-Verified-Preview-Windows.zip` into a new writable folder.
+1. Extract `RatchetPort-V1.4-Frame-Timing-Preview-Windows.zip` into a new writable folder.
 2. Open `RatchetPort.exe`, choose the game directory and save the settings.
 3. Leave the initial settings at **30 FPS, VSync on, 1280x720 output, windowed, upscaling off, Deferred GPU readbacks off** and start the game.
 4. `Play RatchetPort.exe` can subsequently start using the saved configuration.
