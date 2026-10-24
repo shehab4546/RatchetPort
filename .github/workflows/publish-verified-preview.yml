@@ -49,11 +49,13 @@ jobs:
           def api(path):
               return json.loads(gh('api', 'repos/' + repo + '/' + path))
 
-          # Never overwrite an existing release or reuse its assets silently.
-          existing = subprocess.run(['gh', 'release', 'view', tag, '--repo', repo],
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-          if existing.returncode == 0:
-              raise SystemExit('Release already exists; refusing replacement.')
+          # Drafts are resolved from the collection: their tag may not exist yet.
+          existing = [r for r in api('releases?per_page=100') if r['tag_name'] == tag]
+          assert len(existing) <= 1
+          release = existing[0] if existing else None
+          if release:
+              assert release['draft'], 'Already published; refusing replacement.'
+              assert release['target_commitish'] == merged and release['name'] == title
 
           run = api(f'actions/runs/{run_id}')
           assert run['conclusion'] == 'success' and run['status'] == 'completed'
@@ -131,9 +133,13 @@ jobs:
           Published as Latest at the owner's request; Verified Preview remains a test-build designation, not a claim of completed gameplay validation.
           '''.replace('          ', ''))
           # Upload and verify a draft first, so incomplete uploads never become Latest.
-          gh('release', 'create', tag, *map(str, assets), '--repo', repo, '--target', merged,
-             '--title', title, '--notes-file', str(notes), '--draft', '--latest=false')
-          release = api('releases/tags/' + tag)
+          if release is None:
+              gh('release', 'create', tag, *map(str, assets), '--repo', repo, '--target', merged,
+                 '--title', title, '--notes-file', str(notes), '--draft', '--latest=false')
+              matches = [r for r in api('releases?per_page=100') if r['tag_name'] == tag]
+              assert len(matches) == 1
+              release = matches[0]
+          release = api(f'releases/{release["id"]}')
           assert release['draft'] and release['target_commitish'] == merged
           uploaded = {a['name']: a for a in release['assets']}
           assert set(uploaded) == {p.name for p in assets}
