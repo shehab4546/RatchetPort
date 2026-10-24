@@ -251,6 +251,8 @@ class ControlMapTest(unittest.TestCase):
         d = launcher.INI_DEFAULTS
         self.assertEqual((d['display_mode'], d['vsync'], d['fps_limit'], d['engine_fps']), ('windowed', '1', '30', '60'))
         self.assertEqual([v for v, _t in launcher.FPS_LIMITS], ['30'])
+        self.assertEqual(d['game_fps'], '30')
+        self.assertEqual([v for v, _t in launcher.GAME_FPS], ['30', '60'])
         self.assertEqual([v for v, _t in launcher.ENGINE_FPS_CHOICES], ['60', '100', '120', '144', '180', '240'])
         self.assertEqual(d['frames_queued'], '1')
         self.assertEqual([v for v, _t in launcher.FRAMES_QUEUED], ['1', '2', '0'])

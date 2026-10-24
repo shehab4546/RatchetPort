@@ -104,6 +104,8 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.frames_queued = RatchetGraphics::ParseFramesQueued(value.empty() ? -1 : i);
     } else if (key == "render_resolution") {
         v.render_resolution = RatchetGraphics::ParseResolution(value);
+    } else if (key == "game_fps") {
+        v.game_fps = value == "60" ? 60 : 30;
     } else if (key == "engine_fps") {
         v.engine_fps = RatchetGraphics::ParseEngineFps(i);
     } else if (key == "deferred_readback") {
@@ -193,45 +195,24 @@ void Load() {
     v.startup_live_resolution = v.live_resolution;
     v.startup_render_resolution = v.render_resolution;
     const char* applied = std::getenv("RATCHET_ENGINE_FPS");
-    v.applied_engine_fps = applied && applied[0] ? RatchetGraphics::ParseEngineFps(std::atoi(applied))
-                                                 : v.engine_fps.load();
+    // Only run.py's verified transaction permits the experimental 60 target.
+    v.applied_engine_fps = applied && std::string_view(applied) == "60" ? 60 : 30;
     v.startup_deferred_readback = v.deferred_readback;
     v.startup_stale_readback = v.stale_readback;
     v.startup_anisotropy = v.anisotropy;
 }
 
 int EngineFpsNow() {
-    const auto& v = Get();
-    return std::min(v.engine_fps.load(), v.applied_engine_fps.load());
+    return Get().applied_engine_fps.load();
 }
 
 void SyncEngineFps() {
-    const auto& v = Get();
-    volatile float* fps = v.engine_fps_global.load();
-    volatile int32_t* rounded = v.engine_fps_int_global.load();
-    // 0 until the game's setter ran; 60 when no frame rate patch applied (nothing to change).
-    if (!fps || !rounded || *fps <= 0.0f || v.applied_engine_fps <= 60) {
-        return;
-    }
-    const int now = EngineFpsNow();
-    const float value = now == 60 ? 59.94f : float(now); // 59.94: the game's own constant
-    if (*fps == value) {
-        return;
-    }
-    // The game's frame timing reads both every frame (rounded: int(fps + 0.5), as its setter).
-    *fps = value;
-    *rounded = int32_t(value + 0.5f);
-    std::printf("Engine FPS: %d\n", now);
+    // Ratchet timing is initialized before the clock. Never write inherited
+    // float/integer FPS globals or change the clock floor during live gameplay.
 }
 
 int CycleEngineFps() {
-    auto& v = Get();
-    if (!v.engine_fps_global || v.applied_engine_fps <= 60) {
-        return 0;
-    }
-    v.engine_fps = RatchetGraphics::NextEngineFps(EngineFpsNow(), v.applied_engine_fps);
-    Save();
-    return v.engine_fps;
+    return 0; // Selecting 30/60 requires a new verified transaction and restart.
 }
 
 bool GraphicsNeedRestart() {
@@ -309,7 +290,7 @@ void Save() {
                  v.reactive_scale.load(), v.reactive_threshold.load(), v.reactive_max.load(),
                  v.debug_view.load(), int(v.show_fps.load()),
                  int(v.fsr4_auto_exposure.load()), int(v.fsr4_invert_jitter.load()));
-    std::fprintf(file, "output_res=%dx%d\n", OutputWidths[v.output_res], OutputHeights[v.output_res]);
+    std::fprintf(file, "output_res=%dx%d\ngame_fps=%d\n", OutputWidths[v.output_res], OutputHeights[v.output_res], v.game_fps.load());
     std::fprintf(file,
                  "overlay_fps=%d\noverlay_frametime=%d\noverlay_upscaler=%d\noverlay_gpu=%d\n"
                  "overlay_cpu=%d\noverlay_ram=%d\noverlay_vram=%d\noverlay_scale=%d\noverlay_corner=%d\n"

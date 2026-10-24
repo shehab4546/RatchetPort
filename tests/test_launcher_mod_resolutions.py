@@ -54,7 +54,7 @@ class ModResolutionsTest(LauncherOverTemporaryFiles):
         self.app.var('render_resolution', 'ini').set('3840x1080')
         self.root.update()
         self.assertEqual(self.app.var('render_resolution', 'ini').get(), '3840x1080')
-        self.assertIn('no feature patches', self.app.summary())
+        self.assertIn('requested 30 FPS', self.app.summary())
 
 
 if __name__ == '__main__':

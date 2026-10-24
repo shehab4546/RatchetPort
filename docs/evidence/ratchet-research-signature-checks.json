@@ -1,0 +1,146 @@
+{
+  "archive_sha256": "ec5c599d3ca989c47b577d1e5f8e9c18627eacf419ffbbfe542f63ccfab18390",
+  "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+  "base_signatures": [
+    {
+      "id": "R10",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0x17c77c0"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "R12",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0x1729580"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "R14",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0x1a9a653"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "L01",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0xebcd20"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "L03",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0xfbe180"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "B01",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0x178b4a0"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "B02",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0x1a9a26c"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "Q01",
+      "count": 1,
+      "expected_count": 1,
+      "rvas": [
+        "0x186a7e5"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "Q02",
+      "count": 4,
+      "expected_count": 4,
+      "rvas": [
+        "0x1aba37b",
+        "0x1aba96b",
+        "0x20d21a9",
+        "0x20d27f9"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "Q03",
+      "count": 4,
+      "expected_count": 4,
+      "rvas": [
+        "0x60c337",
+        "0x60d0f7",
+        "0x20cb12b",
+        "0x20cc2eb"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "Q04",
+      "count": 24,
+      "expected_count": 24,
+      "rvas": [
+        "0x5fa3f4",
+        "0x5fcab4",
+        "0x5ff174",
+        "0x601834",
+        "0x603ef4",
+        "0x95c2ff",
+        "0x95cb5f",
+        "0x95e7ef",
+        "0x95f04f",
+        "0x120256a",
+        "0x198cfbc",
+        "0x198d69c",
+        "0x1a1d20d",
+        "0x1a1db2d",
+        "0x1a3d2fd",
+        "0x1a3dbad",
+        "0x1a4018d",
+        "0x1a40a3d",
+        "0x1ac2bf5",
+        "0x1ac34b5",
+        "0x1af306c",
+        "0x1af374c",
+        "0x1dc9d03",
+        "0x1dca423"
+      ],
+      "matches_report": true
+    },
+    {
+      "id": "Q05",
+      "count": 2,
+      "expected_count": 2,
+      "rvas": [
+        "0x1d5ae3f",
+        "0x1d5c0a2"
+      ],
+      "matches_report": true
+    }
+  ],
+  "update_109_revalidated": false,
+  "runtime_tested": false
+}

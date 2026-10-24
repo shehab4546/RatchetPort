@@ -91,15 +91,17 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
     def test_save_preserves_external_changes_and_refreshes_the_controls(self):
         self.app.save()
         path = self.tmp / 'ratchet.ini'
-        path.write_text(path.read_text(encoding='utf-8').replace('fps_limit=30', 'fps_limit=60') +
-                        'external_runtime_key=keep\n', encoding='utf-8')
+        self.assertIn('game_fps=30', path.read_text(encoding='utf-8'))
+        path.write_text(path.read_text(encoding='utf-8').replace('game_fps=30', 'game_fps=60') +
+                        'fps_limit=45\nexternal_runtime_key=keep\n', encoding='utf-8')
         self.app.var('vsync', 'ini').set(False)
         self.app.save()
         values, _lines = launcher.load_ini()
-        self.assertEqual(values['fps_limit'], '60')
+        self.assertEqual(values['game_fps'], '60')
+        self.assertEqual(values['fps_limit'], '45')  # hidden runtime settings remain intact
         self.assertEqual(values['external_runtime_key'], 'keep')
         self.assertEqual(values['vsync'], '0')
-        self.assertEqual(self.app.vars['fps_limit'].get(), '60')
+        self.assertEqual(self.app.vars['game_fps'].get(), '60')
         self.assertEqual(self.save_state(), 'disabled')
 
     def test_failed_replace_keeps_files_and_changes_pending(self):

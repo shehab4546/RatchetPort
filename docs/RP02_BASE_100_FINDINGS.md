@@ -1,6 +1,6 @@
 # RP-02: CUSA01047 / 01.00 static evidence
 
-Static analysis of the supplied build is complete for the three requested
+Static analysis of the target build is complete for the three requested
 paths: frame interval/clock, motion-blur gate, and internal-resolution selector.
 This is **not gameplay acceptance or a working 60 FPS/blur/resolution patch**.
 All runtime capabilities remain disabled. RP-03 supplies guarded patching;
@@ -8,9 +8,9 @@ RP-04/05/06 implement and test the respective features.
 
 ## Build identity and reproducibility
 
-The supplied plaintext SELF is 79,129,828 bytes. Its matching SFO identifies
+The analyzed plaintext SELF is 79,129,828 bytes. Its matching SFO identifies
 Ratchet & Clank, CUSA01047, APP_VER 01.00, CONTENT_ID
-UP9000-CUSA01047_00-RCPS400000000000. These are the supplied build's labels;
+UP9000-CUSA01047_00-RCPS400000000000. These are the target build's labels;
 metadata and a locally calculated hash do not independently authenticate an
 unmodified retail dump. This evidence applies to **these exact bytes only**.
 
@@ -28,7 +28,7 @@ The capability registry records research status separately from runtime support.
 No source game files, extracted ELF, full disassembly or private diagnostics are
 included. The short byte signatures are solely compatibility evidence.
 
-Reproduce the mechanical checks against the owner's dump:
+Reproduce the mechanical checks against the target dump:
 
 ```powershell
 python scripts/ratchet_binary_audit.py --game-dir "C:/path/to/CUSA01047" --manifest docs/evidence/ratchet-cusa01047-0100-candidates.json --output rp02-check.json
@@ -105,7 +105,7 @@ frame-time-dependent scale, and stores the resulting value at +0x290. Another
 consumer is `0x183c12b`. This establishes a live data path beyond the string.
 The relevant gate runs during render-state preparation, after configuration.
 
-The supplied pkg_settings.set assignment `MotionBlurEnable = false` occurs at
+The pkg_settings.set assignment `MotionBlurEnable = false` occurs at
 line 428 **inside ?sceneeditor**, whose block starts at line 398. It is not
 proof that normal gameplay disables blur. Shader labels alone also do not prove
 this. RP-05 must test object/camera motion, rendering artifacts and actual pass
@@ -173,6 +173,6 @@ in this change. Do not publish a new gameplay test build merely for this report.
 
 RP-03 must reject unknown hashes and original-byte mismatches, avoid source/BSS
 coordinate confusion, preserve rollback, and account for prepare/link/ISA order.
-RP-04/05/06 must separately validate the resulting behavior on the owner's PC.
-The files supplied for this static step are sufficient; no full game upload or
-additional proprietary module is required for RP-02.
+RP-04/05/06 must separately validate the resulting behavior during gameplay on the test machine.
+The static analysis uses eboot.bin, param.sfo and pkg_settings.set; additional
+proprietary modules are not required for RP-02.

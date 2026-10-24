@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 """Verified Ratchet patch transactions. Never modify the dump or linked boot file.
 
-RP-03 supplies the transport and guards. Feature replacements are added by
-RP-04/05/06 only after their own review; RP-02 evidence is not an enable list.
+RP-03 supplies the transport and guards. RP-04 adds opt-in experimental 60 FPS;
+gameplay acceptance is separate. RP-02 evidence is not an enable list.
 """
 import argparse
 import hashlib
@@ -15,13 +15,14 @@ import struct
 
 from ratchet_binary_audit import Binary, LIMIT, integer, original, pattern
 from ratchet_game import validate_identity
+from frame_timing import FPS60_GROUP, FPS60_WRITES
 from prepare import load_sfo, span, unpack
 
 PROFILE = {
     'title_id': 'CUSA01047', 'app_version': '01.00',
     'source_sha256': 'fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d',
     'elf_sha256': 'dc1a8862016cb80060928e911ab933d6e380014c1128e537642f9f569f3a05cf',
-    'groups': {},  # Named, reviewed replacements only. No external XML or JSON activation.
+    'groups': {FPS60_GROUP: {'writes': FPS60_WRITES}},  # Opt-in; no external activation.
 }
 HEADER = struct.Struct('<8sQ32s16sQ')
 MAX_WRITES = 1024

@@ -8,11 +8,11 @@ Gameplay, audible audio, save/load and the proposed 30-minute route remain pendi
 
 ## V1.1 PlayGo — RTX 5070 Laptop, 22 October 2026
 
-The project owner confirmed actual gameplay at a steady **30 FPS** on their
-**NVIDIA GeForce RTX 5070 Laptop GPU** with the PlayGo update for CUSA01047 USA
-v1.00. This is owner-reported real-game testing, not an automated benchmark.
+I observed steady **30 FPS gameplay** on my **NVIDIA GeForce RTX 5070 Laptop GPU**
+with the PlayGo update for CUSA01047 USA v1.00. This result comes from my gameplay
+observations; it is not an automated frame-time benchmark.
 
-Two supplied runtime logs dated 22 October 2026 were reviewed:
+The two runtime logs from 22 October 2026 record:
 
 | Observation | Earlier session | Later session |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ Two supplied runtime logs dated 22 October 2026 were reviewed:
 
 The durations cover the runtime session, not a measured continuous gameplay
 interval. The logs record a 30 FPS limit, not sampled frame rates; steady 30 FPS
-gameplay is confirmed by the owner. CPU model, installed RAM, driver version and
+gameplay is my observation. CPU model, installed RAM, driver version and
 output resolution are not identified in these logs. Audio output and save-mount
 counters are present, but do not establish audible correctness or a successful
 save/load round trip. Nonfatal Vulkan capability/format warnings remain; the
@@ -40,7 +40,7 @@ contains the package built from `0cd2570f4c2b9778b92df43cfedfaae871299679`.
 passed the full build, native services test, six PlayGo test methods with the
 production resolver, packaging/source checks and a separate package-startup
 smoke test without MSYS2 on PATH. Python: **463 discovered; 417 passed, 46 skipped,
-zero failures/errors**. These checks are separate from the owner's game report.
+zero failures/errors**. These automated checks are separate from my gameplay observations.
 
 ## Historical V1 test record
 
@@ -66,8 +66,8 @@ certify general hardware compatibility or stable gameplay.
 | Check | Evidence / limit |
 | --- | --- |
 | Boot / title | Reached in local tests; title screen visually observed |
-| Main menu / difficulty | Tester selected New Game and difficulty |
-| Loading / opening movie | Tester confirmed both appeared with deferred readbacks off |
+| Main menu / difficulty | New Game and difficulty selection tested |
+| Loading / opening movie | Both appeared with deferred readbacks off |
 | Attempted movie skip | Freeze reported after Enter and several unidentified keys; exact trigger unconfirmed |
 | Gameplay movement / HUD | Not validated |
 | Audible sound / physical controller | Not validated |
@@ -98,6 +98,6 @@ change. Full gameplay has not been revalidated against the final V1 package.
 - All seven icon frames in each of four packaged executables match their original
   assets; the runtime manifest remains present.
 
-Native decoder tests validate fixture decoding, not the user's perception of
-game audio/video. Skipped tests are not counted as passes. Local private logs,
+Native decoder tests validate fixture decoding, not audible or visual correctness during
+gameplay. Skipped tests are not counted as passes. Local private logs,
 game-derived files and hardware diagnostics are excluded from the repository.

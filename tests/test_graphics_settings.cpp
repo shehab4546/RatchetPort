@@ -29,6 +29,8 @@ int main(int argc, char** argv) {
     }
     assert(EmulatorSettings.IsReadbackLinearImagesEnabled());
     assert(!RatchetSettings::Get().deferred_readback);
+    assert(RatchetSettings::EngineFpsNow() == 30);
+    assert(RatchetSettings::CycleEngineFps() == 0);
     assert(G::ParseDisplayMode("borderless") == G::Borderless && G::ParseDisplayMode("bogus") == G::Windowed);
     assert(G::ParseFpsLimit(240) == 240 && G::ParseFpsLimit(144) == 144 && G::ParseFpsLimit(180) == 180 && G::ParseFpsLimit(100) == 100 && G::ParseFpsLimit(75) == 0);
     assert(G::ParseResolution("900p") == 3 && G::ParseResolution("1440p") == 4 && G::ParseResolution("8K") == 22);
@@ -67,7 +69,7 @@ int main(int argc, char** argv) {
     {
         std::ofstream out(path);
         out << "display_mode=borderless\nvsync=0\nfps_limit=240\nasync_shaders=0\n"
-               "render_resolution=1440p\nengine_fps=240\ndeferred_readback=0\nstale_readback=1\n"
+               "render_resolution=1440p\nengine_fps=240\ngame_fps=60\ndeferred_readback=0\nstale_readback=1\n"
                "fsr1=1\nrcas=0\nrcas_strength=40\nframes_queued=2\n";
     }
     _putenv_s("RATCHET_CONFIG", path);
@@ -76,6 +78,19 @@ int main(int argc, char** argv) {
     RatchetSettings::Load();
     assert(v.display_mode == G::Borderless && !v.vsync && v.fps_limit == 240 && !v.async_shaders);
     assert(v.render_resolution == 4 && v.engine_fps == 240 && !v.deferred_readback && v.stale_readback);
+    assert(v.game_fps == 60 && RatchetSettings::EngineFpsNow() == 30);
+    float untouched_fps = 30.f;
+    int32_t untouched_int = 30;
+    v.engine_fps_global = &untouched_fps;
+    v.engine_fps_int_global = &untouched_int;
+    v.applied_engine_fps = 60;
+    RatchetSettings::SyncEngineFps();
+    assert(untouched_fps == 30.f && untouched_int == 30);
+    assert(RatchetSettings::EngineFpsNow() == 60 && RatchetSettings::CycleEngineFps() == 0);
+    RatchetSettings::Save();
+    assert(Read(path).find("game_fps=60\n") != std::string::npos);
+    v.engine_fps_global = nullptr;
+    v.engine_fps_int_global = nullptr;
     // FSR 1 left the menus in 2.2.0: a saved fsr1=1 (or RATCHET_FSR1) no longer turns it on.
     assert(!v.fsr1 && !v.rcas && v.rcas_strength == 40 && v.frames_queued == 2);
     _putenv_s("RATCHET_FSR1", "1");
@@ -83,8 +98,8 @@ int main(int argc, char** argv) {
     assert(!v.fsr1);
     _putenv_s("RATCHET_FSR1", "");
     assert(!RatchetSettings::GraphicsNeedRestart());
-    assert(v.applied_engine_fps == 240);  // no RATCHET_ENGINE_FPS: the configured rate
-    _putenv_s("RATCHET_ENGINE_FPS", "60");    // run.py: the frame rate patch did not apply
+    assert(v.applied_engine_fps == 30);  // legacy config cannot activate guest patches
+    _putenv_s("RATCHET_ENGINE_FPS", "60");    // verified experimental transaction prepared by run.py
     RatchetSettings::Load();
     assert(v.engine_fps == 240 && v.applied_engine_fps == 60 && !RatchetSettings::GraphicsNeedRestart());
     _putenv_s("RATCHET_ENGINE_FPS", "");

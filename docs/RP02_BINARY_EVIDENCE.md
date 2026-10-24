@@ -4,7 +4,7 @@ Status: **target inputs received; static paths traced**. See
 [the 01.00 findings](RP02_BASE_100_FINDINGS.md) for build identity, original
 instructions, xrefs, initialization order and limits. The checked-in
 [evidence manifest](evidence/ratchet-cusa01047-0100-candidates.json) verifies
-11 unique sites against the owner's supplied SELF. The
+11 unique sites against the analyzed SELF. The
 [capability registry](evidence/ratchet-cusa01047-0100-capabilities.json) keeps
 static research separate from runtime support; every runtime feature is disabled.
 
@@ -34,7 +34,7 @@ image; it is not a relocated host address or a physical SELF offset.
 
 ## Candidate checks
 
-Pass `--manifest evidence.json` to mechanically check researcher-supplied sites.
+Pass `--manifest evidence.json` to mechanically check the sites recorded in the manifest.
 The JSON object uses schema_version 1, title_id CUSA01047, app_version 01.00,
 source_sha256, elf_sha256 and a nonempty sites array. Each site requires:
 
@@ -69,7 +69,7 @@ rp02_complete false and all runtime capabilities disabled.
 
 27 synthetic tests passed locally on 23 October 2026. They cover coordinate
 mapping, fingerprints, uniqueness, original bytes, loaded ranges, consumer
-permissions, malformed evidence and read-only CLI behavior. The supplied real SELF additionally passed all 11 candidate checks.
+permissions, malformed evidence and read-only CLI behavior. The analyzed SELF additionally passed all 11 candidate checks.
 Actual-game execution is not claimed.
 
 The tool never declares semantic acceptance. The separate findings document
