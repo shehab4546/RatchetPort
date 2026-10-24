@@ -1,10 +1,12 @@
 # Verified binary patches in RatchetPort
 
 CUSA01047 USA version 1.00 defaults to **Original/30 with no binary feature patches**.
-RP-04 adds one opt-in, fingerprinted experimental 60 FPS group containing paired
-interval/clock replacements. Gameplay acceptance remains pending; see
-[frame timing evidence and tests](RP04_FRAME_TIMING.md). Motion blur and internal
-resolution patches remain disabled. Host output size and VSync are separate.
+The opt-in, fingerprinted groups cover paired 60 FPS interval/clock replacements,
+general motion blur Off, and three mutually exclusive shadow-map caps. See
+[frame timing evidence](RP04_FRAME_TIMING.md) and
+[visual-control evidence](RP05_VISUAL_CONTROLS.md). Gameplay acceptance remains
+pending. Internal-resolution patches remain disabled. Host output size and VSync
+are separate.
 
 The exact supported source and extracted ELF SHA-256 hashes are recorded in that profile and `docs/RP02_BASE_100_FINDINGS.md`. Requested groups are checked against TITLE_ID, APP_VER and both hashes. An unknown dump may run the unpatched baseline, but cannot receive a verified feature patch.
 
@@ -12,8 +14,11 @@ The exact supported source and extracted ELF SHA-256 hashes are recorded in that
 
 `game_fps=60` in ratchet.ini selects the experimental group; any other value
 selects Original. It overrides stale selections of that group in RATCHET_PATCHES.
-Other reviewed names may be supplied via RATCHET_PATCHES (semicolon separated);
-unknown names are skipped explicitly. XML/mod patch files cannot activate
+`motion_blur=off` and `shadow_resolution=1024`, `512` or `256` select their own
+groups; other values select Original. Each explicit setting removes stale names
+for its own feature from RATCHET_PATCHES. Thus RATCHET_PATCHES cannot override
+Original or select multiple shadow caps through run.py. Unknown names are skipped
+explicitly. XML/mod patch files cannot activate
 executable patches. The loader rejects nonempty legacy G3PATCH2 packets.
 
 Each reviewed group must list writes with `signature`, `offset`, `elf_vaddr`, `original_hex` and `replacement_hex`. A signature must match exactly once in source file-backed loadable segments. The original bytes, address, segment boundary and unchanged write length must match. Writes into BSS or across segments are rejected. A group is accepted whole or rejected whole. Conflicting groups are both rejected; valid independent groups can still be prepared.

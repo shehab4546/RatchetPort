@@ -10,6 +10,8 @@ never did, the next start goes back to the last confirmed values.
 import json
 import math
 from frame_timing import normalize
+from motion_blur import normalize as normalize_blur
+from shadow_resolution import normalize as normalize_shadows
 from pathlib import Path
 
 RESOLUTIONS = ('native', '480p', '720p', '900p', '1440p', '1800p', '4K',
@@ -25,7 +27,8 @@ SIZES = {'native': (1920, 1080), '480p': (854, 480), '720p': (1280, 720), '900p'
 ASPECTS = (('16:9', 16 / 9), ('16:10', 16 / 10), ('21:9', 2.37), ('32:9', 32 / 9), ('4:3', 4 / 3))
 ENGINE_FPS = (60, 100, 120, 144, 180, 240)
 # Match the working CUSA01047 scene-entry baseline; stale mode is inactive without deferral.
-DEFAULTS = {'game_fps': '30', 'render_resolution': 'native', 'engine_fps': '60', 'deferred_readback': '0',
+DEFAULTS = {'game_fps': '30', 'motion_blur': 'original', 'shadow_resolution': 'original',
+            'render_resolution': 'native', 'engine_fps': '60', 'deferred_readback': '0',
             'stale_readback': '1', 'async_shaders': '1'}
 RESOLUTION_PREFIX = 'Resolution Patch'
 FPS_PREFIX = 'Frame Rate Patch'
@@ -135,6 +138,8 @@ def startup_options(ini, extra=()):
     resolutions of the enabled mods (a mod that is off leaves its resolution out: native)."""
     options = {key: ini.get(key, value) for key, value in DEFAULTS.items()}
     options['game_fps'] = normalize(options['game_fps'])
+    options['motion_blur'] = normalize_blur(options['motion_blur'])
+    options['shadow_resolution'] = normalize_shadows(options['shadow_resolution'])
     if options['render_resolution'] not in resolutions(extra):
         options['render_resolution'] = 'native'
     if options['engine_fps'] not in {str(f) for f in ENGINE_FPS}:

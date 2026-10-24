@@ -28,6 +28,7 @@ class GraphicsOptionsTest(unittest.TestCase):
             options,
             {
                 'game_fps': '30',
+                'motion_blur': 'original', 'shadow_resolution': 'original',
                 'render_resolution': 'native',
                 'engine_fps': '60',
                 'deferred_readback': '0',

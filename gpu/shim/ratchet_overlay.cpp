@@ -362,6 +362,14 @@ void ImageTab() {
         std::snprintf(text, sizeof(text), "%d x %d", ww, wh);
         InfoRow("Window", text);
         InfoRow("Sharpening", s.rcas_applied ? "applied" : "not applied");
+        InfoRow("Motion blur", s.applied_motion_blur_off ? "Off (experimental)" : "On / Original");
+        if (s.applied_shadow_resolution) {
+            std::snprintf(text, sizeof(text), "%d px maximum (experimental)", s.applied_shadow_resolution);
+        } else {
+            std::snprintf(text, sizeof(text), "Original");
+        }
+        InfoRow("Shadow maps", text);
+        InfoRow("Change game effects", "Choose in the launcher, then restart the game");
         ImGui::EndTable();
     }
 }

@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+  "elf_sha256": "dc1a8862016cb80060928e911ab933d6e380014c1128e537642f9f569f3a05cf",
+  "gameplay_tested": false,
+  "gpu_rendering_tested": false,
+  "kind": "isolated native instruction and guarded profile checks",
+  "relocation_slots_checked": 559629,
+  "combinations": [
+    {
+      "fps": "30",
+      "motion_blur": "original",
+      "shadow_cap": "original",
+      "writes": 0
+    },
+    {
+      "fps": "30",
+      "motion_blur": "original",
+      "shadow_cap": "1024",
+      "writes": 1
+    },
+    {
+      "fps": "30",
+      "motion_blur": "original",
+      "shadow_cap": "512",
+      "writes": 1
+    },
+    {
+      "fps": "30",
+      "motion_blur": "original",
+      "shadow_cap": "256",
+      "writes": 1
+    },
+    {
+      "fps": "30",
+      "motion_blur": "off",
+      "shadow_cap": "original",
+      "writes": 1
+    },
+    {
+      "fps": "30",
+      "motion_blur": "off",
+      "shadow_cap": "1024",
+      "writes": 2
+    },
+    {
+      "fps": "30",
+      "motion_blur": "off",
+      "shadow_cap": "512",
+      "writes": 2
+    },
+    {
+      "fps": "30",
+      "motion_blur": "off",
+      "shadow_cap": "256",
+      "writes": 2
+    },
+    {
+      "fps": "60",
+      "motion_blur": "original",
+      "shadow_cap": "original",
+      "writes": 2
+    },
+    {
+      "fps": "60",
+      "motion_blur": "original",
+      "shadow_cap": "1024",
+      "writes": 3
+    },
+    {
+      "fps": "60",
+      "motion_blur": "original",
+      "shadow_cap": "512",
+      "writes": 3
+    },
+    {
+      "fps": "60",
+      "motion_blur": "original",
+      "shadow_cap": "256",
+      "writes": 3
+    },
+    {
+      "fps": "60",
+      "motion_blur": "off",
+      "shadow_cap": "original",
+      "writes": 3
+    },
+    {
+      "fps": "60",
+      "motion_blur": "off",
+      "shadow_cap": "1024",
+      "writes": 4
+    },
+    {
+      "fps": "60",
+      "motion_blur": "off",
+      "shadow_cap": "512",
+      "writes": 4
+    },
+    {
+      "fps": "60",
+      "motion_blur": "off",
+      "shadow_cap": "256",
+      "writes": 4
+    }
+  ],
+  "blur_gate_cases": 32,
+  "blur_consumer_cases": 20,
+  "shadow_allocator_cases": 312,
+  "shadow_caps": [
+    1024,
+    512,
+    256
+  ],
+  "original_manager_default": 1792,
+  "atlas_dimensions_unchanged": [
+    8192,
+    4096
+  ],
+  "guards_checked": [
+    "source and ELF hashes",
+    "unique source signatures",
+    "original bytes",
+    "relocation overlap",
+    "conflicting shadow groups"
+  ],
+  "limits": [
+    "Allocator dependencies stubbed; no GPU rendering or complete game execution.",
+    "Visual motion blur, TAA, DOF, HUD, shadow quality, sun/CSM coverage and performance remain pending."
+  ]
+}

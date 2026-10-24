@@ -106,6 +106,10 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.render_resolution = RatchetGraphics::ParseResolution(value);
     } else if (key == "game_fps") {
         v.game_fps = value == "60" ? 60 : 30;
+    } else if (key == "motion_blur") {
+        v.motion_blur_off = value == "off";
+    } else if (key == "shadow_resolution") {
+        v.shadow_resolution = value == "1024" ? 1024 : value == "512" ? 512 : value == "256" ? 256 : 0;
     } else if (key == "engine_fps") {
         v.engine_fps = RatchetGraphics::ParseEngineFps(i);
     } else if (key == "deferred_readback") {
@@ -197,6 +201,11 @@ void Load() {
     const char* applied = std::getenv("RATCHET_ENGINE_FPS");
     // Only run.py's verified transaction permits the experimental 60 target.
     v.applied_engine_fps = applied && std::string_view(applied) == "60" ? 60 : 30;
+    const char* blur = std::getenv("RATCHET_MOTION_BLUR");
+    v.applied_motion_blur_off = blur && std::string_view(blur) == "off";
+    const char* shadow = std::getenv("RATCHET_SHADOW_RESOLUTION");
+    const std::string_view cap = shadow ? shadow : "original";
+    v.applied_shadow_resolution = cap == "1024" ? 1024 : cap == "512" ? 512 : cap == "256" ? 256 : 0;
     v.startup_deferred_readback = v.deferred_readback;
     v.startup_stale_readback = v.stale_readback;
     v.startup_anisotropy = v.anisotropy;
@@ -291,6 +300,8 @@ void Save() {
                  v.debug_view.load(), int(v.show_fps.load()),
                  int(v.fsr4_auto_exposure.load()), int(v.fsr4_invert_jitter.load()));
     std::fprintf(file, "output_res=%dx%d\ngame_fps=%d\n", OutputWidths[v.output_res], OutputHeights[v.output_res], v.game_fps.load());
+    std::fprintf(file, "motion_blur=%s\nshadow_resolution=%s\n", v.motion_blur_off ? "off" : "original",
+                 v.shadow_resolution == 0 ? "original" : std::to_string(v.shadow_resolution.load()).c_str());
     std::fprintf(file,
                  "overlay_fps=%d\noverlay_frametime=%d\noverlay_upscaler=%d\noverlay_gpu=%d\n"
                  "overlay_cpu=%d\noverlay_ram=%d\noverlay_vram=%d\noverlay_scale=%d\noverlay_corner=%d\n"

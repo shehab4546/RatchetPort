@@ -59,6 +59,27 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
 
 
 class SaveButtonTest(LauncherOverTemporaryFiles):
+    def test_visual_dropdowns_share_values_and_save(self):
+        def widgets(parent):
+            for child in parent.winfo_children():
+                yield child
+                yield from widgets(child)
+        for key, choices, selected in (('motion_blur', launcher.MOTION_BLUR, 'off'),
+                                        ('shadow_resolution', launcher.SHADOW_RESOLUTION, '512')):
+            labels = tuple(text[0] for _value, text in choices)
+            boxes = [w for w in widgets(self.root) if isinstance(w, ttk.Combobox)
+                     and tuple(w['values']) == labels]
+            self.assertEqual(len(boxes), 2)  # Home and Graphics
+            index = [value for value, _text in choices].index(selected)
+            boxes[0].current(index)
+            boxes[0].event_generate('<<ComboboxSelected>>')
+            self.root.update_idletasks()
+            self.assertEqual(boxes[1].current(), index)
+            self.assertEqual(self.app.vars[key].get(), selected)
+        self.app.save()
+        values, _lines = launcher.load_ini()
+        self.assertEqual((values['motion_blur'], values['shadow_resolution']), ('off', '512'))
+
     def test_failed_save_does_not_close_the_launcher(self):
         with mock.patch.object(self.app, 'collect', return_value=False), \
                 mock.patch.object(self.root, 'destroy') as destroy:
@@ -92,7 +113,9 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
         self.app.save()
         path = self.tmp / 'ratchet.ini'
         self.assertIn('game_fps=30', path.read_text(encoding='utf-8'))
-        path.write_text(path.read_text(encoding='utf-8').replace('game_fps=30', 'game_fps=60') +
+        path.write_text(path.read_text(encoding='utf-8').replace('game_fps=30', 'game_fps=60')
+                       .replace('motion_blur=original', 'motion_blur=off')
+                       .replace('shadow_resolution=original', 'shadow_resolution=512') +
                         'fps_limit=45\nexternal_runtime_key=keep\n', encoding='utf-8')
         self.app.var('vsync', 'ini').set(False)
         self.app.save()
@@ -102,6 +125,10 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
         self.assertEqual(values['external_runtime_key'], 'keep')
         self.assertEqual(values['vsync'], '0')
         self.assertEqual(self.app.vars['game_fps'].get(), '60')
+        self.assertEqual(values['motion_blur'], 'off')
+        self.assertEqual(values['shadow_resolution'], '512')
+        self.assertEqual(self.app.vars['motion_blur'].get(), 'off')
+        self.assertEqual(self.app.vars['shadow_resolution'].get(), '512')
         self.assertEqual(self.save_state(), 'disabled')
 
     def test_failed_replace_keeps_files_and_changes_pending(self):
