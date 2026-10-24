@@ -42,7 +42,7 @@ The 32-byte receipt is `RCPACK3\0`, the 16-byte token and the u64 write count. T
 
 `tests/test_ratchet_patches.py` covers identity/fingerprint rejection, signature absence/ambiguity, original-byte and boundary failures, conflicts, whole-group rejection, transformation exclusions, stale acknowledgements and disable/restart behavior. `tests/test_verified_patches.c` tests the native parser, truncated packets, bad hashes, bounds, overlapping writes and atomic rejection of a late original-byte mismatch. Set `RATCHET_PATCH_TEST` to the compiled native test executable to run the Python-to-C transaction/receipt test. Windows CI builds and runs both.
 
-For the 30/60 comparison, follow [RP-04 testing](RP04_FRAME_TIMING.md#owner-gameplay-acceptance-still-required).
+For the 30/60 comparison, follow [RP-04 testing](RP04_FRAME_TIMING.md#gameplay-validation-still-required).
 A default launch is still Original. Selecting 60 requests an experiment, not a
 claim of successful gameplay. Returning to Original and restarting must remove
 both writes and the previous receipt. Never use synthetic test patches in-game.

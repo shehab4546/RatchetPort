@@ -54,7 +54,7 @@ Build the `*-test` targets listed in `gpu/CMakeLists.txt` before running the nat
 
 The ZIP is assembled in a new timestamped staging directory. Packaging preserves older ZIPs with a timestamp. It bundles the frozen launcher, runtime executables, recursively discovered CLANG64 DLL dependencies, preparation scripts, fonts and licenses. It rejects known game files, modules, caches, settings and logs. The smoke check extracts the ZIP to a new temporary directory and runs with a system-only PATH so an installed MSYS2 cannot mask missing packaged DLLs. Its logs are retained locally.
 
-The package contains no game dump. Only the local owner can validate actual gameplay, audio, controller input and saves using their own CUSA01047 USA v1.00 files. The build workflow does not publish releases. Dedicated publishing workflows promote an owner-authorized, tested build and record any pending gameplay validation.
+The package contains no game dump. Gameplay, audio, controller input and saves require testing with a complete CUSA01047 USA v1.00 dump. The build workflow does not publish releases. Dedicated publishing workflows promote a tested build and record any pending gameplay validation.
 
 Python, source and native tests remain separate from packaged game data. Never stage `out/`, `dist/`, captures, prepared game binaries or private logs in Git.
 

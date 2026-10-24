@@ -57,13 +57,13 @@ This review narrows the change to clock/pacing. It does not prove every later
 writer or gameplay consumer has been exercised. That is why it remains opt-in.
 The retained 1/60 safety floor is also a reason not to expose 120 FPS here.
 
-The supplied research archive was cross-checked against this BASE executable,
+The research archive was cross-checked against this BASE executable,
 including its different blur normalization: see
 [research review and signature validation](RP04_RESEARCH_REVIEW.md).
 
 ## Reproducible isolated experiment
 
-`tools/verify_frame_clock.py` reads the owner's exact supplied SELF, validates
+`tools/verify_frame_clock.py` reads the exact fingerprinted SELF, validates
 both fingerprints and replacement signatures, maps its loadable image privately,
 and calls only the settings-copy fragment, clock initialization and clock tick.
 It substitutes a deterministic nanosecond TSC in that private image. The source
@@ -87,7 +87,7 @@ Automated tests additionally cover routing, unknown/stale selections, strict
 30/60 normalization, rejected-patch host fallback, paired-write rejection,
 settings save/restart/rollback, and disabling live inherited timing writes.
 
-## Owner gameplay acceptance still required
+## Gameplay validation still required
 
 1. Use the same save and scene at Original/30 and experimental60. Keep output
    size, VSync and other rendering options fixed; close and restart each time.

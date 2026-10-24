@@ -12,7 +12,7 @@ Separate updates and other title IDs are rejected.
 
 Default: 30 FPS, VSync on, 1280x720 output, windowed, upscaling off.
 Linear readbacks on; deferred GPU readbacks off.
-Zero-clear mirror is off. No binary game patches are applied.
+Zero-clear mirror is off. Original mode applies no timing patches.
 The output size does not change the game's internal render targets.
 
 Requires Windows 10 1903+ / 11 x64, an AVX-capable CPU and Vulkan 1.3 GPU/driver.
@@ -21,8 +21,8 @@ Python and runtime libraries are bundled. No MSYS2 installation is needed to pla
 KNOWN ISSUE: VK_ERROR_DEVICE_LOST has occurred on Intel UHD 730, including with
 zero-clear disabled. This is not a stable release or a guarantee of playable gameplay.
 
-Earlier hardware evidence: the owner confirmed actual gameplay at steady 30 FPS
-on an NVIDIA RTX 5070 Laptop GPU with V1.1 PlayGo. Intel UHD 730 reached the
+Earlier testing: I observed steady 30 FPS gameplay on my NVIDIA RTX 5070 Laptop
+GPU with V1.1 PlayGo. Intel UHD 730 reached the
 menu/loading/opening movie and also exhibited device-loss failures. Neither
 result establishes gameplay acceptance of this exact build. See docs/TESTING.md.
 

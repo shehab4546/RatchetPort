@@ -1,16 +1,15 @@
-# Review of the supplied game research
+# Game research review
 
 Reviewed `Ratchet_Game_Research.rar` for the 30/60 frame timing preview.
 Archive SHA-256: `ec5c599d3ca989c47b577d1e5f8e9c18627eacf419ffbbfe542f63ccfab18390`.
 It contains 14 Markdown reports and three JSON files, including 37 findings and
-the 18-task plan. The build plan text matches the previously supplied plan.
+the 18-task plan. The build plan text matches the existing plan.
 The linked `evidence/` and `tools/` directories are absent from this archive;
 the reports themselves explicitly describe static analysis, not gameplay tests.
 
 ## Fingerprint and signature validation
 
-The report's BASE fingerprint matches the owner's supplied CUSA01047 USA 01.00
-SELF. All 12 BASE code signatures were independently scanned across executable
+The report's BASE fingerprint matches the analyzed CUSA01047 USA 01.00 SELF. All 12 BASE code signatures were independently scanned across executable
 ELF segments and reproduce the report's match counts and stated locations.
 [Numeric results](evidence/ratchet-research-signature-checks.json) record the scan.
 Eight signatures are unique. Q02/Q03/Q04/Q05 have 4/4/24/2 matches respectively
@@ -28,7 +27,7 @@ RP-04 uses the independently recovered BASE sites documented in
 | T02: pacing and alternate interval | Keep the wait path and alternate throttle; distinguish host cap from guest pacing |
 | T03/T04: clock initialization and elapsed-time floor | Paired change at `0x171e7a1`; retain elapsed TSC, upper bound, smoothing, pause, time scale and 1/60 floor |
 | R08: review frame-time-dependent blur | BASE consumer checked separately below; visual temporal-history acceptance remains pending |
-| RP-04: 30/60 real-time correctness | Isolated clock experiment passed; owner gameplay, physics, audio, cutscenes and frame-delivery measurements remain pending |
+| RP-04: 30/60 real-time correctness | Isolated clock experiment passed; gameplay, physics, audio, cutscenes and frame-delivery measurements remain pending |
 | 90/120/unlocked | Not enabled; the retained floor alone prevents treating an increased display rate as correct higher-rate simulation |
 
 ## BASE exposure consumer differs from UPDATE109

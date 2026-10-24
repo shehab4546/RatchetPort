@@ -3,8 +3,8 @@
 RatchetPort is an **unofficial, experimental PC port project for Ratchet & Clank
 (2016), the PS4 game**, using a native Windows runtime. It targets **CUSA01047 USA
 v1.00** and requires a self-made dump of your own original disc. **Pre-Alpha:**
-the project owner reports actual gameplay at a steady **30 FPS on an NVIDIA
-GeForce RTX 5070 Laptop GPU** with V1.1 PlayGo. General hardware compatibility and
+I observed steady **30 FPS gameplay on my NVIDIA GeForce RTX 5070 Laptop GPU**
+with V1.1 PlayGo. General hardware compatibility and
 long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
@@ -20,8 +20,9 @@ Motion-blur and internal-resolution patches remain disabled. See
 [timing evidence](docs/RP04_FRAME_TIMING.md) and [tested hardware](docs/TESTING.md).
 Earlier hardware results describe their original builds, not this preview.
 
-[Download the latest release and sources](https://github.com/shehab4546/RatchetPort/releases/latest)
-· [Earlier releases](https://github.com/shehab4546/RatchetPort/releases)
+[Download V1.4 Frame Timing Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.4-frame-timing-preview)
+· [Latest non-prerelease build](https://github.com/shehab4546/RatchetPort/releases/latest)
+· [All releases](https://github.com/shehab4546/RatchetPort/releases)
 · [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
 · [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
 
@@ -49,7 +50,7 @@ accordance with applicable law; this repository provides no bypass keys or game 
 
 **بالعربية:** يجب أن تمتلك قرص اللعبة الأصلي وأن تعمل dump بنفسك من قرصك باستخدام
 جهاز PS4 الخاص بك. المشروع لا يتضمن اللعبة أو ملفات نظام PS4 أو المفاتيح، ولا يوفر
-روابط لتنزيلها. أكد مالك المشروع اللعب الفعلي بمعدل **30 إطارًا/ثانية ثابتًا على جهازه
+روابط لتنزيلها. اختبرت اللعب الفعلي بمعدل **30 إطارًا/ثانية ثابتًا على جهازي
 المزوّد بـ RTX 5070 Laptop** مع تحديث V1.1 PlayGo. يبقى الإصدار تجريبيًا؛ هذه النتيجة
 خاصة بالجهاز المختبر ولا تثبت التوافق مع جميع الأجهزة أو استقرار الجلسات الطويلة.
 
@@ -61,13 +62,13 @@ RatchetPort مشروع غير رسمي لنقل راتشت أند كلانك (Ra
 
 | Tested hardware | Version / evidence | Result |
 | --- | --- | --- |
-| NVIDIA GeForce RTX 5070 Laptop GPU | V1.1 PlayGo; owner confirmation and two runtime logs reviewed on 22 October 2026 | Owner confirms actual gameplay at a steady **30 FPS**; logged sessions of **621 s** and **294 s** both ended with exit code **0** |
+| NVIDIA GeForce RTX 5070 Laptop GPU | V1.1 PlayGo; my gameplay observations and two runtime logs on 22 October 2026 | I observed steady **30 FPS gameplay**; logged sessions of **621 s** and **294 s** both ended with exit code **0** |
 | Intel Core i5-12400, Intel UHD Graphics 730 (driver 32.0.101.7088), 12 GB RAM, Windows 11 Pro build 26300 | Earlier V1 bring-up tests | Title/menu, difficulty selection, loading and opening movie reached; a freeze and `VK_ERROR_DEVICE_LOST` were reported; sustained 30 FPS gameplay was not validated |
 
 The RTX 5070 Laptop logs show fullscreen, VSync on, a 30 FPS limit, PlayGo
 initialized with 72 chunks and an Xbox One Controller detected. They contain no
 Prefetch unsupported-import stop or `VK_ERROR_DEVICE_LOST`. The steady 30 FPS
-gameplay result is the owner's observation; the logs record the frame limit,
+gameplay result is my observation; the logs record the frame limit,
 not a sampled FPS trace. CPU model, RAM, driver and output resolution are not
 identified in these logs. This evidence does not establish performance on other GPUs, higher
 FPS, reliable cutscene skipping, audio/controller behavior, save/load or long
@@ -85,7 +86,7 @@ See [the detailed evidence and test counts](docs/TESTING.md).
 3. Leave the initial settings at **30 FPS, VSync on, 1280x720 output, windowed, upscaling off, Deferred GPU readbacks off** and start the game.
 4. `Play RatchetPort.exe` can subsequently start using the saved configuration.
 
-The launcher validates the title ID and version before preparation. Separate update directories are rejected. There are no verified Ratchet binary patches in this release; saved patch selections cannot turn on another game's patches. Output resolution is a host presentation setting, not a claim that the game's internal rendering resolution was patched.
+The launcher validates the title ID and version before preparation. Separate update directories are rejected. Original mode applies no timing patch. Experimental 60 FPS applies the verified pacing/clock pair for the exact supported build; saved patch selections cannot activate another game's patches. Output resolution is a host presentation setting, not a claim that the game's internal rendering resolution was patched.
 
 Settings (`settings.json`, `ratchet.ini`), prepared executable files (`out/`), shader caches, logs and saves are generated beside the extracted application by default. A custom data/saves directory can be selected. Preserve these user files when replacing a package. Never distribute the generated prepared executable or shader dumps.
 
@@ -93,7 +94,7 @@ Settings (`settings.json`, `ratchet.ini`), prepared executable files (`out/`), s
 
 Generic SDL controller support and remappable keyboard/mouse input are retained. The Game page configures PS4 button mappings. Default keyboard mappings include WASD for movement, arrows for the right stick, Space/Left Shift/E/Q for Cross/Circle/Square/Triangle, 1/3 for L1/R1, R/F for L2/R2, Enter for Options, and Tab/Backspace for the touchpad regions. These are mappings to PS4 buttons; they do not inject game-specific actions.
 
-Insert or R3+L2 opens the runtime graphics overlay. Window mode, output size, VSync, graphics diagnostics and advanced renderer options remain available. Higher FPS, upscalers, higher output sizes and advanced options are not validated Ratchet features. The launcher offers only the conservative 30 FPS limit. `RATCHET_ZERO_CLEAR=0` remains the default; enabling it is a diagnostic experiment, not a Device Lost fix.
+Insert or R3+L2 opens the runtime graphics overlay. Window mode, output size, VSync, graphics diagnostics and advanced renderer options remain available. Higher FPS, upscalers, higher output sizes and advanced options are not validated Ratchet features. The launcher offers Original/30 and experimental 60 FPS; changing the target requires restarting the game. `RATCHET_ZERO_CLEAR=0` remains the default; enabling it is a diagnostic experiment, not a Device Lost fix.
 
 ## Known issues and reporting
 
