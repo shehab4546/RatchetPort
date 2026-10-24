@@ -47,7 +47,7 @@ out/ratchet-tools/Scripts/python.exe -m unittest discover -s tests
 out/ratchet-tools/Scripts/python.exe tests/test_liverpool_commands.py
 out/ratchet-tools/Scripts/python.exe tests/run_native.py --build-dir out/ratchet-clean --runtime-dir out/ffmpeg-lgpl/bin
 out/ratchet-tools/Scripts/python.exe packaging/windows/package.py --build-dir out/ratchet-clean
-powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-V1.3.1-Verified-Preview-Windows.zip
+powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-V1.3-Verified-Preview-Windows.zip
 ```
 
 Build the `*-test` targets listed in `gpu/CMakeLists.txt` before running the native suite. Pass `--zero-clear-shader` with your local captured shader to run that GPU check; otherwise the runner explicitly reports it skipped.

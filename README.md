@@ -9,12 +9,12 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**V1.3.1 — Verified Preview · Windows x64 · CUSA01047 USA v1.00**
+**V1.3 — Verified Preview · Windows x64 · CUSA01047 USA v1.00**
 
-V1.3.1 corrects stale launcher and package version labels. The window title,
+V1.3 corrects stale launcher and package version labels. The window title,
 home page, Windows executable properties and build metadata share one release
 identity. It includes verified patch loading; FPS, motion-blur and internal-resolution
-feature patches remain disabled. See [release notes](docs/releases/V1.3.1-Verified-Preview.md)
+feature patches remain disabled. See [release notes](docs/releases/V1.3-Verified-Preview.md)
 and [tested hardware](docs/TESTING.md). Earlier hardware results remain specific
 to the builds tested.
 
@@ -78,7 +78,7 @@ See [the detailed evidence and test counts](docs/TESTING.md).
 
 ## Starting on Windows
 
-1. Extract `RatchetPort-V1.3.1-Verified-Preview-Windows.zip` into a new writable folder.
+1. Extract `RatchetPort-V1.3-Verified-Preview-Windows.zip` into a new writable folder.
 2. Open `RatchetPort.exe`, choose the game directory and save the settings.
 3. Leave the initial settings at **30 FPS, VSync on, 1280x720 output, windowed, upscaling off, Deferred GPU readbacks off** and start the game.
 4. `Play RatchetPort.exe` can subsequently start using the saved configuration.

@@ -27,8 +27,8 @@ menu/loading/opening movie and also exhibited device-loss failures. Neither
 result establishes gameplay acceptance of this exact build. See docs/TESTING.md.
 
 This preview contains verified patch loading and acknowledgement, but no enabled
-FPS, motion-blur or internal-resolution feature patches. Version 1.3.1 corrects
-stale launcher and package branding. See docs/releases/V1.3.1-Verified-Preview.md.
+FPS, motion-blur or internal-resolution feature patches. Version 1.3 corrects
+stale launcher and package branding. See docs/releases/V1.3-Verified-Preview.md.
 
 Settings and generated data are kept beside the application unless a custom path is
 selected. Preserve settings.json, ratchet.ini and user/ when replacing the application.
