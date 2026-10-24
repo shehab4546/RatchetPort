@@ -57,6 +57,10 @@ This review narrows the change to clock/pacing. It does not prove every later
 writer or gameplay consumer has been exercised. That is why it remains opt-in.
 The retained 1/60 safety floor is also a reason not to expose 120 FPS here.
 
+The supplied research archive was cross-checked against this BASE executable,
+including its different blur normalization: see
+[research review and signature validation](RP04_RESEARCH_REVIEW.md).
+
 ## Reproducible isolated experiment
 
 `tools/verify_frame_clock.py` reads the owner's exact supplied SELF, validates

@@ -125,7 +125,11 @@ def main():
     for name in ('run.py', 'LICENSE', 'README.md', 'CREDITS.md'):
         shutil.copy2(ROOT / name, stage / name)
     (stage / 'docs/releases').mkdir(parents=True)
-    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md', 'releases/V1.1-PlayGo.md', 'releases/V1.3-Verified-Preview.md', 'PATCHES.md', 'RP04_FRAME_TIMING.md', 'releases/V1.4-Frame-Timing-Preview.md'):
+    (stage / 'docs/evidence').mkdir()
+    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md', 'releases/V1.1-PlayGo.md',
+                 'releases/V1.3-Verified-Preview.md', 'PATCHES.md', 'RP04_FRAME_TIMING.md',
+                 'RP04_RESEARCH_REVIEW.md', 'evidence/ratchet-research-signature-checks.json',
+                 'evidence/ratchet-cusa01047-0100-clock.json', 'releases/V1.4-Frame-Timing-Preview.md'):
         shutil.copy2(ROOT / 'docs' / name, stage / 'docs' / name)
     (stage / 'README-Windows.txt').write_text(
         (ROOT / 'packaging/windows/README-Windows.txt').read_text(encoding='utf-8').replace(
