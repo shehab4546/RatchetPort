@@ -1,0 +1,150 @@
+name: Publish Verified Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-verified-preview.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-verified-preview
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'shehab4546/RatchetPort' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Verify tested artifacts and publish Latest
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import pathlib
+          import subprocess
+          import zipfile
+
+          repo = 'shehab4546/RatchetPort'
+          run_id = 40012267670
+          tested = 'f458a255c8a2f6922c2fb22197cb787760f865b5'
+          merged = '23ef23523d1dcc6d913656314239f453265d84dc'
+          head = '582987750143acc89435adcfed88de58318c0081'
+          tree = '83cc5399cfc2e2ca10eb29ff3d3e372fb190afb7'
+          tag = 'v1.3-verified-preview'
+          title = 'RatchetPort V1.3 — Verified Preview'
+
+          def gh(*args):
+              return subprocess.check_output(['gh', *args], text=True)
+
+          def api(path):
+              return json.loads(gh('api', 'repos/' + repo + '/' + path))
+
+          # Never overwrite an existing release or reuse its assets silently.
+          existing = subprocess.run(['gh', 'release', 'view', tag, '--repo', repo],
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          if existing.returncode == 0:
+              raise SystemExit('Release already exists; refusing replacement.')
+
+          run = api(f'actions/runs/{run_id}')
+          assert run['conclusion'] == 'success' and run['status'] == 'completed'
+          assert run['head_sha'] == head and run['event'] == 'pull_request'
+          assert run['path'] == '.github/workflows/windows-zip.yml'
+          jobs = api(f'actions/runs/{run_id}/jobs')['jobs']
+          assert all(any(j['name'] == name and j['conclusion'] == 'success' for j in jobs)
+                     for name in ('build', 'smoke'))
+          assert api('git/commits/' + tested)['tree']['sha'] == tree
+          assert api('git/commits/' + merged)['tree']['sha'] == tree
+          pr = api('pulls/3')
+          assert pr['merged'] and pr['merge_commit_sha'] == merged and pr['head']['sha'] == head
+          artifacts = api(f'actions/runs/{run_id}/artifacts')['artifacts']
+          names = [f'RatchetPort-Windows-PlayGo-{tested}', f'RatchetPort-PlayGo-source-{tested}']
+          for name in names:
+              matches = [a for a in artifacts if a['name'] == name and not a['expired']]
+              assert len(matches) == 1
+              gh('run', 'download', str(run_id), '--repo', repo, '--name', name, '--dir', 'incoming')
+
+          incoming, output = pathlib.Path('incoming'), pathlib.Path('release')
+          output.mkdir()
+          mapping = {
+              'RatchetPort-Windows-PreAlpha.zip': 'RatchetPort-V1.3-Verified-Preview-Windows.zip',
+              'RatchetPort-V1.1-PlayGo-Source.zip': 'RatchetPort-V1.3-Verified-Preview-Source.zip',
+              'ffmpeg-9.0.2.tar.xz': 'ffmpeg-9.0.2.tar.xz',
+          }
+          assets = []
+          for source, destination in mapping.items():
+              matches = list(incoming.rglob(source))
+              assert len(matches) == 1, (source, matches)
+              data = matches[0].read_bytes()
+              assert data
+              target = output / destination
+              target.write_bytes(data)
+              assets.append(target)
+          with zipfile.ZipFile(output / mapping['RatchetPort-V1.1-PlayGo-Source.zip']) as archive:
+              assert archive.testzip() is None
+              assert archive.read('RatchetPort-V1.1-PlayGo/SOURCE_REVISION.txt').decode().strip() == tested
+          with zipfile.ZipFile(output / mapping['RatchetPort-Windows-PreAlpha.zip']) as archive:
+              assert archive.testzip() is None
+          provenance = {
+              'release_commit': merged, 'build_commit': tested, 'source_tree': tree,
+              'pull_request': 3, 'workflow_run': run_id,
+              'workflow_url': f'https://github.com/{repo}/actions/runs/{run_id}',
+              'gameplay_acceptance': 'pending owner testing of this build',
+              'note': 'CI ZIP contents are unchanged. Only download filenames are renamed. The tested PR merge and release target have identical source trees.',
+          }
+          provenance_path = output / 'BUILD_PROVENANCE.json'
+          provenance_path.write_text(json.dumps(provenance, indent=2) + '\n')
+          assets.append(provenance_path)
+          sums = output / 'SHA256SUMS.txt'
+          sums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n'
+                                  for p in sorted(assets)))
+          assets.append(sums)
+          notes = pathlib.Path('release-notes.md')
+          notes.write_text('''Verified Preview for Ratchet & Clank PS4 CUSA01047 USA 01.00.
+
+          Download **RatchetPort-V1.3-Verified-Preview-Windows.zip** to play using your own supported game dump. The Source ZIP and FFmpeg archive are for source distribution, not required to launch.
+
+          Changes:
+          - Exact source/ELF fingerprint, unique signature, original-byte and segment-boundary checks for reviewed patch groups.
+          - Whole-group rejection, conflict prevention and protection against relocation, ISA and TCB rewrite overlap.
+          - In-memory transactions with loader acknowledgement; generated files alone never count as applied.
+          - Fresh empty transactions when disabled, preventing stale patches or stale activation reports. Original game files remain unchanged.
+          - Read-only binary evidence and verified-build documentation from the preceding research stage.
+
+          Validation: Windows native build and transaction tests, Python tests (including the Python-to-C transaction/receipt test), packaging and the package smoke test without MSYS2 passed. CI: https://github.com/shehab4546/RatchetPort/actions/runs/40012267670
+
+          Test: extract the Windows ZIP to a new folder, open RatchetPort.exe and select CUSA01047 USA 01.00. Leave RATCHET_PATCHES unset and use the baseline settings. Verify startup, movement/combat, a cutscene and save/load after restarting. No feature patch should be reported applied. A developer-selected unreviewed patch name must be skipped with a reason; clearing it and restarting must leave no stale activation.
+
+          Scope: this build supplies the verified patch framework. It does not enable 60 FPS, motion-blur removal or internal-resolution patches, and does not claim a new tearing/cutscene-stutter fix. Gameplay acceptance of this exact build remains pending owner testing. No game data is included.
+
+          These are unchanged CI archives, built from f458a255c8a2f6922c2fb22197cb787760f865b5. Its source tree matches merged commit 23ef23523d1dcc6d913656314239f453265d84dc. Internal source archive folder names retain their original labels. See BUILD_PROVENANCE.json and SHA256SUMS.txt.
+
+          Published as Latest at the owner's request; Verified Preview remains a test-build designation, not a claim of completed gameplay validation.
+          '''.replace('          ', ''))
+          # Upload and verify a draft first, so incomplete uploads never become Latest.
+          gh('release', 'create', tag, *map(str, assets), '--repo', repo, '--target', merged,
+             '--title', title, '--notes-file', str(notes), '--draft', '--latest=false')
+          release = api('releases/tags/' + tag)
+          assert release['draft'] and release['target_commitish'] == merged
+          uploaded = {a['name']: a for a in release['assets']}
+          assert set(uploaded) == {p.name for p in assets}
+          for path in assets:
+              asset = uploaded[path.name]
+              assert asset['state'] == 'uploaded' and asset['size'] == path.stat().st_size
+              expected = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+              assert asset.get('digest') == expected, (path.name, asset.get('digest'))
+          metadata = pathlib.Path('publish.json')
+          metadata.write_text(json.dumps({'draft': False, 'prerelease': False, 'make_latest': 'true'}))
+          gh('api', '--method', 'PATCH', f'repos/{repo}/releases/{release["id"]}', '--input', str(metadata))
+          latest = api('releases/latest')
+          assert latest['tag_name'] == tag and not latest['draft'] and not latest['prerelease']
+          print(latest['html_url'])
