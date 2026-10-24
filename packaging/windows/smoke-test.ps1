@@ -1,7 +1,7 @@
-# Opens dist/RatchetPort-Windows-PreAlpha.zip as a player gets it, on a Windows without MSYS2: no game or player
+# Opens the Windows release ZIP as a player gets it, on a Windows without MSYS2: no game or player
 # file ships, ratchet-probe.exe finds every DLL it links, the frozen launcher imports what the
 # preparation scripts need and its window stays open (.github/workflows/windows-zip.yml).
-# Usage: powershell -File smoke-test.ps1 path\to\RatchetPort-Windows-PreAlpha.zip
+# Usage: powershell -File smoke-test.ps1 path\to\RatchetPort-VERSION-Windows.zip
 param([Parameter(Mandatory)][string]$Package)
 $ErrorActionPreference = 'Stop'
 # A player's PATH: a DLL found only in MSYS2 or another toolchain must not hide a missing one.
@@ -33,6 +33,15 @@ if (-not $probe.WaitForExit(60000)) {
 Get-Content (Join-Path $work 'probe.log')
 
 $launcher = Join-Path $tree 'RatchetPort.exe'
+$info = Get-Content -LiteralPath (Join-Path $tree 'build-info.json') -Encoding UTF8 -Raw | ConvertFrom-Json
+$version = [Diagnostics.FileVersionInfo]::GetVersionInfo($launcher)
+if ($version.ProductVersion -ne $info.version -or $version.FileVersion -ne $info.version) {
+    $failed += 'launcher executable version does not match build-info.json'
+}
+if ($version.FileDescription -ne $info.app_title) {
+    $failed += 'launcher executable title does not match build-info.json'
+}
+
 $check = Join-Path $work 'imports.py'
 # An exception left to the windowed launcher opens an error dialog that waits for a click: the
 # check reports it and exits instead, and a launcher still running after a minute is stopped.
@@ -40,6 +49,12 @@ Set-Content -LiteralPath $check -Value @'
 import sys, traceback
 try:
     import PIL.Image, iced_x86
+    import json
+    from pathlib import Path
+    from release_info import VERSION, APP_TITLE, RELEASE_LABEL
+    info = json.loads((Path(sys.executable).parent / 'build-info.json').read_text(encoding='utf-8'))
+    assert (VERSION, APP_TITLE, RELEASE_LABEL) == (info['version'], info['app_title'], info['release'])
+    print('release:', APP_TITLE)
 except Exception:
     traceback.print_exc()
     sys.exit(1)
@@ -62,6 +77,11 @@ Start-Sleep -Seconds 15
 if ($window.HasExited) {
     $failed += "the launcher exited ($($window.ExitCode)) instead of staying open"
 } else {
+    $window.Refresh()
+    Write-Host "Launcher window: $($window.MainWindowTitle)"
+    if ($window.MainWindowTitle -ne $info.app_title) {
+        $failed += "launcher window title does not match build-info.json: $($window.MainWindowTitle)"
+    }
     Stop-Process -Id $window.Id -Force
     $window.WaitForExit()
 }

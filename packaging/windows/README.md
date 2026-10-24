@@ -47,19 +47,21 @@ out/ratchet-tools/Scripts/python.exe -m unittest discover -s tests
 out/ratchet-tools/Scripts/python.exe tests/test_liverpool_commands.py
 out/ratchet-tools/Scripts/python.exe tests/run_native.py --build-dir out/ratchet-clean --runtime-dir out/ffmpeg-lgpl/bin
 out/ratchet-tools/Scripts/python.exe packaging/windows/package.py --build-dir out/ratchet-clean
-powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-Windows-PreAlpha.zip
+powershell -NoProfile -File packaging/windows/smoke-test.ps1 dist/RatchetPort-V1.3.1-Verified-Preview-Windows.zip
 ```
 
 Build the `*-test` targets listed in `gpu/CMakeLists.txt` before running the native suite. Pass `--zero-clear-shader` with your local captured shader to run that GPU check; otherwise the runner explicitly reports it skipped.
 
 The ZIP is assembled in a new timestamped staging directory. Packaging preserves older ZIPs with a timestamp. It bundles the frozen launcher, runtime executables, recursively discovered CLANG64 DLL dependencies, preparation scripts, fonts and licenses. It rejects known game files, modules, caches, settings and logs. The smoke check extracts the ZIP to a new temporary directory and runs with a system-only PATH so an installed MSYS2 cannot mask missing packaged DLLs. Its logs are retained locally.
 
-The package contains no game dump. Only the local owner can validate actual gameplay, audio, controller input and saves using their own CUSA01047 USA v1.00 files. No automated release is published by CI; publishing requires review of local game-test evidence as well as the source, build, test and package results.
+The package contains no game dump. Only the local owner can validate actual gameplay, audio, controller input and saves using their own CUSA01047 USA v1.00 files. The build workflow does not publish releases. Dedicated publishing workflows promote an owner-authorized, tested build and record any pending gameplay validation.
 
 Python, source and native tests remain separate from packaged game data. Never stage `out/`, `dist/`, captures, prepared game binaries or private logs in Git.
 
 After committing the release changes, run `python packaging/windows/source_archive.py`
 to create the explicit source ZIP, which includes the pinned submodules. Attach it
 and `out/release-sources/ffmpeg-9.0.2.tar.xz` alongside the Windows ZIP and checksums.
-See [distribution notes](../../docs/DISTRIBUTION.md). V1 remains a Pre-Alpha even
-when these automated checks pass.
+See [distribution notes](../../docs/DISTRIBUTION.md). Verified Preview remains experimental even
+when these automated checks pass. Version labels and archive names come from
+`scripts/release_info.py`; package smoke checks compare the executable resource,
+frozen metadata and visible launcher title with `build-info.json`.

@@ -1,4 +1,4 @@
-RatchetPort V1 — Pre-Alpha — Windows
+@RELEASE_TITLE@ — Windows
 
 Target: Ratchet & Clank PS4, CUSA01047 USA version 1.00 only.
 You must own the original PS4 game disc and make your own dump from that disc
@@ -21,11 +21,14 @@ Python and runtime libraries are bundled. No MSYS2 installation is needed to pla
 KNOWN ISSUE: VK_ERROR_DEVICE_LOST has occurred on Intel UHD 730, including with
 zero-clear disabled. This is not a stable release or a guarantee of playable gameplay.
 
-Test machine: Windows 11 Pro build 26300, Core i5-12400, Intel UHD 730,
-driver 32.0.101.7088, 12 GB RAM. Menu, loading and opening movie were reached.
-A freeze was reported during an attempted skip with several buttons pressed.
-Playable movement, audio, physical controller, save/load and long sessions remain
-unverified. The 30 FPS setting is a cap, not a measured sustained performance claim.
+Earlier hardware evidence: the owner confirmed actual gameplay at steady 30 FPS
+on an NVIDIA RTX 5070 Laptop GPU with V1.1 PlayGo. Intel UHD 730 reached the
+menu/loading/opening movie and also exhibited device-loss failures. Neither
+result establishes gameplay acceptance of this exact build. See docs/TESTING.md.
+
+This preview contains verified patch loading and acknowledgement, but no enabled
+FPS, motion-blur or internal-resolution feature patches. Version 1.3.1 corrects
+stale launcher and package branding. See docs/releases/V1.3.1-Verified-Preview.md.
 
 Settings and generated data are kept beside the application unless a custom path is
 selected. Preserve settings.json, ratchet.ini and user/ when replacing the application.

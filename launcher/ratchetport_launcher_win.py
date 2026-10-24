@@ -44,6 +44,7 @@ if WINDOWS:
 FROZEN = getattr(sys, 'frozen', False)
 PORT_DIR = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PORT_DIR / 'scripts'))
+from release_info import VERSION, CODENAME, APP_TITLE  # noqa: E402
 import graphics_options  # noqa: E402  (scripts/)
 
 import save_backup  # noqa: E402  (scripts/)
@@ -63,8 +64,6 @@ NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # The game and everything it starts form one process group, ended together (GameJob).
 NEW_GROUP = {} if WINDOWS else {'start_new_session': True}
 UI_FONT, MONO_FONT, SERIF_FONT = 'Segoe UI', 'Consolas', 'Georgia'
-# V1 is an experimental public milestone, not a stability claim.
-VERSION = '1.0.0-prealpha'
 RELEASES_API = ''
 RELEASES_PAGE = 'https://github.com/shehab4546/RatchetPort/releases'
 UPDATE_DIR = Path(tempfile.gettempdir()) / 'ratchetport-update'
@@ -1225,7 +1224,7 @@ class Launcher:
         self.selected_mod, self.mod_rows, self.mod_conflicts, self.conflicts_open = None, {}, [], False
         self.mod_details_shown, self.mod_picture_key, self.mod_photo = False, None, None
         self.pending_update = None  # (version, url, page) once offered
-        root.title(f'{APP_NAME} (PC)')
+        root.title(APP_TITLE)
         if sys.platform == 'win32':
             try:  # the taskbar shows this window's icon, not Python's
                 import ctypes
@@ -1663,8 +1662,10 @@ class Launcher:
             getattr(self, method)()
 
     def build_home(self):
-        f = self.scrolled_page('home', 'RatchetPort — Pre-Alpha',
-                               'Ratchet & Clank PS4 · CUSA01047 · USA · v1.00')
+        f = self.scrolled_page('home', f'RatchetPort V{VERSION}',
+                               f'{CODENAME} · CUSA01047 USA · Game v1.00')
+        self.note(f, 'This preview adds verified patch loading and clean patch disable/restart. '
+                     'FPS, motion-blur and internal-resolution patches are not enabled.')
         self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
         self.folder(f, 'game_dir', 'Game folder', 'Select the folder containing eboot.bin',
                     'Requires sce_sys/param.sfo and sce_module.', on_change=self.game_changed)
@@ -2318,7 +2319,7 @@ class Launcher:
                                                                      'Сначала выберите папку игры.'), fg=MUTED)
 
     def summary(self):
-        return 'Pre-Alpha · CUSA01047 USA v1.00 · 30 FPS · no binary patches'
+        return f'V{VERSION} · {CODENAME} · CUSA01047 USA v1.00 · no feature patches'
 
     def refresh_lists(self):
         if not hasattr(self, 'patches_frame'):

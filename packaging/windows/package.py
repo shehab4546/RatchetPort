@@ -14,6 +14,8 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'scripts'))
+from release_info import VERSION, APP_TITLE, RELEASE_LABEL, WINDOWS_ARCHIVE, FILE_VERSION
 FORBIDDEN = {'eboot.bin', 'sce_module', 'sce_sys', 'user', 'savedata', 'settings.json',
              'game_icon.ico', 'ratchet.ini', 'last_run.log', 'mods.json', 'patches.json'}
 
@@ -87,10 +89,22 @@ def main():
     work.mkdir(parents=True, exist_ok=False)
     hidden = ['argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
               'tempfile', 'threading', 'uuid', 'xml.etree.ElementTree', 'urllib.request', 'ctypes.wintypes',
-              'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
+              'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'release_info', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
               'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']
+    version_file = work / 'version-info.txt'
+    version_file.write_text(f"""VSVersionInfo(
+      ffi=FixedFileInfo(filevers={FILE_VERSION!r}, prodvers={FILE_VERSION!r},
+                       mask=0x3f, flags=0x0, OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
+      kids=[StringFileInfo([StringTable('040904B0', [
+        StringStruct('FileDescription', {APP_TITLE!r}),
+        StringStruct('FileVersion', {VERSION!r}),
+        StringStruct('ProductName', 'RatchetPort'),
+        StringStruct('ProductVersion', {VERSION!r}),
+        StringStruct('OriginalFilename', 'RatchetPort.exe')])]),
+        VarFileInfo([VarStruct('Translation', [1033, 1200])])])
+""", encoding='utf-8')
     command = [sys.executable, '-m', 'PyInstaller', '--noconfirm', '--windowed', '--log-level', 'WARN',
-               '--name', 'RatchetPort', '--distpath', str(work / 'frozen'), '--workpath', str(work / 'build'),
+               '--name', 'RatchetPort', '--version-file', str(version_file), '--distpath', str(work / 'frozen'), '--workpath', str(work / 'build'),
                '--specpath', str(work), '--paths', str(ROOT / 'scripts'),
                '--icon', str(ROOT / 'launcher/ratchetport.ico')]
     for module in hidden: command += ['--hidden-import', module]
@@ -111,9 +125,11 @@ def main():
     for name in ('run.py', 'LICENSE', 'README.md', 'CREDITS.md'):
         shutil.copy2(ROOT / name, stage / name)
     (stage / 'docs/releases').mkdir(parents=True)
-    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md', 'releases/V1.1-PlayGo.md'):
+    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md', 'releases/V1.1-PlayGo.md', 'releases/V1.3.1-Verified-Preview.md', 'PATCHES.md'):
         shutil.copy2(ROOT / 'docs' / name, stage / 'docs' / name)
-    shutil.copy2(ROOT / 'packaging/windows/README-Windows.txt', stage / 'README-Windows.txt')
+    (stage / 'README-Windows.txt').write_text(
+        (ROOT / 'packaging/windows/README-Windows.txt').read_text(encoding='utf-8').replace(
+            '@RELEASE_TITLE@', APP_TITLE), encoding='utf-8')
     notices = stage / 'licenses'
     notices.mkdir()
     # Include upstream/submodule license files and the licenses of bundled toolchain DLLs.
@@ -137,7 +153,7 @@ def main():
         shutil.copy2(path, notices / f'{path.parent.name}-license.terms')
     source_commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     (stage / 'build-info.json').write_text(json.dumps({
-        'release': 'V1.1 PlayGo Pre-Alpha', 'source_commit': source_commit,
+        'release': RELEASE_LABEL, 'version': VERSION, 'app_title': APP_TITLE, 'source_commit': source_commit,
         'ffmpeg_license': license_name,
         'ffmpeg_source': 'ffmpeg-9.0.2.tar.xz',
         'ffmpeg_source_sha256': '8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e',
@@ -145,7 +161,7 @@ def main():
         'packages': {name: importlib.metadata.version(name) for name in ('Pillow', 'iced-x86', 'PyInstaller')}
     }, indent=2) + '\n', encoding='utf-8')
     audit(stage)
-    output = ROOT / 'dist/RatchetPort-Windows-PreAlpha.zip'
+    output = ROOT / 'dist' / WINDOWS_ARCHIVE
     output.parent.mkdir(exist_ok=True)
     if output.exists(): output.rename(output.with_name(output.stem + '-' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.zip'))
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
