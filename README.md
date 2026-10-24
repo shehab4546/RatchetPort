@@ -11,7 +11,7 @@ long-session stability remain unverified.
 
 **V1.5 — Visual Controls Preview · Windows x64 · CUSA01047 USA v1.00**
 
-This development version adds **Motion blur: On / Original or Off** and
+This release adds **Motion blur: On / Original or Off** and
 **Shadow-map resolution: Original, 1024, 512 or 256 px maximum** to Home and
 Graphics. Save and restart the game to apply a choice. Both default to Original;
 smaller shadow caps reduce detail without changing the fixed atlas allocation.
@@ -21,9 +21,9 @@ See [release notes](docs/releases/V1.5-Visual-Controls-Preview.md),
 [visual-control evidence and test steps](docs/RP05_VISUAL_CONTROLS.md),
 [timing evidence](docs/RP04_FRAME_TIMING.md) and [tested hardware](docs/TESTING.md).
 Earlier hardware results describe their original builds, not this preview.
-V1.5 publication is pending build validation; the download below remains V1.4.
+Windows build, package and launcher checks passed. The new visual controls remain experimental.
 
-[Download V1.4 Frame Timing Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.4-frame-timing-preview)
+[Download V1.5 Visual Controls Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.5-visual-controls-preview)
 · [Latest non-prerelease build](https://github.com/shehab4546/RatchetPort/releases/latest)
 · [All releases](https://github.com/shehab4546/RatchetPort/releases)
 · [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
