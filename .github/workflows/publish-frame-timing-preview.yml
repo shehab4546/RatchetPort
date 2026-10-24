@@ -1,0 +1,150 @@
+name: Publish Frame Timing Preview
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-frame-timing-preview.yml']
+permissions:
+  contents: read
+concurrency:
+  group: publish-frame-timing-preview
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'shehab4546/RatchetPort' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Verify tested artifacts and publish experimental preview
+        shell: python
+        run: |
+          import hashlib, json, os, pathlib, subprocess, urllib.request, zipfile
+          repo = 'shehab4546/RatchetPort'
+          run_id = 40078129241
+          head = 'a23a8fa2190a55f3429ffb7dedc2a07da6842664'
+          tested = '50f413bccb790061cf1d3f5cec1f7a729b9619f0'
+          tree = 'e6b7905116f741ac774c6630aa03d1a64946ccb1'
+          merged = '6402df3ada9bfaf6df0d1ded69e99bac81ed8627'
+          tag = 'v1.4-frame-timing-preview'
+          title = 'RatchetPort V1.4 — Frame Timing Preview'
+          def gh(*args):
+              return subprocess.check_output(['gh', *args], text=True)
+          def api(path):
+              return json.loads(gh('api', 'repos/' + repo + '/' + path))
+          def write_api(method, path, data):
+              payload = pathlib.Path('payload.json')
+              payload.write_text(json.dumps(data))
+              return json.loads(gh('api', '--method', method, 'repos/' + repo + '/' + path, '--input', str(payload)))
+          run = api(f'actions/runs/{run_id}')
+          assert run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['head_sha'] == head and run['event'] == 'pull_request'
+          assert run['path'] == '.github/workflows/windows-zip.yml'
+          jobs = api(f'actions/runs/{run_id}/jobs')['jobs']
+          assert all(any(j['name'] == n and j['conclusion'] == 'success' for j in jobs) for n in ('build', 'smoke'))
+          assert api('git/commits/' + tested)['tree']['sha'] == tree
+          assert api('git/commits/' + merged)['tree']['sha'] == tree
+          pr = api('pulls/7')
+          assert pr['merged'] and pr['head']['sha'] == head and pr['merge_commit_sha'] == merged
+          for name in (f'RatchetPort-Windows-{tested}', f'RatchetPort-source-{tested}'):
+              gh('run', 'download', str(run_id), '--repo', repo, '--name', name, '--dir', 'incoming')
+          incoming, output = pathlib.Path('incoming'), pathlib.Path('release')
+          output.mkdir()
+          names = ['RatchetPort-V1.4-Frame-Timing-Preview-Windows.zip',
+                   'RatchetPort-V1.4-Frame-Timing-Preview-Source.zip', 'ffmpeg-9.0.2.tar.xz']
+          assets = []
+          for name in names:
+              matches = list(incoming.rglob(name))
+              assert len(matches) == 1
+              target = output / name
+              target.write_bytes(matches[0].read_bytes())
+              assert target.stat().st_size > 0
+              assets.append(target)
+          with zipfile.ZipFile(assets[0]) as archive:
+              assert archive.testzip() is None
+              info = json.loads(archive.read('RatchetPort/build-info.json'))
+              assert info['version'] == '1.4' and info['app_title'] == title and info['source_commit'] == tested
+              assert archive.read('RatchetPort/README-Windows.txt').decode().startswith(title)
+              assert b'Ratchet 60 FPS (experimental)' in archive.read('RatchetPort/scripts/frame_timing.py')
+          with zipfile.ZipFile(assets[1]) as archive:
+              assert archive.testzip() is None
+              assert archive.read('RatchetPort-V1.4-Frame-Timing-Preview/SOURCE_REVISION.txt').decode().strip() == tested
+          provenance = output / 'BUILD_PROVENANCE.json'
+          provenance.write_text(json.dumps({
+              'release_tag': tag, 'release_commit': merged, 'build_commit': tested, 'source_tree': tree,
+              'pull_request': 7, 'workflow_run': run_id,
+              'workflow_url': f'https://github.com/{repo}/actions/runs/{run_id}',
+              'gameplay_acceptance': 'pending 30/60 gameplay, physics, audio and cutscene testing',
+              'default_mode': '30 FPS / Original', 'experimental_mode': '60 FPS',
+              'note': 'Unchanged CI artifacts. Tested PR merge and release target have identical source trees.'}, indent=2) + '\n')
+          assets.append(provenance)
+          sums = output / 'SHA256SUMS.txt'
+          sums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in sorted(assets)))
+          assets.append(sums)
+          expected = {p.name: 'sha256:' + hashlib.sha256(p.read_bytes()).hexdigest() for p in assets}
+          notes = f'''Opt-in 60 FPS frame timing experiment for the exact reviewed CUSA01047 USA 01.00 build. **Original/30 remains the default. Gameplay acceptance is pending.**
+
+          Download **RatchetPort-V1.4-Frame-Timing-Preview-Windows.zip**, extract into a new folder, and open RatchetPort.exe. The title must show **{title}**. In Home or Performance choose **Game frame rate → 60 FPS (experimental)**, then close and restart the game. Return to **30 FPS / Original** and restart to disable both patches.
+
+          This build changes guest pacing and clock initialization together, verifies source/ELF hashes and original bytes, and applies both changes atomically in memory. Rejected requests keep the host ceiling at 30; native transaction failure aborts before guest execution. The display clock stays at 60 Hz. Inherited live FPS writes/cycling are disabled. No original game files are modified.
+
+          Validation: Windows build, Python tests, native settings/transaction tests, packaging and launcher smoke checks passed. The isolated actual-clock experiment passed 16 synthetic-TSC cases (smoothing, recurring frame drops, pause and half speed; largest accumulated drift 0.041255%). That is not gameplay validation. CI: https://github.com/{repo}/actions/runs/{run_id}
+
+          Test the same save/scene at 30 and 60: real-time movement, falling, firing/cooldowns, particles, audio and cutscenes, then save/load, pause/resume and a longer session. Keep user/last_run.log and out/patch_status.json from each run. See bundled docs/RP04_FRAME_TIMING.md for details. A loader receipt proves applied bytes, not correct gameplay or sustained FPS.
+
+          No 120 FPS, motion-blur or internal-resolution patches, tearing fix or cutscene-stutter fix are claimed. Performance depends on the scene and hardware. This is an experimental prerelease; the existing Latest release is preserved. No game data is included.
+
+          ZIP contents are unchanged from tested commit {tested}, matching release commit {merged}. BUILD_PROVENANCE.json records the build and SHA256SUMS.txt provides hashes.
+          '''.replace('          ', '')
+          previous_latest = api('releases/latest')['id']
+          matches = [r for r in api('releases?per_page=100') if r['tag_name'] == tag]
+          assert len(matches) <= 1
+          if matches:
+              release = matches[0]
+              assert release['target_commitish'] == merged and release['name'] == title
+              if not release['draft']:
+                  existing = {a['name']: a for a in release['assets']}
+                  assert release['prerelease'] and all(existing[n]['digest'] == d for n, d in expected.items())
+                  print(release['html_url'])
+                  raise SystemExit(0)
+          ref = subprocess.run(['gh', 'api', f'repos/{repo}/git/ref/tags/{tag}'], capture_output=True, text=True)
+          if ref.returncode == 0:
+              assert json.loads(ref.stdout)['object']['sha'] == merged
+          else:
+              assert '404' in ref.stderr, ref.stderr
+              write_api('POST', 'git/refs', {'ref': 'refs/tags/' + tag, 'sha': merged})
+          if not matches:
+              release = write_api('POST', 'releases', {'tag_name': tag, 'target_commitish': merged,
+                  'name': title, 'body': notes, 'draft': True, 'prerelease': True, 'make_latest': 'false'})
+          release_id = release['id']
+          existing = {a['name']: a for a in release['assets']}
+          for path in assets:
+              if path.name in existing:
+                  assert existing[path.name]['digest'] == expected[path.name]
+                  continue
+              request = urllib.request.Request(
+                  f'https://uploads.github.com/repos/{repo}/releases/{release_id}/assets?name={path.name}',
+                  data=path.read_bytes(), method='POST', headers={
+                      'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                      'Content-Type': 'application/octet-stream',
+                      'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'})
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  uploaded = json.load(response)
+              assert uploaded['name'] == path.name
+          release = api(f'releases/{release_id}')
+          uploaded = {a['name']: a for a in release['assets']}
+          for path in assets:
+              a = uploaded[path.name]
+              assert a['state'] == 'uploaded' and a['size'] == path.stat().st_size
+              assert a['digest'] == expected[path.name]
+          release = write_api('PATCH', f'releases/{release_id}', {'draft': False, 'prerelease': True,
+              'make_latest': 'false', 'name': title, 'body': notes})
+          assert not release['draft'] and release['prerelease'] and release['tag_name'] == tag
+          assert api('git/ref/tags/' + tag)['object']['sha'] == merged
+          assert api('releases/latest')['id'] == previous_latest
+          print(release['html_url'])
