@@ -34,7 +34,7 @@
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   </style>
   <script type="application/ld+json">
-  {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"RatchetPort","description":"Unofficial experimental Ratchet & Clank (2016) PS4 PC port project and native runtime for Windows. Pre-Alpha; requires your own original disc dump.","url":"https://shehab4546.github.io/RatchetPort/","codeRepository":"https://github.com/shehab4546/RatchetPort","license":"https://github.com/shehab4546/RatchetPort/blob/main/LICENSE","runtimePlatform":"Windows x64","programmingLanguage":["C","C++","Python"],"version":"1.0.0-prealpha","isBasedOn":"https://github.com/FelipePrado0/SpartanPort"}
+  {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"RatchetPort","description":"Unofficial experimental Ratchet & Clank (2016) PS4 PC port project and native runtime for Windows. Pre-Alpha; requires your own original disc dump.","url":"https://shehab4546.github.io/RatchetPort/","codeRepository":"https://github.com/shehab4546/RatchetPort","license":"https://github.com/shehab4546/RatchetPort/blob/main/LICENSE","runtimePlatform":"Windows x64","programmingLanguage":["C","C++","Python"],"version":"1.3","isBasedOn":"https://github.com/FelipePrado0/SpartanPort"}
   </script>
 </head>
 <body>
@@ -45,17 +45,17 @@
   </nav></div></header>
   <main class="wrap" id="main">
     <div class="hero"><div>
-      <div class="eyebrow">Unofficial project · V1 Pre-Alpha · Windows x64</div>
+      <div class="eyebrow">Unofficial project · V1.3 Verified Preview · Windows x64</div>
       <h1>Ratchet &amp; Clank (2016)<span>PC port project.</span></h1>
       <p class="lead">RatchetPort is an experimental native Windows runtime for the PS4 game. Follow its progress, review what has been tested, and try the public Pre-Alpha with your own disc dump.</p>
-      <div class="actions"><a class="button primary" href="https://github.com/shehab4546/RatchetPort/releases/download/v1/RatchetPort-Windows-PreAlpha.zip">Download V1 for Windows</a><a class="button" href="https://github.com/shehab4546/RatchetPort/releases/tag/v1">Release notes &amp; source</a></div>
+      <div class="actions"><a class="button primary" href="https://github.com/shehab4546/RatchetPort/releases/latest">Latest Windows release</a><a class="button" href="https://github.com/shehab4546/RatchetPort/releases/latest">Release notes &amp; source</a></div>
       <p class="small">CUSA01047 · USA · Version 1.00 only. No game files included.</p>
     </div><img src="assets/ratchetport.svg" alt="Original RatchetPort application icon" width="220" height="220"></div>
     <aside class="notice" aria-label="Experimental software and game ownership">
       <p><strong>Pre-Alpha: stable gameplay is not established.</strong> Loading and the opening movie were reached, but freezing and GPU Device Lost remain unresolved.</p>
       <p>You must own the original PS4 disc and make your own dump from that disc using your own PS4. This download contains the runtime, not the game. No proprietary PS4 modules, keys or game artwork are distributed.</p>
     </aside>
-    <section id="status"><h2>What actually works so far?</h2>
+    <section id="status"><h2>Test evidence</h2><p>The records below describe the earlier V1 test campaign. Newer owner-confirmed RTX 5070 Laptop results are recorded in the <a href="https://github.com/shehab4546/RatchetPort/blob/main/README.md">repository README</a>. Verified Preview adds guarded patch loading, not enabled FPS, motion-blur or resolution patches. Its release notes distinguish automated checks from pending gameplay tests.</p>
       <div class="grid">
         <article class="card"><span class="status">Observed in earlier testing</span><h3>Menus &amp; opening movie</h3><p>The title screen, main menu and difficulty selection were reached. The tester confirmed loading and the opening movie with deferred GPU readbacks off.</p></article>
         <article class="card"><span class="status">Still unresolved</span><h3>Gameplay stability</h3><p>A freeze occurred during an attempted movie skip after several button presses. <strong>Playable movement, reliable skipping, audio, physical controllers and save/load remain unverified.</strong></p></article>
@@ -70,7 +70,7 @@
     </section>
     <section id="setup"><div class="two"><div><h2>Try RatchetPort on Windows</h2><ol>
       <li>Make a dump from your own original <strong>CUSA01047 USA v1.00</strong> PS4 disc using your own PS4.</li>
-      <li>Download and extract <code>RatchetPort-Windows-PreAlpha.zip</code> completely.</li>
+      <li>Download and extract the Windows ZIP from the latest release completely.</li>
       <li>Open <code>RatchetPort.exe</code>, select your dump folder and save the settings.</li>
       <li>Start with the defaults: 720p output, 30 FPS cap, VSync on and deferred readbacks off.</li>
     </ol><p class="small">Windows x64, an AVX-capable CPU and Vulkan 1.3 graphics are required. Leave enough memory and Windows commit capacity for the guest pool and renderer.</p></div>

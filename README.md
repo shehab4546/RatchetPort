@@ -9,14 +9,17 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**V1.1 PlayGo — Pre-Alpha · Windows x64 · CUSA01047 USA v1.00**
+**V1.3 — Verified Preview · Windows x64 · CUSA01047 USA v1.00**
 
-V1.1 fixes the PlayGo imports, metadata validation and matching-Sc0 recovery.
-See the [V1.1 release notes](docs/releases/V1.1-PlayGo.md) and
-[tested hardware and results](docs/TESTING.md). V1 remains available unchanged.
+V1.3 corrects stale launcher and package version labels. The window title,
+home page, Windows executable properties and build metadata share one release
+identity. It includes verified patch loading; FPS, motion-blur and internal-resolution
+feature patches remain disabled. See [release notes](docs/releases/V1.3-Verified-Preview.md)
+and [tested hardware](docs/TESTING.md). Earlier hardware results remain specific
+to the builds tested.
 
-[Download V1.1 PlayGo and its sources](https://github.com/shehab4546/RatchetPort/releases/tag/v1.1-playgo)
-· [Previous V1 release](https://github.com/shehab4546/RatchetPort/releases/tag/v1)
+[Download the latest release and sources](https://github.com/shehab4546/RatchetPort/releases/latest)
+· [Earlier releases](https://github.com/shehab4546/RatchetPort/releases)
 · [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
 · [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
 
@@ -75,7 +78,7 @@ See [the detailed evidence and test counts](docs/TESTING.md).
 
 ## Starting on Windows
 
-1. Extract `RatchetPort-Windows-V1.1-PlayGo-PreAlpha.zip` into a new writable folder.
+1. Extract `RatchetPort-V1.3-Verified-Preview-Windows.zip` into a new writable folder.
 2. Open `RatchetPort.exe`, choose the game directory and save the settings.
 3. Leave the initial settings at **30 FPS, VSync on, 1280x720 output, windowed, upscaling off, Deferred GPU readbacks off** and start the game.
 4. `Play RatchetPort.exe` can subsequently start using the saved configuration.

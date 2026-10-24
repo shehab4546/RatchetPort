@@ -93,14 +93,14 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         with:
-          name: RatchetPort-Windows-PlayGo-${{ github.sha }}
-          path: dist/RatchetPort-Windows-PreAlpha.zip*
+          name: RatchetPort-Windows-${{ github.sha }}
+          path: dist/*-Windows.zip
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: RatchetPort-PlayGo-source-${{ github.sha }}
+          name: RatchetPort-source-${{ github.sha }}
           path: |
-            dist/RatchetPort-V1.1-PlayGo-Source.zip
+            dist/*-Source.zip
             out/release-sources/ffmpeg-9.0.2.tar.xz
           if-no-files-found: error
 
@@ -111,8 +111,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: RatchetPort-Windows-PlayGo-${{ github.sha }}
+          name: RatchetPort-Windows-${{ github.sha }}
           path: dist
       - name: Open the package without MSYS2
         shell: powershell
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/smoke-test.ps1 dist/RatchetPort-Windows-PreAlpha.zip
+        run: |
+          $packages = @(Get-ChildItem dist/*-Windows.zip)
+          if ($packages.Count -ne 1) { throw "Expected one Windows package" }
+          powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/smoke-test.ps1 $packages[0].FullName

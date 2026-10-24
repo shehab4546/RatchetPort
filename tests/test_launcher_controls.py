@@ -511,8 +511,10 @@ class GpuChoiceTest(unittest.TestCase):
 
 
 class ReleaseVersionTest(unittest.TestCase):
-    def test_v1_keeps_the_prealpha_version_and_updater_isolation(self):
-        self.assertEqual(launcher.VERSION, '1.0.0-prealpha')
+    def test_release_identity_and_updater_isolation(self):
+        from release_info import VERSION, APP_TITLE
+        self.assertEqual(launcher.VERSION, VERSION)
+        self.assertEqual(launcher.APP_TITLE, APP_TITLE)
         self.assertEqual(launcher.RELEASES_API, '')
 
     def test_first_start_is_in_english(self):
