@@ -87,7 +87,7 @@ def main():
     work.mkdir(parents=True, exist_ok=False)
     hidden = ['argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
               'tempfile', 'threading', 'uuid', 'xml.etree.ElementTree', 'urllib.request', 'ctypes.wintypes',
-              'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'ratchet_game', 'prepare', 'patches', 'mods',
+              'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
               'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']
     command = [sys.executable, '-m', 'PyInstaller', '--noconfirm', '--windowed', '--log-level', 'WARN',
                '--name', 'RatchetPort', '--distpath', str(work / 'frozen'), '--workpath', str(work / 'build'),

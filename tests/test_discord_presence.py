@@ -263,6 +263,29 @@ class GameProcessPresence(unittest.TestCase):
         self.opened = self.enterContext(mock.patch.object(run.subprocess, 'Popen', return_value=self.process))
         self.enterContext(mock.patch.object(sys, 'argv', ['run.py']))
 
+    def test_launch_passes_verified_packet_and_receipt(self):
+        import ratchet_patches
+        self.assertEqual(self.run.main(), 17)
+        command = self.opened.call_args.args[0]
+        out = Path(self.temp.name) / 'out'
+        self.assertEqual(command[command.index('--patches') + 1], str(out / 'patches.bin'))
+        self.assertEqual(command[command.index('--patch-receipt') + 1], str(out / 'patch_receipt.bin'))
+        self.assertEqual((out / 'patches.bin').read_bytes()[:8], b'RCPATCH3')
+        self.assertEqual(ratchet_patches.status(out)['applied'], [])
+
+    def test_early_launch_failure_invalidates_old_transaction(self):
+        import ratchet_patches
+        out = Path(self.temp.name) / 'out'
+        ratchet_patches.reset(out)
+        (out / 'patches.bin').write_bytes(b'old active writes')
+        (out / 'patch_receipt.bin').write_bytes(b'old acknowledgement')
+        with mock.patch.object(self.run, 'find_executable', return_value=None):
+            with self.assertRaises(SystemExit):
+                self.run.main()
+        self.assertEqual((out / 'patches.bin').stat().st_size, 72)
+        self.assertFalse((out / 'patch_receipt.bin').exists())
+        self.assertEqual(ratchet_patches.status(out)['applied'], [])
+
     def test_game_pid_is_used_and_presence_closes_after_wait(self):
         self.assertEqual(self.run.main(), 17)
         self.opened.assert_called_once()

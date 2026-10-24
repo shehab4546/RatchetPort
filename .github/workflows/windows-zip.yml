@@ -6,6 +6,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'run.py'
       - 'src/**'
       - 'scripts/**'
       - 'launcher/**'
@@ -16,6 +17,7 @@ on:
       - '.github/workflows/windows-zip.yml'
   pull_request:
     paths:
+      - 'run.py'
       - 'src/**'
       - 'scripts/**'
       - 'launcher/**'
@@ -57,7 +59,8 @@ jobs:
       - name: Build
         run: |
           bash build.sh
-          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test --parallel 3
+          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test --parallel 3
+          out/ratchet-clean/verified-patches-test.exe
           out/ratchet-clean/services-test.exe
           RATCHET_PLAYGO_TEST="$PWD/out/ratchet-clean/playgo-resolver-test.exe" python -m unittest discover -s tests -p 'test_playgo.py'
           python tests/test_texture_churn_trace.py "$PWD/out/ratchet-clean/churn-trace-test.exe"
@@ -76,6 +79,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH = $env:PATH + ";C:\msys64\clang64\bin"
+          $env:RATCHET_PATCH_TEST = (Resolve-Path out/ratchet-clean/verified-patches-test.exe).Path
           $env:RATCHET_PLAYGO_TEST = (Resolve-Path out/ratchet-clean/playgo-resolver-test.exe).Path
           python -m venv out/ratchet-tools
           out/ratchet-tools/Scripts/python.exe -m pip install -r packaging/windows/requirements.txt
