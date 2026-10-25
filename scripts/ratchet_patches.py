@@ -3,7 +3,8 @@
 """Verified Ratchet patch transactions. Never modify the dump or linked boot file.
 
 RP-03 supplies the transport and guards. RP-04/05 add experimental frame timing
-and motion-blur/shadow-map controls; gameplay acceptance is separate from prepared writes.
+and motion-blur/shadow-map controls. RP-06 adds native scene dimensions.
+Gameplay acceptance is separate from prepared writes.
 """
 import argparse
 import hashlib
@@ -18,6 +19,7 @@ from ratchet_game import validate_identity
 from frame_timing import FPS60_GROUP, FPS60_WRITES
 from motion_blur import BLUR_OFF_GROUP, BLUR_OFF_WRITES
 from shadow_resolution import PATCH_GROUPS as SHADOW_GROUPS
+from internal_resolution import PATCH_GROUPS as RESOLUTION_GROUPS
 from prepare import load_sfo, span, unpack
 
 PROFILE = {
@@ -25,7 +27,7 @@ PROFILE = {
     'source_sha256': 'fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d',
     'elf_sha256': 'dc1a8862016cb80060928e911ab933d6e380014c1128e537642f9f569f3a05cf',
     'groups': {FPS60_GROUP: {'writes': FPS60_WRITES},
-               BLUR_OFF_GROUP: {'writes': BLUR_OFF_WRITES}, **SHADOW_GROUPS},
+               BLUR_OFF_GROUP: {'writes': BLUR_OFF_WRITES}, **SHADOW_GROUPS, **RESOLUTION_GROUPS},
 }
 HEADER = struct.Struct('<8sQ32s16sQ')
 MAX_WRITES = 1024

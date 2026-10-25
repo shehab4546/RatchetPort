@@ -104,6 +104,8 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.frames_queued = RatchetGraphics::ParseFramesQueued(value.empty() ? -1 : i);
     } else if (key == "render_resolution") {
         v.render_resolution = RatchetGraphics::ParseResolution(value);
+    } else if (key == "internal_resolution") {
+        v.internal_resolution = RatchetResolution::Parse(value);
     } else if (key == "game_fps") {
         v.game_fps = value == "60" ? 60 : 30;
     } else if (key == "motion_blur") {
@@ -206,6 +208,8 @@ void Load() {
     const char* shadow = std::getenv("RATCHET_SHADOW_RESOLUTION");
     const std::string_view cap = shadow ? shadow : "original";
     v.applied_shadow_resolution = cap == "1024" ? 1024 : cap == "512" ? 512 : cap == "256" ? 256 : 0;
+    const char* internal = std::getenv("RATCHET_INTERNAL_RESOLUTION");
+    v.applied_internal_resolution = RatchetResolution::Parse(internal ? internal : "original");
     v.startup_deferred_readback = v.deferred_readback;
     v.startup_stale_readback = v.stale_readback;
     v.startup_anisotropy = v.anisotropy;
@@ -300,6 +304,8 @@ void Save() {
                  v.debug_view.load(), int(v.show_fps.load()),
                  int(v.fsr4_auto_exposure.load()), int(v.fsr4_invert_jitter.load()));
     std::fprintf(file, "output_res=%dx%d\ngame_fps=%d\n", OutputWidths[v.output_res], OutputHeights[v.output_res], v.game_fps.load());
+    std::fprintf(file, "internal_resolution=%s\n",
+                 RatchetResolution::Names[RatchetResolution::Valid(v.internal_resolution)].data());
     std::fprintf(file, "motion_blur=%s\nshadow_resolution=%s\n", v.motion_blur_off ? "off" : "original",
                  v.shadow_resolution == 0 ? "original" : std::to_string(v.shadow_resolution.load()).c_str());
     std::fprintf(file,

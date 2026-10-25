@@ -6,6 +6,7 @@
 #pragma once
 
 
+#include "ratchet_resolution.h"
 #include <atomic>
 #include <cstdint>
 
@@ -73,6 +74,10 @@ struct Values {
     std::atomic<int> game_fps{30}; // Requested startup mode; retained when saving the overlay.
     std::atomic<bool> motion_blur_off{false}; // Requested startup effects, retained on fallback.
     std::atomic<int> shadow_resolution{0}; // 0 original, or 1024 / 512 / 256 pixel cap.
+    std::atomic<int> internal_resolution{0}; // Requested startup mode; independent of host output.
+    int applied_internal_resolution = 0; // Prepared startup mode, not a measurement.
+    // Last matching MRT/depth draw and its viewport; zero means not observed.
+    std::atomic<std::uint64_t> observed_scene_size{0}, observed_scene_viewport{0};
     bool applied_motion_blur_off = false;
     int applied_shadow_resolution = 0;
     // Synchronous readbacks are the Ratchet baseline: deferred reads stalled scene entry.

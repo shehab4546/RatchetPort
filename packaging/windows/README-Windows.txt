@@ -33,7 +33,14 @@ Home / Graphics also offer Motion blur: On / Original or Off, and Shadow-map
 resolution: Original, 1024, 512 or 256 px maximum. Save and restart to apply.
 Lower caps reduce shadow detail; the fixed atlas allocation stays unchanged.
 The in-game Graphics information rows show the launch mode. Restore Original
-and restart to remove a feature. Internal-resolution patches remain disabled.
+and restart to remove a feature.
+Internal render resolution now offers Original, 720p, 900p, 1080p, 1440p and
+4K (3840x2160). These experimental scene settings are independent of output
+resolution and take effect after restarting. Higher resolutions need more GPU
+power and memory. The overlay separately reports startup mode, observed scene
+candidates and viewport, presented image and window size. An unobserved scene
+remains unconfirmed. In-game image quality and 4K stability are not validated.
+See docs/RP06_RENDER_RESOLUTION.md and docs/releases/V1.6-Resolution-Preview.md.
 See docs/RP05_VISUAL_CONTROLS.md and docs/releases/V1.5-Visual-Controls-Preview.md.
 
 Settings and generated data are kept beside the application unless a custom path is
