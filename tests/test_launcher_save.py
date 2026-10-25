@@ -65,7 +65,8 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
                 yield child
                 yield from widgets(child)
         for key, choices, selected in (('motion_blur', launcher.MOTION_BLUR, 'off'),
-                                        ('shadow_resolution', launcher.SHADOW_RESOLUTION, '512')):
+                                        ('shadow_resolution', launcher.SHADOW_RESOLUTION, '512'),
+                                        ('internal_resolution', launcher.INTERNAL_RESOLUTION, '4K')):
             labels = tuple(text[0] for _value, text in choices)
             boxes = [w for w in widgets(self.root) if isinstance(w, ttk.Combobox)
                      and tuple(w['values']) == labels]
@@ -79,6 +80,7 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
         self.app.save()
         values, _lines = launcher.load_ini()
         self.assertEqual((values['motion_blur'], values['shadow_resolution']), ('off', '512'))
+        self.assertEqual(values['internal_resolution'], '4K')
 
     def test_failed_save_does_not_close_the_launcher(self):
         with mock.patch.object(self.app, 'collect', return_value=False), \

@@ -87,7 +87,7 @@ def main():
         if not (build / name).is_file(): raise FileNotFoundError(f'Build first: {build / name}')
     work = ROOT / 'out' / ('package-' + datetime.now().strftime('%Y%m%d-%H%M%S'))
     work.mkdir(parents=True, exist_ok=False)
-    hidden = ['frame_timing', 'motion_blur', 'shadow_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
+    hidden = ['frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
               'tempfile', 'threading', 'uuid', 'xml.etree.ElementTree', 'urllib.request', 'ctypes.wintypes',
               'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'release_info', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
               'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']
@@ -131,6 +131,8 @@ def main():
                  'RP04_RESEARCH_REVIEW.md', 'evidence/ratchet-research-signature-checks.json',
                  'evidence/ratchet-cusa01047-0100-clock.json', 'releases/V1.4-Frame-Timing-Preview.md',
                  'RP05_VISUAL_CONTROLS.md', 'releases/V1.5-Visual-Controls-Preview.md',
+                 'RP06_RENDER_RESOLUTION.md', 'releases/V1.6-Resolution-Preview.md',
+                 'evidence/ratchet-cusa01047-0100-resolution.json',
                  'evidence/ratchet-cusa01047-0100-effects.json'):
         shutil.copy2(ROOT / 'docs' / name, stage / 'docs' / name)
     (stage / 'README-Windows.txt').write_text(

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #pragma once
+#include "ratchet_resolution.h"
 
 #include "common/recursive_lock.h"
 #include "common/shared_first_mutex.h"
@@ -336,6 +337,7 @@ private:
     std::unique_ptr<ObjectMotion> object_motion;
     bool motion_draw = false;
     u64 motion_geometry{};    ///< vertex-stream identity of the current direct draw
+    RatchetResolution::Samples resolution_samples;
     bool gbuffer_draw = false;
     std::unique_ptr<TemporalUpscaler> upscaler; // ratchetport: FSR (docs/upscaler.md)
     std::array<float, 2> draw_jitter{};         ///< viewport offset of the current draw, pixels

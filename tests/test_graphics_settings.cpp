@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <limits>
 #include "ratchet_graphics.h"
 #include "ratchet_settings.h"
 #include "core/emulator_settings.h"
@@ -184,6 +185,41 @@ int main(int argc, char** argv) {
     const std::string cheats = Read(path);
     assert(cheats.find("cheat_double_jumps=1\n") == std::string::npos);
     assert(cheats.find("cheat_very_hard=1\n") == std::string::npos);
+    // Internal scene resolution remains separate from output and the legacy render option.
+    namespace R = RatchetResolution;
+    for (const auto mode : R::Names) {
+        { std::ofstream out(path); out << "internal_resolution=" << mode << "\noutput_res=1280x720\n"; }
+        _putenv_s("RATCHET_INTERNAL_RESOLUTION", "original");
+        RatchetSettings::Load();
+        assert(v.internal_resolution == R::Parse(mode) && v.applied_internal_resolution == 0);
+        assert(RatchetSettings::OutputWidths[v.output_res] == 1280);
+        assert(!v.observed_scene_size && !v.observed_scene_viewport); // selecting a mode is not a measurement
+        RatchetSettings::Save();
+        assert(Read(path).find("internal_resolution=" + std::string(mode) + "\n") != std::string::npos);
+        _putenv_s("RATCHET_INTERNAL_RESOLUTION", std::string(mode).c_str());
+        RatchetSettings::Load();
+        assert(v.applied_internal_resolution == R::Parse(mode));
+    }
+    for (const auto mode : {"", "4k", "3840x2160", "8K", "1440pjunk"}) assert(R::Parse(mode) == 0);
+    _putenv_s("RATCHET_INTERNAL_RESOLUTION", "4Kjunk");
+    RatchetSettings::Load();
+    assert(v.internal_resolution == 5 && v.applied_internal_resolution == 0);
+    _putenv_s("RATCHET_INTERNAL_RESOLUTION", "");
+    const auto sample = R::Candidate(5, 3840, 2160, 3840, 2160, 3840, -2160);
+    assert(sample.width == 3840 && sample.viewport_height == 2160);
+    assert(!R::Candidate(4, 3840, 2160, 3840, 2160, 3840, 2160).width);
+    assert(!R::Candidate(5, 3840, 2160, 1920, 1080, 3840, 2160).width);
+    assert(!R::Candidate(5, 256, 256, 256, 256, 256, 256).width);
+    assert(!R::Candidate(5, 3840, 2160, 3840, 2160, std::numeric_limits<float>::infinity(), 2160).width);
+    assert(!R::Candidate(5, 3840, 2160, 3840, 2160, std::numeric_limits<float>::quiet_NaN(), 2160).width);
+    R::Samples observations;
+    assert(!observations.New({}));
+    assert(observations.New(sample) && !observations.New(sample));
+    for (unsigned i = 1; i < 20; ++i)
+        assert(observations.New({1920 + i, 1080, 1920 + i, 1080}) == (i < 16));
+    assert(observations.count == 16);
+    const auto packed = R::Pack(3840, 2160);
+    assert(R::Width(packed) == 3840 && R::Height(packed) == 2160);
     std::remove(path);
     std::puts("PASS: graphics settings");
 }

@@ -358,7 +358,25 @@ void ImageTab() {
     if (BeginRows("##image_info")) {
         char text[96];
         std::snprintf(text, sizeof(text), "%d x %d", iw, ih);
-        InfoRow("Game image", text);
+        InfoRow("Presented game image", text);
+        InfoRow("Internal resolution (startup)",
+                RatchetResolution::Labels[RatchetResolution::Valid(s.applied_internal_resolution)]);
+        const auto observed = s.observed_scene_size.load();
+        const auto viewport = s.observed_scene_viewport.load();
+        if (observed) {
+            std::snprintf(text, sizeof(text), "%u x %u (last matching draw)",
+                          RatchetResolution::Width(observed), RatchetResolution::Height(observed));
+        } else {
+            std::snprintf(text, sizeof(text), "Not observed yet");
+        }
+        InfoRow("Scene candidate / depth", text);
+        if (viewport) {
+            std::snprintf(text, sizeof(text), "%u x %u",
+                          RatchetResolution::Width(viewport), RatchetResolution::Height(viewport));
+        } else {
+            std::snprintf(text, sizeof(text), "Not observed yet");
+        }
+        InfoRow("Scene candidate viewport", text);
         std::snprintf(text, sizeof(text), "%d x %d", ww, wh);
         InfoRow("Window", text);
         InfoRow("Sharpening", s.rcas_applied ? "applied" : "not applied");

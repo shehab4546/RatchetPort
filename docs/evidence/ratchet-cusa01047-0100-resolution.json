@@ -1,0 +1,530 @@
+{
+  "schema_version": 1,
+  "title_id": "CUSA01047",
+  "app_version": "01.00",
+  "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+  "elf_sha256": "dc1a8862016cb80060928e911ab933d6e380014c1128e537642f9f569f3a05cf",
+  "combinations_checked": 96,
+  "relocation_slots_checked": 559629,
+  "conflicting_resolution_groups_rejected": true,
+  "original_byte_and_relocation_guards_checked": true,
+  "kind": "isolated native selector and ResizeSharedBuffers request capture",
+  "gpu_rendering_tested": false,
+  "gameplay_tested": false,
+  "selector_cases": 50,
+  "target_requests_checked": 160,
+  "same_size_skips_recreation": true,
+  "original_selector_restored": true,
+  "dependencies": "GPU allocation, resource creation, release and logging dependencies stubbed; native size arithmetic/control flow executed",
+  "fixed_display_dimensions": [
+    1920,
+    1080
+  ],
+  "modes": [
+    {
+      "mode": "720p",
+      "scene": [
+        1280,
+        720
+      ],
+      "targets": {
+        "Depth Target": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "Linear Depth Target": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "Forward Target": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "GBuffer Target MRT": [
+          [
+            1280,
+            720
+          ],
+          [
+            1280,
+            720
+          ],
+          [
+            1280,
+            720
+          ]
+        ],
+        "Resolved Target": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "Post Effects FP Target": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "Half Res Depth Target": [
+          [
+            640,
+            360
+          ]
+        ],
+        "Quarter Res Target": [
+          [
+            320,
+            180
+          ]
+        ],
+        "Dof Ngh Target 0": [
+          [
+            160,
+            90
+          ]
+        ],
+        "Screen Space Refl Target": [
+          [
+            640,
+            360
+          ],
+          [
+            640,
+            360
+          ]
+        ],
+        "Aux Cubic Target": [
+          [
+            1920,
+            720
+          ]
+        ],
+        "GI Diffuse Target": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "GI Specular Target": [
+          [
+            1280,
+            720
+          ]
+        ]
+      }
+    },
+    {
+      "mode": "900p",
+      "scene": [
+        1600,
+        900
+      ],
+      "targets": {
+        "Depth Target": [
+          [
+            1600,
+            900
+          ]
+        ],
+        "Linear Depth Target": [
+          [
+            1600,
+            900
+          ]
+        ],
+        "Forward Target": [
+          [
+            1600,
+            900
+          ]
+        ],
+        "GBuffer Target MRT": [
+          [
+            1600,
+            900
+          ],
+          [
+            1600,
+            900
+          ],
+          [
+            1600,
+            900
+          ]
+        ],
+        "Resolved Target": [
+          [
+            1600,
+            900
+          ]
+        ],
+        "Post Effects FP Target": [
+          [
+            1600,
+            900
+          ]
+        ],
+        "Half Res Depth Target": [
+          [
+            800,
+            450
+          ]
+        ],
+        "Quarter Res Target": [
+          [
+            400,
+            225
+          ]
+        ],
+        "Dof Ngh Target 0": [
+          [
+            200,
+            113
+          ]
+        ],
+        "Screen Space Refl Target": [
+          [
+            800,
+            450
+          ],
+          [
+            800,
+            450
+          ]
+        ],
+        "Aux Cubic Target": [
+          [
+            1920,
+            900
+          ]
+        ],
+        "GI Diffuse Target": [
+          [
+            1600,
+            900
+          ]
+        ],
+        "GI Specular Target": [
+          [
+            1600,
+            900
+          ]
+        ]
+      }
+    },
+    {
+      "mode": "1080p",
+      "scene": [
+        1920,
+        1080
+      ],
+      "targets": {
+        "Depth Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "Linear Depth Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "Forward Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "GBuffer Target MRT": [
+          [
+            1920,
+            1080
+          ],
+          [
+            1920,
+            1080
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "Resolved Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "Post Effects FP Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "Half Res Depth Target": [
+          [
+            960,
+            540
+          ]
+        ],
+        "Quarter Res Target": [
+          [
+            480,
+            270
+          ]
+        ],
+        "Dof Ngh Target 0": [
+          [
+            240,
+            135
+          ]
+        ],
+        "Screen Space Refl Target": [
+          [
+            960,
+            540
+          ],
+          [
+            960,
+            540
+          ]
+        ],
+        "Aux Cubic Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "GI Diffuse Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "GI Specular Target": [
+          [
+            1920,
+            1080
+          ]
+        ]
+      }
+    },
+    {
+      "mode": "1440p",
+      "scene": [
+        2560,
+        1440
+      ],
+      "targets": {
+        "Depth Target": [
+          [
+            2560,
+            1440
+          ]
+        ],
+        "Linear Depth Target": [
+          [
+            2560,
+            1440
+          ]
+        ],
+        "Forward Target": [
+          [
+            2560,
+            1440
+          ]
+        ],
+        "GBuffer Target MRT": [
+          [
+            2560,
+            1440
+          ],
+          [
+            2560,
+            1440
+          ],
+          [
+            2560,
+            1440
+          ]
+        ],
+        "Resolved Target": [
+          [
+            2560,
+            1440
+          ]
+        ],
+        "Post Effects FP Target": [
+          [
+            2560,
+            1440
+          ]
+        ],
+        "Half Res Depth Target": [
+          [
+            1280,
+            720
+          ]
+        ],
+        "Quarter Res Target": [
+          [
+            640,
+            360
+          ]
+        ],
+        "Dof Ngh Target 0": [
+          [
+            320,
+            180
+          ]
+        ],
+        "Screen Space Refl Target": [
+          [
+            1280,
+            720
+          ],
+          [
+            1280,
+            720
+          ]
+        ],
+        "Aux Cubic Target": [
+          [
+            1920,
+            1440
+          ]
+        ],
+        "GI Diffuse Target": [
+          [
+            2560,
+            1440
+          ]
+        ],
+        "GI Specular Target": [
+          [
+            2560,
+            1440
+          ]
+        ]
+      }
+    },
+    {
+      "mode": "4K",
+      "scene": [
+        3840,
+        2160
+      ],
+      "targets": {
+        "Depth Target": [
+          [
+            3840,
+            2160
+          ]
+        ],
+        "Linear Depth Target": [
+          [
+            3840,
+            2160
+          ]
+        ],
+        "Forward Target": [
+          [
+            3840,
+            2160
+          ]
+        ],
+        "GBuffer Target MRT": [
+          [
+            3840,
+            2160
+          ],
+          [
+            3840,
+            2160
+          ],
+          [
+            3840,
+            2160
+          ]
+        ],
+        "Resolved Target": [
+          [
+            3840,
+            2160
+          ]
+        ],
+        "Post Effects FP Target": [
+          [
+            3840,
+            2160
+          ]
+        ],
+        "Half Res Depth Target": [
+          [
+            1920,
+            1080
+          ]
+        ],
+        "Quarter Res Target": [
+          [
+            960,
+            540
+          ]
+        ],
+        "Dof Ngh Target 0": [
+          [
+            480,
+            270
+          ]
+        ],
+        "Screen Space Refl Target": [
+          [
+            1920,
+            1080
+          ],
+          [
+            1920,
+            1080
+          ]
+        ],
+        "Aux Cubic Target": [
+          [
+            1920,
+            2160
+          ]
+        ],
+        "GI Diffuse Target": [
+          [
+            3840,
+            2160
+          ]
+        ],
+        "GI Specular Target": [
+          [
+            3840,
+            2160
+          ]
+        ]
+      }
+    }
+  ],
+  "runtime_observations": null,
+  "temporal_history_dimensions": null,
+  "pending": [
+    "Windows build and packaged launcher checks",
+    "Actual GPU allocation and memory headroom",
+    "In-game target/viewport measurements",
+    "HUD, cutscenes, transparency, DOF and temporal history validation",
+    "Scene transitions and Original recovery",
+    "4K image quality, stability and performance"
+  ]
+}

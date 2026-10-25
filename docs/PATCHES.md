@@ -5,7 +5,9 @@ The opt-in, fingerprinted groups cover paired 60 FPS interval/clock replacements
 general motion blur Off, and three mutually exclusive shadow-map caps. See
 [frame timing evidence](RP04_FRAME_TIMING.md) and
 [visual-control evidence](RP05_VISUAL_CONTROLS.md). Gameplay acceptance remains
-pending. Internal-resolution patches remain disabled. Host output size and VSync
+pending. The [resolution preview](RP06_RENDER_RESOLUTION.md) adds independently
+selected, restart-only 720p/900p/1080p/1440p/4K internal modes with Original as the
+default. Their gameplay acceptance remains pending. Host output size and VSync
 are separate.
 
 The exact supported source and extracted ELF SHA-256 hashes are recorded in that profile and `docs/RP02_BASE_100_FINDINGS.md`. Requested groups are checked against TITLE_ID, APP_VER and both hashes. An unknown dump may run the unpatched baseline, but cannot receive a verified feature patch.

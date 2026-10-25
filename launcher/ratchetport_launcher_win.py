@@ -397,6 +397,7 @@ INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
                 'async_shaders': '1', 'deferred_readback': '0', 'stale_readback': '1',
                 'render_resolution': 'native', 'engine_fps': '60', 'game_fps': '30',
                 'motion_blur': 'original', 'shadow_resolution': 'original',
+                'internal_resolution': 'original',
                 'frames_queued': '1',
                 'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
                 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
@@ -404,6 +405,12 @@ DISPLAY_MODES = [('windowed', ('Windowed',)), ('borderless', ('Borderless',)), (
 ANISOTROPY = [('0', ('Game default',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
 FPS_LIMITS = [('30', ('30',))]
 GAME_FPS = [('30', ('30 FPS / Original',)), ('60', ('60 FPS (experimental)',))]
+INTERNAL_RESOLUTION = [('original', ('Original',)),
+                       ('720p', ('720p · 1280 × 720 (experimental)',)),
+                       ('900p', ('900p · 1600 × 900 (experimental)',)),
+                       ('1080p', ('1080p · 1920 × 1080 (experimental)',)),
+                       ('1440p', ('1440p · 2560 × 1440 (experimental)',)),
+                       ('4K', ('4K · 3840 × 2160 (experimental)',))]
 MOTION_BLUR = [('original', ('On / Original',)), ('off', ('Off (experimental)',))]
 SHADOW_RESOLUTION = [('original', ('Original',)),
                      ('1024', ('1024 px maximum (experimental)',)),
@@ -1778,7 +1785,11 @@ class Launcher:
         #              'Меньше гостинга на персонажах и одежде; стоит около 10% FPS.'))
 
     def build_game_effects(self, f):
-        self.section(f, 'Game effects')
+        self.section(f, 'Game rendering')
+        self.row(f, 'Internal render resolution',
+                 self.choice(f, 'internal_resolution', 'ini', INTERNAL_RESOLUTION),
+                 'Scene detail, independent of output and window size. Lower resolutions reduce pixel work; '
+                 '1440p and 4K need more GPU power and memory. Original restores the game settings.', restart=True)
         self.row(f, 'Motion blur', self.choice(f, 'motion_blur', 'ini', MOTION_BLUR),
                  'Original follows the game settings. Off disables its general motion-blur strength.', restart=True)
         self.row(f, 'Shadow-map resolution', self.choice(f, 'shadow_resolution', 'ini', SHADOW_RESOLUTION),

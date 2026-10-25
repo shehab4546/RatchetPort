@@ -4,6 +4,7 @@
 #include <xxhash.h>
 #include "video_core/renderer_vulkan/ui_composition.h"
 #include "ratchet_toggles.h"
+#include "ratchet_settings.h"
 #include "video_core/renderer_vulkan/vk_frame_capture.h"
 #include "video_core/renderer_vulkan/vk_lighting_test.h"
 #include "video_core/renderer_vulkan/vk_pass_census.h"
@@ -346,6 +347,36 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
         image.binding.is_target = 1u;
     } else {
         db_desc.first = {};
+    }
+    // Observe native attachments independently of upscaling. Requested mode and
+    // presentation size are deliberately absent from candidate identification.
+    if (db_desc.first && std::popcount(key.mrt_mask) >= 5) {
+        const auto& depth = texture_cache.GetImage(db_desc.first);
+        unsigned matching = 0;
+        for (unsigned cb = 0; cb < std::bit_width(key.mrt_mask); ++cb) {
+            if (skip_cb_binding || !(key.mrt_mask & (1u << cb)) ||
+                !regs.color_target_mask.GetMask(cb)) continue;
+            const auto id = cb_descs[cb].first;
+            if (!id) continue;
+            const auto& color = texture_cache.GetImage(id);
+            if (color.info.size.width == depth.info.size.width &&
+                color.info.size.height == depth.info.size.height) ++matching;
+        }
+        const auto& vp = regs.viewports[0];
+        const auto sample = RatchetResolution::Candidate(matching, depth.info.size.width,
+            depth.info.size.height, depth.info.size.width, depth.info.size.height,
+            regs.viewport_control.xscale_enable ? vp.xscale * 2 : 0,
+            regs.viewport_control.yscale_enable ? vp.yscale * 2 : 0);
+        if (sample.width) {
+            auto& settings = RatchetSettings::Get();
+            settings.observed_scene_size = RatchetResolution::Pack(sample.width, sample.height);
+            settings.observed_scene_viewport = RatchetResolution::Pack(sample.viewport_width, sample.viewport_height);
+            if (resolution_samples.New(sample)) {
+                LOG_INFO(Render_Vulkan, "Resolution observation: scene candidate / depth {}x{}, viewport {}x{}; "
+                         "five matching color targets, temporal history unverified",
+                         sample.width, sample.height, sample.viewport_width, sample.viewport_height);
+            }
+        }
     }
     // ratchetport: the G-buffer pass (5+ color targets) holds the scene depth, and its constants the
     // main camera (shadow passes bind the same layout with the light's camera).

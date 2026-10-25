@@ -9,19 +9,22 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**V1.5 — Visual Controls Preview · Windows x64 · CUSA01047 USA v1.00**
+**V1.6 — Resolution Preview · Development preview · Windows x64**
 
-This release adds **Motion blur: On / Original or Off** and
-**Shadow-map resolution: Original, 1024, 512 or 256 px maximum** to Home and
-Graphics. Save and restart the game to apply a choice. Both default to Original;
-smaller shadow caps reduce detail without changing the fixed atlas allocation.
-The earlier **30 FPS / Original** and **60 FPS (experimental)** selector remains.
-These features need gameplay comparison; no sustained frame rate is guaranteed.
-See [release notes](docs/releases/V1.5-Visual-Controls-Preview.md),
-[visual-control evidence and test steps](docs/RP05_VISUAL_CONTROLS.md),
-[timing evidence](docs/RP04_FRAME_TIMING.md) and [tested hardware](docs/TESTING.md).
-Earlier hardware results describe their original builds, not this preview.
-Windows build, package and launcher checks passed. The new visual controls remain experimental.
+This preview adds **internal scene resolution: Original, 720p, 900p, 1080p,
+1440p and 4K (3840 × 2160)**. The new Home / Graphics selector is independent
+of output and window size. Save and restart the game to apply a choice.
+The in-game information panel separates startup settings from observed
+scene/depth candidates, viewport, presented image and window dimensions.
+
+Motion blur, **1024 / 512 / 256 px** shadow-map caps and the experimental
+**60 FPS** option remain available. All new internal-resolution modes require
+in-game validation, including 4K memory use, image quality and scene transitions.
+See [V1.6 feature notes](docs/releases/V1.6-Resolution-Preview.md),
+[resolution evidence and comparison guide](docs/RP06_RENDER_RESOLUTION.md),
+[visual controls](docs/RP05_VISUAL_CONTROLS.md) and [tested hardware](docs/TESTING.md).
+V1.6 build and gameplay acceptance are pending. **V1.5 remains the published
+Latest release** until a newer package is validated and published.
 
 [Download V1.5 Visual Controls Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.5-visual-controls-preview)
 · [Latest non-prerelease build](https://github.com/shehab4546/RatchetPort/releases/latest)
