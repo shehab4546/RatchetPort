@@ -9,7 +9,7 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**V1.6 — Resolution Preview · Development preview · Windows x64**
+**V1.6 — Resolution Preview · Windows x64 · CUSA01047 USA v1.00**
 
 This preview adds **internal scene resolution: Original, 720p, 900p, 1080p,
 1440p and 4K (3840 × 2160)**. The new Home / Graphics selector is independent
@@ -23,10 +23,11 @@ in-game validation, including 4K memory use, image quality and scene transitions
 See [V1.6 feature notes](docs/releases/V1.6-Resolution-Preview.md),
 [resolution evidence and comparison guide](docs/RP06_RENDER_RESOLUTION.md),
 [visual controls](docs/RP05_VISUAL_CONTROLS.md) and [tested hardware](docs/TESTING.md).
-V1.6 build and gameplay acceptance are pending. **V1.5 remains the published
-Latest release** until a newer package is validated and published.
+Windows build, packaging and launcher checks passed. **V1.6 is the published
+Latest release.** In-game resolution quality, temporal effects and 4K stability
+remain experimental and need gameplay validation.
 
-[Download V1.5 Visual Controls Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.5-visual-controls-preview)
+[Download V1.6 Resolution Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.6-resolution-preview)
 · [Latest non-prerelease build](https://github.com/shehab4546/RatchetPort/releases/latest)
 · [All releases](https://github.com/shehab4546/RatchetPort/releases)
 · [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
@@ -100,7 +101,7 @@ Settings (`settings.json`, `ratchet.ini`), prepared executable files (`out/`), s
 
 Generic SDL controller support and remappable keyboard/mouse input are retained. The Game page configures PS4 button mappings. Default keyboard mappings include WASD for movement, arrows for the right stick, Space/Left Shift/E/Q for Cross/Circle/Square/Triangle, 1/3 for L1/R1, R/F for L2/R2, Enter for Options, and Tab/Backspace for the touchpad regions. These are mappings to PS4 buttons; they do not inject game-specific actions.
 
-Insert or R3+L2 opens the runtime graphics overlay. Window mode, output size, VSync, graphics diagnostics and advanced renderer options remain available. Higher FPS, upscalers, higher output sizes and advanced options are not validated Ratchet features. The launcher offers Original/30 and experimental 60 FPS; changing the target requires restarting the game. V1.5 also offers general motion blur and shadow-map caps in Home / Graphics; their applied launch state appears in the in-game Graphics information rows. `RATCHET_ZERO_CLEAR=0` remains the default; enabling it is a diagnostic experiment, not a Device Lost fix.
+Insert or R3+L2 opens the runtime graphics overlay. Window mode, output size, VSync, graphics diagnostics and advanced renderer options remain available. Higher FPS, upscalers, higher output sizes and advanced options are not validated Ratchet features. The launcher offers Original/30 and experimental 60 FPS; changing the target requires restarting the game. Home / Graphics offers general motion blur, shadow-map caps and internal scene resolution through experimental 4K. The information panel separates startup choices from observed scene/depth candidates, viewport, presented image and window size. `RATCHET_ZERO_CLEAR=0` remains the default; enabling it is a diagnostic experiment, not a Device Lost fix.
 
 ## Known issues and reporting
 
