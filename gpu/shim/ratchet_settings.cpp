@@ -124,6 +124,12 @@ void Set(Values& v, const std::string& key, const std::string& value) {
         v.vibration = value.empty() ? 100 : std::clamp(i, 0, 100);
     } else if (key == "mouse_lock") {
         v.mouse_lock = value.empty() || i != 0;
+    } else if (key == "mouse_stick") {
+        v.mouse_stick = std::clamp(i, 0, 2);
+    } else if (key == "mouse_activation") {
+        v.mouse_activation = std::clamp(i, 0, 1);
+    } else if (key == "mouse_invert_y") {
+        v.mouse_invert_y = std::clamp(i, 0, 1);
     } else if (key == "mouse_aim_style") {
         v.mouse_aim_style = std::clamp(i, 0, 1);
     } else if (key == "mouse_aim_sensitivity") {
@@ -332,6 +338,9 @@ void Save() {
                        "mouse_aim_sensitivity=%d\n",
                  v.anisotropy.load(), v.vibration.load(), int(v.mouse_lock.load()),
                  v.mouse_aim_style.load(), v.mouse_aim_sensitivity.load());
+    std::fprintf(file, "mouse_stick=%d\n", v.mouse_stick.load());
+    std::fprintf(file, "mouse_activation=%d\n", v.mouse_activation.load());
+    std::fprintf(file, "mouse_invert_y=%d\n", v.mouse_invert_y.load());
     // Read by run.sh at start.
     std::fprintf(file, "live_resolution=%s\n", v.live_resolution < 0 ? "auto"
                                                   : v.live_resolution ? "1" : "0");

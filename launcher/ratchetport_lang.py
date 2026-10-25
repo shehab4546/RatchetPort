@@ -2270,3 +2270,68 @@ for language in ('pt', 'es'):
 
 def table(language):
     return EXTRA.get(language, {})
+
+# Adaptive controls and game-language selection.
+EXTRA['ar'].update({
+    'Game language': 'لغة اللعبة', 'Mouse controls': 'الماوس يتحكم بـ',
+    'Left stick': 'العصا اليسرى', 'Right stick': 'العصا اليمنى',
+    'Mouse activation': 'تفعيل حركة الماوس', 'Always': 'دائمًا', 'Hold L2': 'أثناء الضغط على L2',
+    'Mouse vertical direction': 'الاتجاه العمودي للماوس', 'Normal': 'عادي', 'Inverted': 'معكوس',
+    'Mouse stick style': 'نمط حركة الماوس', 'Mouse stick sensitivity': 'حساسية الماوس',
+    'Spanish (Latin America)': 'الإسبانية (أمريكا اللاتينية)',
+    'Portuguese (Portugal)': 'البرتغالية (البرتغال)',
+    'Left stick left': 'العصا اليسرى: يسار', 'Left stick right': 'العصا اليسرى: يمين',
+    'Left stick up': 'العصا اليسرى: أعلى', 'Left stick down': 'العصا اليسرى: أسفل',
+    'Right stick left': 'العصا اليمنى: يسار', 'Right stick right': 'العصا اليمنى: يمين',
+    'Right stick up': 'العصا اليمنى: أعلى', 'Right stick down': 'العصا اليمنى: أسفل',
+    'Text and voice currently follow the game language. Independent voice selection is not yet verified for this edition.':
+        'النص والصوت يتبعان لغة اللعبة حاليًا. لم يُتحقق بعد من اختيار الصوت بشكل مستقل في هذه النسخة.',
+    'Applies after restarting. USA supports English, French, Portuguese (Portugal/Brazil) and Latin American Spanish. Other choices may fall back to English.':
+        'يُطبّق بعد إعادة التشغيل. تدعم النسخة الأمريكية الإنجليزية والفرنسية والبرتغالية والإسبانية اللاتينية. قد تعود الخيارات الأخرى إلى الإنجليزية.',
+    'Select a box and press a key or mouse button. Mouse movement defaults to the left stick. Choose either stick below. Insert opens the port menu.':
+        'اختر خانة واضغط مفتاحًا أو زر ماوس. حركة الماوس للعصا اليسرى افتراضيًا ويمكن تغييرها أدناه. يفتح Insert قائمة الإعدادات.',
+    'Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.':
+        'النسبي يتبع حركة الماوس ويعود للمنتصف. المطلق يحتفظ بالإزاحة من موضع التفعيل.',
+    'Lower values need more mouse movement for the same stick movement.': 'القيم الأقل تتطلب حركة أكبر للماوس.'
+})
+EXTRA['es'].update({'Game language': 'Idioma del juego', 'Spanish (Latin America)': 'Español (Latinoamérica)',
+                    'Portuguese (Portugal)': 'Portugués (Portugal)'})
+EXTRA['pt'].update({'Game language': 'Idioma do jogo', 'Spanish (Latin America)': 'Espanhol (América Latina)',
+                    'Portuguese (Portugal)': 'Português (Portugal)'})
+for language, left, right, directions in (
+    ('pt', 'Analógico esquerdo', 'Analógico direito', ('esquerda', 'direita', 'cima', 'baixo')),
+    ('es', 'Stick izquierdo', 'Stick derecho', ('izquierda', 'derecha', 'arriba', 'abajo'))):
+    for stick, label in (('Left', left), ('Right', right)):
+        EXTRA[language][f'{stick} stick'] = label
+        for direction, translated in zip(('left', 'right', 'up', 'down'), directions):
+            EXTRA[language][f'{stick} stick {direction}'] = f'{label}: {translated}'
+EXTRA['pt'].update({
+    'Mouse controls': 'O mouse controla', 'Mouse activation': 'Ativação do mouse',
+    'Mouse vertical direction': 'Direção vertical do mouse', 'Normal': 'Normal', 'Inverted': 'Invertida',
+    'Always': 'Sempre', 'Hold L2': 'Segurar L2', 'Mouse stick style': 'Estilo do analógico pelo mouse',
+    'Mouse stick sensitivity': 'Sensibilidade do mouse',
+    'Applies after restarting. USA supports English, French, Portuguese (Portugal/Brazil) and Latin American Spanish. Other choices may fall back to English.':
+        'Aplicado ao reiniciar. A edição USA aceita inglês, francês, português (Portugal/Brasil) e espanhol latino-americano. Outras opções podem usar inglês.',
+    'Lower values need more mouse movement for the same stick movement.': 'Valores menores exigem mais movimento do mouse para mover o analógico.',
+    'Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.':
+        'Relativo segue o movimento do mouse e volta ao centro. Absoluto mantém o deslocamento a partir da posição de ativação.',
+    'Text and voice currently follow the game language. Independent voice selection is not yet verified for this edition.':
+        'Textos e vozes seguem o idioma do jogo. A seleção independente de vozes ainda não foi verificada nesta edição.'
+})
+EXTRA['es'].update({
+    'Mouse controls': 'El ratón controla', 'Mouse activation': 'Activación del ratón',
+    'Mouse vertical direction': 'Dirección vertical del ratón', 'Normal': 'Normal', 'Inverted': 'Invertida',
+    'Always': 'Siempre', 'Hold L2': 'Mantener L2', 'Mouse stick style': 'Estilo del stick con ratón',
+    'Mouse stick sensitivity': 'Sensibilidad del ratón',
+    'Applies after restarting. USA supports English, French, Portuguese (Portugal/Brazil) and Latin American Spanish. Other choices may fall back to English.':
+        'Se aplica al reiniciar. La edición USA admite inglés, francés, portugués (Portugal/Brasil) y español latinoamericano. Otras opciones pueden usar inglés.',
+    'Lower values need more mouse movement for the same stick movement.': 'Los valores menores requieren más movimiento del ratón para mover el stick.',
+    'Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.':
+        'Relativo sigue el movimiento del ratón y vuelve al centro. Absoluto mantiene el desplazamiento desde la posición de activación.',
+    'Text and voice currently follow the game language. Independent voice selection is not yet verified for this edition.':
+        'Los textos y las voces siguen el idioma del juego. La selección independiente de voces aún no se ha verificado para esta edición.'
+})
+
+EXTRA['ar']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'يُطبّق بعد إعادة التشغيل. النص والصوت في النسخة الأمريكية: الإنجليزية والفرنسية والبرتغالية البرتغالية والبرازيلية، والإسبانية اللاتينية بصوت مكسيكي.'
+EXTRA['pt']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'Aplicado ao reiniciar. Textos e vozes da edição USA: inglês, francês, português (Portugal/Brasil) e espanhol latino-americano com vozes mexicanas.'
+EXTRA['es']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'Se aplica al reiniciar. Textos y voces de USA: inglés, francés, portugués (Portugal/Brasil) y español latinoamericano con voces mexicanas.'

@@ -1,4 +1,4 @@
-"""Game language selector: Polish (Orbis language ID 16) support (#493)."""
+"""Keep UI translations separate from the supported USA game-language list."""
 import re
 import sys
 import unittest
@@ -10,15 +10,13 @@ import ratchetport_launcher_win as launcher  # noqa: E402
 
 
 class PolishLanguageTest(unittest.TestCase):
-    def test_polish_is_offered_with_system_id_16(self):
-        offered = {value: names[0] for value, names in launcher.LANGUAGES}
-        self.assertEqual(offered.get('16'), 'Polish')
-        russian_labels = {value: names[1] for value, names in launcher.LANGUAGES if len(names) > 1}
-        self.assertEqual(russian_labels.get('16'), 'Польский')
+    def test_polish_is_not_advertised_as_supported_by_usa(self):
+        self.assertNotIn('16', dict(launcher.LANGUAGES))
+        self.assertIn('Unavailable in USA', dict(launcher.game_language_options('16'))['16'][0])
 
-    def test_choosing_polish_starts_the_game_with_id_16(self):
+    def test_old_polish_preference_has_explicit_english_fallback(self):
         env = launcher.game_environment({**launcher.APP_DEFAULTS, 'language': '16'})
-        self.assertEqual(env['RATCHET_LANGUAGE'], '16')
+        self.assertEqual(env['RATCHET_LANGUAGE'], '1')
 
     def test_polish_label_is_translated_across_ui_languages(self):
         expected_translations = {

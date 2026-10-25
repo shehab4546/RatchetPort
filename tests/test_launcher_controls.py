@@ -68,6 +68,19 @@ class DiskModsTest(unittest.TestCase):
 
 class ControlMapTest(unittest.TestCase):
 
+    def test_stick_keys_round_trip_and_launch(self):
+        values = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
+        values.update(lx_neg='J', ly_neg='None', rx_pos='Mouse Right')
+        saved = {'key': launcher.control_changes(values, 'key')}
+        self.assertEqual(saved['key'], {'lx_neg': 'J', 'ly_neg': 'None', 'rx_pos': 'Mouse Right'})
+        env = launcher.game_environment({**launcher.APP_DEFAULTS, 'controls': saved})
+        mapping = dict(pair.split('=',1) for pair in env['RATCHET_STICK_KEYS'].split(','))
+        self.assertEqual(mapping['lx_neg'], 'J')
+        self.assertEqual(mapping['lx_pos'], 'D')
+        self.assertEqual(mapping['ly_neg'], 'None')
+        self.assertEqual(mapping['rx_pos'], 'Mouse Right')
+        self.assertNotIn('lx_neg', env['RATCHET_KEY_MAP'])
+
     def test_pipeline_binary_cache_switch(self):
         settings = {**launcher.APP_DEFAULTS}
         self.assertTrue(settings['pipeline_binary_cache'])

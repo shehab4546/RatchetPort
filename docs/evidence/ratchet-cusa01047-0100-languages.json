@@ -1,0 +1,63 @@
+{
+  "source_sha256": "fdf72d683f305ab1a70adfe246e9ac1dbbd4ceb988b1327157b6bda55476697d",
+  "os_to_internal": [
+    9,
+    1,
+    6,
+    15,
+    7,
+    8,
+    4,
+    13,
+    14,
+    10,
+    23,
+    22,
+    5,
+    16,
+    3,
+    11,
+    12,
+    18,
+    2,
+    20,
+    21,
+    19,
+    6
+  ],
+  "na_mask": "0x242042",
+  "accepted_os_text_secondary": [
+    [
+      1,
+      1,
+      1
+    ],
+    [
+      2,
+      6,
+      6
+    ],
+    [
+      7,
+      13,
+      13
+    ],
+    [
+      17,
+      18,
+      18
+    ],
+    [
+      20,
+      21,
+      17
+    ],
+    [
+      22,
+      6,
+      6
+    ]
+  ],
+  "scope": "CUSA01047 USA v1.00 startup mapping; no independent audio selection or gameplay validation",
+  "content_inventory_source": "Supplied Ratchet_Game_Research.rar / 08_LANGUAGES.md; underlying audio payloads not supplied in this bundle"
+}

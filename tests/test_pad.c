@@ -16,6 +16,10 @@ void ratchetgpu_engine_fps_cycle(void) { ++engine_fps_cycles; }
 int ratchetgpu_mouse_prompt_distance(void) { return 48; }
 void ratchetgpu_mouse_pause_key(void) {}
 int ratchetgpu_mouse_aim_style(void) { return 0; }
+static int mouse_stick=2, mouse_activation=1, mouse_invert_y=0;
+int ratchetgpu_mouse_stick(void) { return mouse_stick; }
+int ratchetgpu_mouse_activation(void) { return mouse_activation; }
+int ratchetgpu_mouse_invert_y(void) { return mouse_invert_y; }
 int ratchetgpu_mouse_aim_sensitivity(void) { return 100; }
 
 static bool SDLCALL record_rumble(void *userdata, uint16_t low, uint16_t high) {

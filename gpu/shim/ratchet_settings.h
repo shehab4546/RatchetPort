@@ -64,9 +64,13 @@ struct Values {
     std::atomic<int> vibration{100};
     /// Keep the mouse in the game window while the game has it (window.cpp). Live.
     std::atomic<bool> mouse_lock{true};
-    /// L2 aim with the mouse (runtime_pad.c): 0 relative (follows movement), 1 absolute. Live.
+    /// Mouse target: 0 off, 1 left, 2 right. Activation: 0 always, 1 while L2 is held. Live.
+    std::atomic<int> mouse_stick{1};
+    std::atomic<int> mouse_activation{0};
+    std::atomic<int> mouse_invert_y{0};
+    /// Mouse style: 0 relative, 1 absolute.
     std::atomic<int> mouse_aim_style{0};
-    /// L2 aim sensitivity in percent, 10 to 200: lower needs more mouse for the same stick. Live.
+    /// Mouse sensitivity in percent, 10 to 200: lower needs more mouse for the same stick. Live.
     std::atomic<int> mouse_aim_sensitivity{100};
     // Startup: run.py turns them into patches and environment variables; "Apply and restart".
     std::atomic<int> render_resolution{0};

@@ -180,10 +180,12 @@ static int mouse_source(const char *name) {
 
 static SDL_AtomicInt wheel_ticks[2]; /* notches not yet played: 0 up, 1 down */
 static struct { int phase; uint64_t until; } wheel_pulse[2]; /* phase 0 idle, 1 pressed, 2 gap */
+static SDL_AtomicInt mouse_focus_reset;
 static SDL_AtomicInt mouse_motion[2]; /* x, y moved since the last read, in 1/16 px (stick prompts) */
 /* Runs on the window thread for every queued event (SDL_AddEventWatch). */
 static bool SDLCALL mouse_watch(void *userdata, SDL_Event *event) {
     (void)userdata;
+    if (event->type==SDL_EVENT_WINDOW_FOCUS_LOST) SDL_SetAtomicInt(&mouse_focus_reset,1);
     if (event->type==SDL_EVENT_MOUSE_MOTION) {
         SDL_AddAtomicInt(&mouse_motion[0],(int)(event->motion.xrel*16.0f));
         SDL_AddAtomicInt(&mouse_motion[1],(int)(event->motion.yrel*16.0f));
@@ -286,17 +288,40 @@ static int apply_button_map(ButtonMap *map, const char *spec, bool keyboard) {
     return used;
 }
 
+static int stick_keys[8]={SDL_SCANCODE_A,SDL_SCANCODE_D,SDL_SCANCODE_W,SDL_SCANCODE_S,
+                          SDL_SCANCODE_LEFT,SDL_SCANCODE_RIGHT,SDL_SCANCODE_UP,SDL_SCANCODE_DOWN};
+static int apply_stick_keys(const char *spec) {
+    static const char *names[]={"lx_neg","lx_pos","ly_neg","ly_pos","rx_neg","rx_pos","ry_neg","ry_pos"};
+    if (!spec) return 0;
+    char copy[1024]; snprintf(copy,sizeof(copy),"%s",spec);
+    int used=0;
+    for (char *entry=copy; entry;) {
+        char *next=strchr(entry,','); if (next) *next++=0;
+        char *eq=strchr(entry,'=');
+        if (eq) {
+            *eq=0;
+            const char *name=trim(eq+1);
+            const int source=!SDL_strcasecmp(name,"None") ? 0 : mouse_source(name) ? mouse_source(name) : key_source(name);
+            for (int i=0;i<8;++i) if (!SDL_strcasecmp(trim(entry),names[i]) &&
+                (source>0 || !SDL_strcasecmp(name,"None"))) { stick_keys[i]=source; ++used; }
+        }
+        entry=next;
+    }
+    return used;
+}
+
 static void load_button_maps(void) {
     static bool loaded;
     if (loaded) return;
     loaded=true;
+    apply_stick_keys(getenv("RATCHET_STICK_KEYS"));
     const int pad=apply_button_map(&pad_map,getenv("RATCHET_PAD_MAP"),false);
     const int keys=apply_button_map(&key_map,getenv("RATCHET_KEY_MAP"),true);
     if (pad || keys) printf("Runtime: pad map: %d gamepad and %d keyboard buttons remapped\n",pad,keys);
 }
 
 static void key_axis(uint8_t *axis, bool negative, bool positive) {
-    if (negative || positive) *axis=(uint8_t)(128-(negative ? 128 : 0)+(positive ? 127 : 0));
+    if (negative || positive) *axis=(uint8_t)(negative==positive ? 128 : negative ? 0 : 255);
 }
 static void sample_host(PadData *d) {
     memset(d,0,sizeof(*d));
@@ -341,10 +366,9 @@ static void sample_host(PadData *d) {
         if (source_down(key_map.entries[i].source,k,mouse,wheel)) d->buttons|=key_map.entries[i].ps;
     if (d->buttons & BTN_L2) d->l2=255;
     if (d->buttons & BTN_R2) d->r2=255;
-    key_axis(&d->left_x,k[SDL_SCANCODE_A],k[SDL_SCANCODE_D]);
-    key_axis(&d->left_y,k[SDL_SCANCODE_W],k[SDL_SCANCODE_S]);
-    key_axis(&d->right_x,k[SDL_SCANCODE_LEFT],k[SDL_SCANCODE_RIGHT]);
-    key_axis(&d->right_y,k[SDL_SCANCODE_UP],k[SDL_SCANCODE_DOWN]);
+    uint8_t *axes[]={&d->left_x,&d->left_y,&d->right_x,&d->right_y};
+    for (int i=0;i<4;++i) key_axis(axes[i],source_down(stick_keys[i*2],k,mouse,wheel),
+                                 source_down(stick_keys[i*2+1],k,mouse,wheel));
 }
 
 /* RATCHET_PAD_FILE=<file>: scripted input for automated runs. The file holds whitespace-separated
@@ -455,22 +479,27 @@ static void replay_sample(PadData *d) {
     d->left_x=s->axes[0]; d->left_y=s->axes[1]; d->right_x=s->axes[2]; d->right_y=s->axes[3];
     d->l2=s->l2; d->r2=s->r2;
 }
-/* L2 aim (the items, e.g. the Head of Helios' light), in the menu's right stick style.
- * Relative: while L2 is held, moving the mouse pushes the right stick the way it moves, as far as
- * it moves fast (full tilt at AIM_FULL_PX_PER_MS); when the mouse stops the stick is left alone
- * again. A direction holds AIM_HOLD_US after the last movement, over the gaps between mouse reports.
- * Absolute: where the mouse was when L2 was pressed is the centre, and the stick points from it to
- * where the mouse is (full tilt AIM_RADIUS_PX away at 100 %; the offset stops there, so coming back
- * works at once). The menu's sensitivity divides both distances. Reads after the stick prompts, so a
- * prompt drawn with the mouse comes first. */
+/* Configurable mouse-to-stick motion. Relative releases after a short report gap;
+ * absolute holds an offset until activation ends. */
 enum { AIM_HOLD_US=40000, AIM_STEP_MIN_US=1000, AIM_STEP_MAX_US=50000, AIM_RADIUS_PX=200 };
 static const float AIM_FULL_PX_PER_MS=1.2f;
 static struct { uint64_t last, moved; int x, y; bool held; float offset_x, offset_y; } aim;
 static void apply_mouse_aim(PadData *d) {
-    const float dx=SDL_SetAtomicInt(&mouse_motion[0],0)/16.0f, dy=SDL_SetAtomicInt(&mouse_motion[1],0)/16.0f;
+    if (SDL_SetAtomicInt(&mouse_focus_reset,0)) { aim.held=false; aim.moved=0; drop_wheel(); return; }
+    float dx=SDL_SetAtomicInt(&mouse_motion[0],0)/16.0f, dy=SDL_SetAtomicInt(&mouse_motion[1],0)/16.0f;
     uint64_t step=d->timestamp-aim.last;
     aim.last=d->timestamp;
-    if (!(d->buttons & BTN_L2)) { aim.moved=0; aim.held=false; return; }
+    const int target=ratchetgpu_mouse_stick();
+    const int activation=ratchetgpu_mouse_activation();
+    const int style=ratchetgpu_mouse_aim_style();
+    const int invert=ratchetgpu_mouse_invert_y();
+    static int previous=-1;
+    const int mode=target | (activation<<2) | (style<<3) | (invert<<4);
+    if (previous!=mode) { aim.held=false; aim.moved=0; previous=mode; }
+    if (!target || (activation && !(d->buttons & BTN_L2))) { aim.moved=0; aim.held=false; return; }
+    uint8_t *x_axis=target==1 ? &d->left_x : &d->right_x;
+    uint8_t *y_axis=target==1 ? &d->left_y : &d->right_y;
+    if (invert) dy=-dy;
     if (!aim.held) { aim.held=true; aim.offset_x=aim.offset_y=0; }  /* a new press: the centre is here */
     const float sensitivity=ratchetgpu_mouse_aim_sensitivity()/100.0f;
     if (ratchetgpu_mouse_aim_style()==1) {
@@ -479,8 +508,8 @@ static void apply_mouse_aim(PadData *d) {
         const float length=sqrtf(aim.offset_x*aim.offset_x+aim.offset_y*aim.offset_y);
         if (length>radius) { aim.offset_x*=radius/length; aim.offset_y*=radius/length; }
         if (aim.offset_x!=0 || aim.offset_y!=0) {
-            d->right_x=(uint8_t)(128+(int)(aim.offset_x*127/radius));
-            d->right_y=(uint8_t)(128+(int)(aim.offset_y*127/radius));
+            *x_axis=(uint8_t)(128+(int)(aim.offset_x*127/radius));
+            *y_axis=(uint8_t)(128+(int)(aim.offset_y*127/radius));
         }
         return;
     }
@@ -493,8 +522,8 @@ static void apply_mouse_aim(PadData *d) {
         aim.moved=d->timestamp;
     }
     if (aim.moved && d->timestamp-aim.moved<AIM_HOLD_US) {
-        d->right_x=(uint8_t)(128+aim.x);
-        d->right_y=(uint8_t)(128+aim.y);
+        *x_axis=(uint8_t)(128+aim.x);
+        *y_axis=(uint8_t)(128+aim.y);
     }
 }
 
@@ -526,7 +555,7 @@ static void engine_fps_combo(PadData *d) {
 static int hold_after_capture;
 static void sample(PadData *d) {
     sample_host(d);
-    if (ratchetgpu_overlay_captures_input()) { hold_after_capture=1; click.side=-1; return; }
+    if (ratchetgpu_overlay_captures_input()) { aim.held=false; aim.moved=0; hold_after_capture=1; click.side=-1; return; }
     record_sample(d); /* the click sources as they are: a replay plays them again */
     read_inject();
     replay_sample(d);

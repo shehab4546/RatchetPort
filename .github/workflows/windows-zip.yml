@@ -11,7 +11,7 @@ on:
       - 'scripts/**'
       - 'launcher/**'
       - 'tests/**'
-      - 'gpu/CMakeLists.txt'
+      - 'gpu/**'
       - 'build.sh'
       - 'packaging/windows/**'
       - '.github/workflows/windows-zip.yml'
@@ -22,7 +22,7 @@ on:
       - 'scripts/**'
       - 'launcher/**'
       - 'tests/**'
-      - 'gpu/CMakeLists.txt'
+      - 'gpu/**'
       - 'build.sh'
       - 'packaging/windows/**'
       - '.github/workflows/windows-zip.yml'
@@ -59,7 +59,9 @@ jobs:
       - name: Build
         run: |
           bash build.sh
-          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test --parallel 3
+          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test adaptive-gc-test pad-map-test --parallel 3
+          out/ratchet-clean/adaptive-gc-test.exe
+          out/ratchet-clean/pad-map-test.exe
           out/ratchet-clean/graphics-settings-test.exe
           out/ratchet-clean/verified-patches-test.exe
           out/ratchet-clean/services-test.exe

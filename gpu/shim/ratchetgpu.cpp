@@ -364,6 +364,18 @@ extern "C" void ratchetgpu_movie_picture(void) {
     Vulkan::MovieBars::Cutscenes().NotePicture(Vulkan::MovieBars::NowMs());
 }
 
+extern "C" int ratchetgpu_mouse_stick(void) {
+    return RatchetSettings::Get().mouse_stick.load(std::memory_order_relaxed);
+}
+
+extern "C" int ratchetgpu_mouse_activation(void) {
+    return RatchetSettings::Get().mouse_activation.load(std::memory_order_relaxed);
+}
+
+extern "C" int ratchetgpu_mouse_invert_y(void) {
+    return RatchetSettings::Get().mouse_invert_y.load(std::memory_order_relaxed);
+}
+
 extern "C" int ratchetgpu_mouse_aim_style(void) {
     return RatchetSettings::Get().mouse_aim_style.load(std::memory_order_relaxed);
 }

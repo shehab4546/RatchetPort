@@ -400,7 +400,7 @@ INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
                 'internal_resolution': 'original',
                 'frames_queued': '1',
                 'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
-                'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
+                'mouse_stick': '1', 'mouse_activation': '0', 'mouse_invert_y': '0', 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
 DISPLAY_MODES = [('windowed', ('Windowed',)), ('borderless', ('Borderless',)), ('fullscreen', ('Fullscreen',))]
 ANISOTROPY = [('0', ('Game default',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
 FPS_LIMITS = [('30', ('30',))]
@@ -490,7 +490,7 @@ def connected_gamepad():
 
 
 
-# L2 aim with the mouse (right-stick movement): ratchet.ini mouse_aim_style.
+# Configurable mouse-to-stick movement: ratchet.ini mouse_aim_style.
 AIM_STYLES = [('0', ('Relative',)), ('1', ('Absolute',))]
 GLYPH_STYLES = [('off', ('Original (default)',)), ('auto', ('Match my controller',)), ('xbox', ('Xbox',)),
                 ('nintendo', ('Nintendo',)), ('keyboard', ('Keyboard',))]
@@ -569,8 +569,17 @@ KEY_DEFAULTS = {'cross': 'Space', 'circle': 'Left Shift', 'square': 'Mouse Left'
 CONTROLS_LAYOUT = 2  # settings layout: 2 = one keyboard & mouse table (migrate_controls)
 
 
+STICK_CONTROLS = [('lx_neg', 'A', None), ('lx_pos', 'D', None),
+                  ('ly_neg', 'W', None), ('ly_pos', 'S', None),
+                  ('rx_neg', 'Left', None), ('rx_pos', 'Right', None),
+                  ('ry_neg', 'Up', None), ('ry_pos', 'Down', None)]
+PS_BUTTON_NAMES.update(dict(zip((r[0] for r in STICK_CONTROLS),
+    ('Left stick left', 'Left stick right', 'Left stick up', 'Left stick down',
+     'Right stick left', 'Right stick right', 'Right stick up', 'Right stick down'))))
+
+
 def table_rows(kind):
-    return CONTROLS
+    return CONTROLS + STICK_CONTROLS if kind == 'key' else CONTROLS
 MOUSE_NAMES = {name.casefold() for name in (*TK_TO_MOUSE.values(), 'Wheel Up', 'Wheel Down')}
 
 
@@ -636,14 +645,27 @@ OUTPUTS = [('1280x720', ('1280 × 720 (Steam Deck)',)), ('1920x1080', ('1920 × 
            ('2560x1440', ('2560 × 1440',)), ('3840x2160', ('3840 × 2160 (4K)',))]
 LIVE = [('auto', ('Auto (by graphics card)', 'Авто (по видеокарте)')), ('0', ('Off (faster)', 'Выключена (быстрее)')),
         ('1', ('On (change without restarting)', 'Включена (без перезапуска)'))]
-LANGUAGES = [('1', ('English', 'Английский')), ('8', ('Russian', 'Русский')), ('0', ('Japanese', 'Японский')),
-             ('2', ('French', 'Французский')), ('3', ('Spanish', 'Испанский')), ('4', ('German', 'Немецкий')),
-             ('5', ('Italian', 'Итальянский')),
-             # Polish (id 16, LANGS_BCES00510.TXT); see issue #493.
-             ('16', ('Polish', 'Польский')),
-             # The US dump lists Brazilian Portuguese as id 17 (LANGS_BCUS98111.TXT: Brazilian text,
-             # the only Portuguese voices, which are European); see issue #530.
-             ('17', ('Portuguese (Brazil)', 'Португальский (Бразилия)'))]
+# CUSA01047 v1.00 NA: OS IDs mapped through the executable's 0x242042 SKU mask.
+# Latin American text (internal 21) pairs with Mexican Spanish voice (internal 17).
+LANGUAGES = [('1', ('English', 'Английский')), ('2', ('French', 'Французский')),
+             ('7', ('Portuguese (Portugal)',)),
+             ('17', ('Portuguese (Brazil)', 'Португальский (Бразилия)')),
+             ('20', ('Spanish (Latin America)',))]
+
+
+def game_language_id(current):
+    value = str(current)
+    return value if value in dict(LANGUAGES) or value == '22' else '1'
+
+
+def game_language_options(current):
+    value = str(current)
+    if value in dict(LANGUAGES):
+        return LANGUAGES
+    # Preserve old preferences visibly instead of silently replacing settings.json on save.
+    label = 'French (saved system ID 22)' if value == '22' else f'Unavailable in USA: {value} (English fallback)'
+    return LANGUAGES + [(value, (label,))]
+
 DRAW_PIPE = [('', ('Auto (8+ threads)', 'Авто (8+ потоков)')), ('1', ('On', 'Включён')),
              ('0', ('Off (more stable)', 'Выключен (стабильнее)'))]
 READBACKS = [('', ('Relaxed (default)', 'Relaxed (по умолчанию)')), ('0', ('Off', 'Выключены')),
@@ -1130,7 +1152,7 @@ def game_environment(s):
     env['RATCHET_MODS_ENABLED'] = '1' if s['mods_enabled'] else '0'
     env['RATCHET_PATCHES_DIR'] = s['patches_dir'] or str(DATA_DIR / 'patches')
     env['RATCHET_PATCHES_CONFIG'] = str(DATA_DIR / 'patches.json')
-    env['RATCHET_LANGUAGE'] = s['language']
+    env['RATCHET_LANGUAGE'] = game_language_id(s.get('language', '1'))
     env['RATCHET_DISCORD'] = '1' if s.get('discord_rpc') else '0'
     if s['hdr']:
         env['RATCHET_HDR'] = '1'
@@ -1154,6 +1176,10 @@ def game_environment(s):
         if s[key]:
             env[name] = '1'
     controls = s.get('controls', {})
+    chosen = control_values(controls, 'key')
+    env['RATCHET_STICK_KEYS'] = ','.join(f'{name}={chosen.get(name, default)}'
+        for name, default, _pad in STICK_CONTROLS
+        if not set(chosen.get(name, default)) & set(',='))
     if value := keyboard_map(controls):
         env['RATCHET_KEY_MAP'] = value
     if value := control_map(controls, 'pad'):
@@ -1852,6 +1878,10 @@ class Launcher:
                     'eboot.bin, sce_sys/param.sfo and sce_module', on_change=self.game_changed)
         self.folder(f, 'user_dir', 'Saves folder', 'Choose the saves folder',
                     'Empty uses the portable user folder.', on_change=self.refresh_status)
+        self.row(f, _('Game language'), self.choice(f, 'language', 'app',
+                 lambda: game_language_options(self.var('language', 'app').get())),
+                 hint=_('Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'))
+        self.note(f, _('Text and voice currently follow the game language. Independent voice selection is not yet verified for this edition.'))
         self.build_save_backups(f)
         self.game_patch_title, self.game_patch_vars = None, {}
 
@@ -2053,17 +2083,19 @@ class Launcher:
                                command=lambda b=button, d=default: self.assign_key('key', b, d))
             arrow.grid(row=r, column=3, sticky='w', padx=self.px((6, 0)))
             self.key_rows[button] = (box, arrow)
-        self.note(f, 'Select a box and press a key or mouse button. WASD moves the left stick; hold L2 for mouse aiming. Insert opens the port menu.')
+        self.note(f, 'Select a box and press a key or mouse button. Mouse movement defaults to the left stick. Choose either stick below. Insert opens the port menu.')
         ttk.Button(f, text=_('Reset keyboard & mouse to defaults'), command=lambda: self.reset_controls('key')).grid(
             row=self.next_row(f), column=0, sticky='w', pady=self.px((14, 0)))
-        self.row(f, _('Right stick style'), self.choice(f, 'mouse_aim_style', 'ini', AIM_STYLES),
-                 hint=_('Aiming with the mouse while L2 is held (right-stick movement). Relative: the stick '
-                        'follows the movement and goes back to neutral when the mouse stops. Absolute: where the mouse '
-                        'was when L2 was pressed is the centre, and the stick points from it to the mouse. Also in '
-                        'the in-game menu.'))
-        self.row(f, _('Right stick sensitivity'), slider('mouse_aim_sensitivity', 10, 200, '%'),
-                 _('Aiming with the mouse while L2 is held: lower needs more mouse movement for the same stick, '
-                   'higher less. Also in the in-game menu.'))
+        self.row(f, _('Mouse controls'), self.choice(f, 'mouse_stick', 'ini',
+                 [('1', ('Left stick',)), ('2', ('Right stick',)), ('0', ('Off',))]))
+        self.row(f, _('Mouse activation'), self.choice(f, 'mouse_activation', 'ini',
+                 [('0', ('Always',)), ('1', ('Hold L2',))]))
+        self.row(f, _('Mouse vertical direction'), self.choice(f, 'mouse_invert_y', 'ini',
+                 [('0', ('Normal',)), ('1', ('Inverted',))]))
+        self.row(f, _('Mouse stick style'), self.choice(f, 'mouse_aim_style', 'ini', AIM_STYLES),
+                 hint=_('Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.'))
+        self.row(f, _('Mouse stick sensitivity'), slider('mouse_aim_sensitivity', 10, 200, '%'),
+                 _('Lower values need more mouse movement for the same stick movement.'))
         self.check(f, 'mouse_lock', 'ini', _('Keep the mouse in the game window'),
                    _('While you play, the mouse stays in the game window, so a click cannot land on another monitor '
                      'or app. The in-game menu and switching windows get it back. Also in the in-game menu.'))
@@ -2224,6 +2256,9 @@ class Launcher:
             for row in table_rows(table):
                 if kind in (None, table) and row[0] in self.control_vars.get(table, {}):
                     self.control_vars[table][row[0]].set(default_input(row, table) or '')
+        if kind in (None, 'key'):
+            for key in ('mouse_stick', 'mouse_activation', 'mouse_invert_y', 'mouse_aim_style', 'mouse_aim_sensitivity'):
+                self.var(key, 'ini').set(INI_DEFAULTS[key])
         self.relabel_pad_controls()
 
     def build_linux_options(self, f):

@@ -45,9 +45,13 @@ void ratchetgpu_movie_picture(void);
 /* Mouse movement in px that counts as one step of a stick prompt, set in the menu. */
 /* The pause key (touchpad right) was pressed: it lets go of the mouse lock, or takes it back. */
 void ratchetgpu_mouse_pause_key(void);
-/* L2 aim with the mouse, set in the menu: 0 relative (follows movement), 1 absolute. */
+/* Mouse target: 0 off, 1 left, 2 right; activation: 0 always, 1 hold L2. */
+int ratchetgpu_mouse_stick(void);
+int ratchetgpu_mouse_activation(void);
+int ratchetgpu_mouse_invert_y(void);
+/* Style: 0 relative, 1 absolute. */
 int ratchetgpu_mouse_aim_style(void);
-/* L2 aim sensitivity in percent (10 to 200), set in the menu. */
+/* Mouse sensitivity in percent (10 to 200), set in the menu. */
 int ratchetgpu_mouse_aim_sensitivity(void);
 /* Number of symbols registered by the vendored libraries (diagnostics). */
 unsigned ratchetgpu_symbol_count(void);

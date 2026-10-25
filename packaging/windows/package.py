@@ -131,7 +131,9 @@ def main():
                  'RP04_RESEARCH_REVIEW.md', 'evidence/ratchet-research-signature-checks.json',
                  'evidence/ratchet-cusa01047-0100-clock.json', 'releases/V1.4-Frame-Timing-Preview.md',
                  'RP05_VISUAL_CONTROLS.md', 'releases/V1.5-Visual-Controls-Preview.md',
-                 'RP06_RENDER_RESOLUTION.md', 'releases/V1.6-Resolution-Preview.md',
+                 'RP06_RENDER_RESOLUTION.md', 'releases/V1.6-Resolution-Preview.md', 'releases/V1.7-Adaptive-Controls-Preview.md',
+                 'ADAPTIVE_RESOURCES.md', 'USA_LANGUAGES.md',
+                 'evidence/ratchet-cusa01047-0100-languages.json',
                  'evidence/ratchet-cusa01047-0100-resolution.json',
                  'evidence/ratchet-cusa01047-0100-effects.json'):
         shutil.copy2(ROOT / 'docs' / name, stage / 'docs' / name)

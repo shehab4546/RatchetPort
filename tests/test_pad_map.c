@@ -10,6 +10,10 @@ void ratchetgpu_mouse_pause_key(void) { ++pause_keys; }
 static int aim_style;
 int ratchetgpu_mouse_aim_style(void) { return aim_style; }
 static int aim_sensitivity=100;
+static int mouse_stick=2, mouse_activation=1, mouse_invert_y=0;
+int ratchetgpu_mouse_stick(void) { return mouse_stick; }
+int ratchetgpu_mouse_activation(void) { return mouse_activation; }
+int ratchetgpu_mouse_invert_y(void) { return mouse_invert_y; }
 int ratchetgpu_mouse_aim_sensitivity(void) { return aim_sensitivity; }
 void ratchetgpu_engine_fps_cycle(void) {}
 uintptr_t runtime_lookup(const RuntimeExport *table, size_t count, const char *name) {
@@ -168,5 +172,32 @@ int main(void) {
     aim_sensitivity=100;
     aim_style=0;
 
+    mouse_stick=1; mouse_activation=0; item.buttons=0;
+    item.left_x=item.left_y=item.right_x=item.right_y=128;
+    item.timestamp+=16000; glide.motion.xrel=10; glide.motion.yrel=5;
+    mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+    assert(item.left_x>128 && item.left_y>128 && item.right_x==128);
+    mouse_stick=2; mouse_invert_y=1;
+    item.left_x=item.left_y=item.right_x=item.right_y=128;
+    item.timestamp+=16000; mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+    assert(item.right_x>128 && item.right_y<128 && item.left_x==128);
+    mouse_stick=0;
+    item.right_x=150; item.timestamp+=16000;
+    mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+    assert(item.right_x==150); // Disabled does not override the real controller.
+    mouse_stick=1; mouse_activation=1;
+    item.left_x=128; item.timestamp+=16000;
+    mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+    assert(item.left_x==128); // Gated until L2 is pressed.
+    mouse_activation=0; aim_style=1;
+    item.timestamp+=16000; mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+    assert(aim.held);
+    SDL_Event lost={0}; lost.type=SDL_EVENT_WINDOW_FOCUS_LOST; mouse_watch(NULL,&lost);
+    item.left_x=128; apply_mouse_aim(&item);
+    assert(!aim.held && item.left_x==128 && !SDL_GetAtomicInt(&mouse_motion[0]));
+    uint8_t opposite=17; key_axis(&opposite,true,true); assert(opposite==128);
+    assert(apply_stick_keys("lx_neg=J,lx_pos=L,ly_neg=None,rx_pos=Mouse Right,bad=A,ry_pos=NotAKey")==4);
+    assert(stick_keys[0]==SDL_SCANCODE_J && stick_keys[1]==SDL_SCANCODE_L);
+    assert(stick_keys[2]==0 && stick_keys[5]==MOUSE_RIGHT && stick_keys[7]==SDL_SCANCODE_DOWN);
     puts("PASS: pad and key maps");
 }

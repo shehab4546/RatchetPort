@@ -74,6 +74,19 @@ public:
         }
     }
 
+    // Resume across bounded sweeps. Advance before callbacks, which may free the current item.
+    // Detach also repairs the cursor when an item is freed or moved between sweeps.
+    template <typename Func>
+    void ResumeItemsBelow(TickType tick, size_t limit, Func&& func) {
+        if (!resume_item) resume_item = first_item;
+        while (resume_item && limit--) {
+            Item* item = resume_item;
+            if (item->tick > tick) { resume_item = nullptr; return; }
+            resume_item = item->next;
+            if (func(item->obj)) return;
+        }
+    }
+
 private:
     size_t Build() {
         if (free_items.empty()) {
@@ -106,6 +119,7 @@ private:
     }
 
     void Detach(Item& item) {
+        if (resume_item == &item) resume_item = item.next;
         if (item.prev) {
             item.prev->next = item.next;
         }
@@ -130,6 +144,7 @@ private:
     std::deque<size_t> free_items;
     Item* first_item{};
     Item* last_item{};
+    Item* resume_item{};
 };
 
 } // namespace Common

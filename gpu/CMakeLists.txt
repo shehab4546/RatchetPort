@@ -482,3 +482,7 @@ endforeach()
 
 add_executable(verified-patches-test EXCLUDE_FROM_ALL ../tests/test_verified_patches.c)
 target_compile_options(verified-patches-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
+
+add_executable(adaptive-gc-test EXCLUDE_FROM_ALL ../tests/test_adaptive_gc.cpp)
+target_include_directories(adaptive-gc-test PRIVATE shadps4)
+target_compile_options(adaptive-gc-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
