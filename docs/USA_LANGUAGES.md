@@ -1,6 +1,6 @@
 # CUSA01047 USA v1.00: text and voice
 
-The launcher offers the five language pairs accepted by the American edition's startup selector.
+The launcher offers independent Text / Subtitles and Voice selectors for the five supported American-edition languages. Same as text preserves the original pairing.
 
 | Selection | Text / subtitles | Voice | System ID | Internal text / voice IDs |
 |---|---|---|---:|---|
@@ -26,4 +26,30 @@ The numeric mapping is recorded in [language runtime evidence](evidence/ratchet-
 
 Unsupported languages from older configurations are labelled unavailable, retained in settings, and use English at launch. They are not advertised as usable languages. Supported saved values, including system ID 20 from issue #14 and ID 17 from issue #5, pass through unchanged.
 
-Independent text and voice selection is not enabled. Two startup language outputs alone do not prove that arbitrary pairings are supported by the voice-bank and movie loaders. The game keeps its verified default pairing, including Latin American text with Mexican voice. No region-mask bypass, missing-language download or audio-bank patch is applied.
+## Independent selection in V1.7
+
+`settings.json` keeps `language` (text) and `voice_language` (voice, or `same`). The launcher sends `RATCHET_TEXT_LANGUAGE` and `RATCHET_VOICE_LANGUAGE` to `run.py`. The preparation step selects the verified text override and sends the effective voice choice through `RATCHET_LANGUAGE`. `src/runtime_services.c:system_param` returns that value to `sceSystemServiceParamGetInt(1)`. The game's original NA selector continues to select its own voice and fallback locale.
+
+The game's generic resource lookup tries primary language, secondary language and neutral. Changing only its secondary language does not separate voice when primary-language voice data exists. No independent built-in voice switch was identified in the inspected executable. The override therefore changes only requests for `localization_all` (asset hash `0xbe55d94f171bf8de`) to the selected text index. Other resource hashes retain the voice-selected language, including movie resources. This preserves the Bink/RAD path; it does not replace a decoder or modify sound banks. Cinematic track playback still needs an in-game check with mixed languages.
+
+`scripts/language_split.py` replaces the 93-byte sorted-index lookup at RVA `0x1889d70` without a trampoline or executable allocation. It is limited to the existing CUSA01047 v1.00 profile: source/ELF fingerprints, unique original signature, exact original bytes, linked-image bounds, relocation/ISA overlap checks and runtime transaction validation all apply. Preparation rejection restores matching text/voice using the text choice. Runtime rejection is reported by the existing patch receipt; a prepared override alone does not prove it was applied. No source game file is modified.
+
+An isolated native comparison against the original lookup passed 17,550 calls across all 25 language combinations, six variants, empty/odd/even indices, missing hashes and unrelated assets. This checks resource routing, not actual speech or subtitle playback. The text-asset hash comes from the supplied decoded localization inventory.
+
+## Voice archive diagnostics
+
+| Voice | User archive |
+|---|---|
+| English US | `asset_archive/a00s003.us` |
+| French | `asset_archive/a00s007.fr` |
+| Portuguese Portugal | `asset_archive/a00s013.pt` |
+| Spanish LATAM | `asset_archive/a00s017.mx` |
+| Portuguese Brazil | `asset_archive/a00s018.br` |
+
+`scripts/voice_archive.py` checks existence, size and at most eight distributed 1 MiB samples. It looks for RIFF/WAVE headers and compares block hashes. Identical samples across an archive of at least eight full blocks are flagged as repeated-block corruption. Missing headers alone are inconclusive; a successful sample is not a full layout/WEM audit. No size or content hash tied to one dump is required. The launcher checks in a background thread; launch logs record the effective voice locale, expected archive, size and findings. Warnings never block play.
+
+Reported playback with intact French and Portuguese Portugal archives demonstrates that missing dialogue in the repeated-block dumps does not establish a Wwise, ATRAC9, AJM or output-backend fault. Diagnostics recommend re-dumping language data from the user's own game. They never rename European Spanish/Portuguese to Mexican Spanish/Brazilian Portuguese, fetch replacement assets, or add European-only languages.
+
+## Gameplay acceptance still required
+
+Test English/English, English/French, French/English, French/French and Portuguese Portugal with intact archives after a full restart. Check menus, subtitles, gameplay dialogue and cinematics separately. Test a repeated-block French archive for a visible warning and continued launch. Automated tests cover routing, settings and synthetic integrity cases; these playback cases require the game and are not reported as passed by CI.

@@ -286,10 +286,19 @@ void ControlsTab() {
         SliderRow("Vibration", s.vibration, 0, 100, "%d%%",
                   "Strength of the controller's vibration. 0% turns it off.");
         static const char* const aim_styles[] = {"Relative", "Absolute"};
-        static const char* const sticks[] = {"Off", "Left stick", "Right stick"};
+        static const char* const sticks[] = {"Off", "Left stick", "Right stick", "Custom directions"};
         static const char* const activation[] = {"Always", "Hold L2"};
         static const char* const vertical[] = {"Normal", "Inverted"};
-        ChoiceRow("Mouse controls", s.mouse_stick, sticks, nullptr, 3, "Select the stick driven by mouse movement.");
+        ChoiceRow("Mouse controls", s.mouse_stick, sticks, nullptr, 4, "Select the stick driven by mouse movement.");
+        if (s.mouse_stick == 3) {
+            static const char* const directions[] = {"Off", "Left stick left", "Left stick right",
+                "Left stick up", "Left stick down", "Right stick left", "Right stick right",
+                "Right stick up", "Right stick down"};
+            static const char* const labels[] = {"Mouse left", "Mouse right", "Mouse up", "Mouse down"};
+            for (int i=0; i<4; ++i)
+                ChoiceRow(labels[i], s.mouse_directions[i], directions, nullptr, 9,
+                          "Stick direction driven by this mouse movement.");
+        }
         ChoiceRow("Mouse activation", s.mouse_activation, activation, nullptr, 2, "Always active or only while L2 is held.");
         ChoiceRow("Mouse vertical direction", s.mouse_invert_y, vertical, nullptr, 2, "Invert vertical mouse movement.");
         ChoiceRow("Mouse stick style", s.mouse_aim_style, aim_styles, nullptr, 2,
@@ -352,7 +361,7 @@ void ImageTab() {
     }
     ImGui::SeparatorText("Textures (applied on restart)");
     if (BeginRows("##textures")) {
-        static const char* const anisotropy_labels[] = {"Game default", "2x", "4x", "8x", "16x"};
+        static const char* const anisotropy_labels[] = {"Game default", "1x", "2x", "4x", "8x", "16x"};
         ChoiceRow("Anisotropic filtering", s.anisotropy, anisotropy_labels, G::Anisotropies.data(),
                   int(G::Anisotropies.size()),
                   "Sharper floors and walls seen at an angle. Little cost on most GPUs.");

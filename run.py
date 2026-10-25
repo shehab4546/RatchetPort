@@ -142,6 +142,8 @@ def main():
     import motion_blur
     import shadow_resolution
     import internal_resolution
+    import language_split
+    import voice_archive
     game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
     if out.resolve().is_relative_to(game.resolve()):
         fail('Data output must be outside the original game directory.')
@@ -206,7 +208,22 @@ def main():
         requested = motion_blur.requested_groups(graphics['motion_blur'], requested)
         requested = shadow_resolution.requested_groups(graphics['shadow_resolution'], requested)
         requested = internal_resolution.requested_groups(graphics['internal_resolution'], requested)
+        text_language = env.get('RATCHET_TEXT_LANGUAGE', env.get('RATCHET_LANGUAGE', '1'))
+        voice_language = env.get('RATCHET_VOICE_LANGUAGE', text_language)
+        requested = language_split.requested_groups(text_language, voice_language, requested)
         patch_report = ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
+        languages = language_split.launch_environment(text_language, voice_language, patch_report)
+        env.update(languages)
+        print(f"Languages: text={text_language}, requested voice={voice_language}, "
+              f"launch voice={languages['RATCHET_LANGUAGE']}, split={languages['RATCHET_LANGUAGE_SPLIT']}; "
+              "loader confirmation required", flush=True)
+        text_locale = voice_archive.LANGUAGES[language_split.normalize(text_language)][1]
+        voice_id = languages['RATCHET_LANGUAGE']
+        report = voice_archive.inspect(original_game, voice_id)
+        print(f"[Language]\nText language: {text_locale}\nVoice language: {report['locale']}", flush=True)
+        print(voice_archive.describe(report), flush=True)
+        if report['integrity'] in ('FAILED', 'WARNING'):
+            print('WARNING: ' + voice_archive.warning(report), flush=True)
         timing = frame_timing.launch_environment(patch_report, env.get('RATCHET_FPS_LIMIT'))
         env.update(timing)
         derived.extend(timing)

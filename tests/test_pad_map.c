@@ -11,6 +11,8 @@ static int aim_style;
 int ratchetgpu_mouse_aim_style(void) { return aim_style; }
 static int aim_sensitivity=100;
 static int mouse_stick=2, mouse_activation=1, mouse_invert_y=0;
+static int mouse_directions[4]={5,6,7,8};
+int ratchetgpu_mouse_direction(int direction) { return mouse_directions[direction]; }
 int ratchetgpu_mouse_stick(void) { return mouse_stick; }
 int ratchetgpu_mouse_activation(void) { return mouse_activation; }
 int ratchetgpu_mouse_invert_y(void) { return mouse_invert_y; }
@@ -199,5 +201,19 @@ int main(void) {
     assert(apply_stick_keys("lx_neg=J,lx_pos=L,ly_neg=None,rx_pos=Mouse Right,bad=A,ry_pos=NotAKey")==4);
     assert(stick_keys[0]==SDL_SCANCODE_J && stick_keys[1]==SDL_SCANCODE_L);
     assert(stick_keys[2]==0 && stick_keys[5]==MOUSE_RIGHT && stick_keys[7]==SDL_SCANCODE_DOWN);
+    item.left_x=77; item.left_y=88;
+    route_mouse_axes(&item,3,-64,32);
+    assert(item.right_x==64 && item.right_y==160 && item.left_x==77 && item.left_y==88);
+    route_mouse_axes(&item,3,40,-50);
+    assert(item.right_x==168 && item.right_y==78);
+    mouse_directions[0]=6; mouse_directions[1]=5; // horizontal inversion
+    route_mouse_axes(&item,3,60,0);
+    assert(item.right_x==68);
+    mouse_directions[0]=0; mouse_directions[1]=0;
+    item.right_x=99; route_mouse_axes(&item,3,100,0);
+    assert(item.right_x==99); // unmapped controller axis survives
+    mouse_directions[0]=1; mouse_directions[1]=2;
+    route_mouse_axes(&item,3,-80,0);
+    assert(item.left_x==48);
     puts("PASS: pad and key maps");
 }

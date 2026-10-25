@@ -15,6 +15,7 @@ import frame_timing as timing
 import motion_blur as blur
 import shadow_resolution as shadows
 import internal_resolution as resolution
+import language_split
 
 
 class VisualLaunchTests(unittest.TestCase):
@@ -32,10 +33,12 @@ class VisualLaunchTests(unittest.TestCase):
                                                 'game_fps=30\nmotion_blur=original\nshadow_resolution=original\ninternal_resolution=original\n')
                 env = {'RATCHET_DATA_DIR': str(root), 'RATCHET_GAME_DIR': str(game), 'RATCHET_PROBE': str(probe),
                        'RATCHET_PATCHES': ';'.join(stale), 'RATCHET_DISCORD': '0', 'RATCHET_ISA_REWRITE': '0',
+                       'RATCHET_TEXT_LANGUAGE': '2', 'RATCHET_VOICE_LANGUAGE': '1',
                        'RATCHET_FPS_LIMIT': '60', 'RATCHET_ENGINE_FPS': '60', 'RATCHET_MOTION_BLUR': 'off',
                        'RATCHET_SHADOW_RESOLUTION': '256', 'RATCHET_INTERNAL_RESOLUTION': '720p',
                        'RATCHET_DERIVED': 'RATCHET_FPS_LIMIT,RATCHET_ENGINE_FPS,RATCHET_MOTION_BLUR,RATCHET_SHADOW_RESOLUTION,RATCHET_INTERNAL_RESOLUTION'}
                 requested = [timing.FPS60_GROUP, blur.BLUR_OFF_GROUP, shadows.GROUPS['512'], resolution.GROUPS['4K']] if enabled else []
+                requested += [language_split.GROUPS['2']]
                 captured = {}
                 def popen(*args, **kwargs):
                     captured.update(os.environ)
@@ -56,6 +59,8 @@ class VisualLaunchTests(unittest.TestCase):
                         self.assertEqual(captured['RATCHET_ENGINE_FPS'], '60' if accepted else '30')
                         self.assertEqual(captured['RATCHET_FPS_LIMIT'], '60' if accepted else '30')
                         self.assertEqual(captured['RATCHET_VBLANK_HZ'], '60')
+                        self.assertEqual(captured['RATCHET_LANGUAGE'], '1' if accepted else '2')
+                        self.assertEqual(captured['RATCHET_LANGUAGE_SPLIT'], '1' if accepted else '0')
                         self.assertEqual(captured['RATCHET_MOTION_BLUR'], 'off' if accepted else 'original')
                         self.assertEqual(captured['RATCHET_SHADOW_RESOLUTION'], '512' if accepted else 'original')
                         self.assertEqual(captured['RATCHET_INTERNAL_RESOLUTION'], '4K' if accepted else 'original')

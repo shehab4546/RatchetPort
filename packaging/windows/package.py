@@ -87,7 +87,7 @@ def main():
         if not (build / name).is_file(): raise FileNotFoundError(f'Build first: {build / name}')
     work = ROOT / 'out' / ('package-' + datetime.now().strftime('%Y%m%d-%H%M%S'))
     work.mkdir(parents=True, exist_ok=False)
-    hidden = ['frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
+    hidden = ['voice_archive', 'language_split', 'graphics_presets', 'frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
               'tempfile', 'threading', 'uuid', 'xml.etree.ElementTree', 'urllib.request', 'ctypes.wintypes',
               'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'release_info', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
               'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']

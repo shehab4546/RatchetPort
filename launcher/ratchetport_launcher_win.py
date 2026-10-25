@@ -45,6 +45,8 @@ FROZEN = getattr(sys, 'frozen', False)
 PORT_DIR = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PORT_DIR / 'scripts'))
 from release_info import VERSION, CODENAME, APP_TITLE  # noqa: E402
+import graphics_presets
+import voice_archive
 import graphics_options  # noqa: E402  (scripts/)
 
 import save_backup  # noqa: E402  (scripts/)
@@ -400,9 +402,9 @@ INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
                 'internal_resolution': 'original',
                 'frames_queued': '1',
                 'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
-                'mouse_stick': '1', 'mouse_activation': '0', 'mouse_invert_y': '0', 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
+                'mouse_stick': '2', 'mouse_left': '5', 'mouse_right': '6', 'mouse_up': '7', 'mouse_down': '8', 'mouse_activation': '0', 'mouse_invert_y': '0', 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
 DISPLAY_MODES = [('windowed', ('Windowed',)), ('borderless', ('Borderless',)), ('fullscreen', ('Fullscreen',))]
-ANISOTROPY = [('0', ('Game default',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
+ANISOTROPY = [('0', ('Game default',)), ('1', ('1x',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
 FPS_LIMITS = [('30', ('30',))]
 GAME_FPS = [('30', ('30 FPS / Original',)), ('60', ('60 FPS (experimental)',))]
 INTERNAL_RESOLUTION = [('original', ('Original',)),
@@ -422,7 +424,7 @@ PAGE_REFRESH = {'home': ('refresh_status',), 'game': ('refresh_game_patches',), 
 UI_SCALES = [('auto', ('Auto',)), ('1', ('1x',)), ('2', ('2x',))]
 APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('RATCHET_GAME_DIR', str(PORT_DIR.parent / 'CUSA01047') if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
                 'video_backend': 'auto', 'gamemode': False, 'mangohud': False, 'desktop_integration': True, 'user_dir': '',
-                'mods_dir': '', 'mods_enabled': True, 'patches_dir': '', 'language': '1',
+                'mods_dir': '', 'mods_enabled': True, 'patches_dir': '', 'language': '1', 'voice_language': 'same',
                 'hdr': False, 'draw_pipe': '', 'readbacks': '', 'no_msaa': '', 'stream_memory': 'cached',
                 'gpu_id': '', 'partial_height_views': True, 'background_warmup': True, 'parallel_warmup': True, 'pipeline_binary_cache': True,
                 'perf_diag': False, 'frame_capture_key': False, 'frame_stats': False, 'gpu_profile': False,
@@ -1152,7 +1154,12 @@ def game_environment(s):
     env['RATCHET_MODS_ENABLED'] = '1' if s['mods_enabled'] else '0'
     env['RATCHET_PATCHES_DIR'] = s['patches_dir'] or str(DATA_DIR / 'patches')
     env['RATCHET_PATCHES_CONFIG'] = str(DATA_DIR / 'patches.json')
-    env['RATCHET_LANGUAGE'] = game_language_id(s.get('language', '1'))
+    text_language = game_language_id(s.get('language', '1'))
+    voice_language = s.get('voice_language', 'same')
+    voice_language = text_language if voice_language == 'same' else game_language_id(voice_language)
+    env['RATCHET_TEXT_LANGUAGE'] = text_language
+    env['RATCHET_VOICE_LANGUAGE'] = voice_language
+    env['RATCHET_LANGUAGE'] = voice_language
     env['RATCHET_DISCORD'] = '1' if s.get('discord_rpc') else '0'
     if s['hdr']:
         env['RATCHET_HDR'] = '1'
@@ -1661,11 +1668,15 @@ class Launcher:
         bar.pack(fill='x', side='bottom')
         bar.pack_propagate(False)
         self.status = tk.Label(bar, text='', bg=BG, fg=MUTED, font=self.font(UI_FONT, 10), anchor='w', justify='left')
-        self.status.pack(side='left', padx=self.px(24))
+        self.status.grid(row=0, column=0, sticky='ew', padx=self.px(16))
+        bar.columnconfigure(0, weight=1)
+        bar.rowconfigure(0, weight=1)
+        bar.grid_propagate(False)
+        self.status.bind('<Configure>', lambda e: self.status.configure(wraplength=max(1, e.width)))
         self.play_button = ttk.Button(bar, text=_('PLAY', 'ИГРАТЬ'), style='Play.TButton', command=self.play)
-        self.play_button.pack(side='right', padx=(self.px(10), self.px(24)), pady=self.px(11))
+        self.play_button.grid(row=0, column=2, padx=(self.px(10), self.px(24)), pady=self.px(11))
         self.save_button = ttk.Button(bar, text=_('Save', 'Сохранить'), command=self.save, state='disabled')
-        self.save_button.pack(side='right', pady=self.px(11))
+        self.save_button.grid(row=0, column=1, pady=self.px(11))
         self.content = tk.Frame(right, bg=PANEL)
         self.content.pack(fill='both', expand=True)
 
@@ -1709,12 +1720,7 @@ class Launcher:
         self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
         self.folder(f, 'game_dir', 'Game folder', 'Select the folder containing eboot.bin',
                     'Requires sce_sys/param.sfo and sce_module.', on_change=self.game_changed)
-        self.row(f, 'Output resolution', self.choice(f, 'output_res', 'ini', OUTPUTS))
-        self.row(f, 'Display mode', self.choice(f, 'display_mode', 'ini', DISPLAY_MODES))
-        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS),
-                 '60 FPS requires the verified CUSA01047 v1.00 build. Rejected patches use Original.', restart=True)
-        self.check(f, 'vsync', 'ini', 'VSync')
-        self.build_game_effects(f)
+        self.row(f, 'Graphics', self.ttk.Button(f, text='Open graphics settings', command=lambda: self.show('graphics')))
         self.banner = self.tk.Canvas(f, height=self.px(160), bg=BG, highlightthickness=0)
         self.banner.grid(row=self.next_row(f), column=0, columnspan=2, sticky='we')
         self.banner_button = self.ttk.Button(self.banner, text='Choose game folder', command=lambda: self.show('game'))
@@ -1781,34 +1787,30 @@ class Launcher:
             return self.banner_image.subsample(factor) if factor > 1 else self.banner_image
 
     def build_graphics(self):
-        """Window and overlay controls; temporal upscaling stays commented out."""
+        """Quality presets, rendering and presentation in one scrollable page."""
         f = self.scrolled_page('graphics', _('Graphics', 'Графика'), _('How the game appears on your screen.'))
-        self.build_display(f)
+        self.quality = self.tk.StringVar(value='Custom')
+        box = self.ttk.Combobox(f, textvariable=self.quality, state='readonly',
+                                values=['Custom', *graphics_presets.PRESETS])
+        self.row(f, 'Graphics preset', box,
+                 'Sets render/output resolution, shadows, filtering and motion blur. Save and restart.')
+        keys = tuple(graphics_presets.PRESETS['Low'])
+        def refresh(*_):
+            self.quality.set(graphics_presets.detect({key: self.var(key, 'ini').get() for key in keys}))
+        def apply(_event):
+            settings = graphics_presets.PRESETS.get(self.quality.get(), {})
+            for key, value in settings.items():
+                self.var(key, 'ini').set(value)
+            refresh()
+        box.bind('<<ComboboxSelected>>', apply)
+        for key in keys:
+            self.var(key, 'ini').trace_add('write', refresh)
+        refresh()
+        self.build_gpu_selection(f)
         self.build_game_effects(f)
-        # Temporal upscaling is parked until its image quality is validated.
-        # self.section(f, _('Experimental'))
-        # self.check(f, 'experimental_upscaler', 'app', _('Enable the upscaler (experimental)'),
-        #            _('Off (default): the game runs without temporal upscaling; FSR 3.1 and TAA need this switch on. '
-        #              'FSR 3.1 is not calibrated for this game yet: expect ghosting or flicker. The remaining options require this switch; '
-        #              'leave it off for normal gameplay.',
-        #              'Выкл. (по умолчанию): игра без временного апскейлинга; FSR 3.1 и TAA нужен этот переключатель. '
-        #              'FSR 3.1 ещё не откалиброван для этой игры: возможны гостинг и мерцание.'), restart=True)
-        # self.section(f, _('Upscaling', 'Апскейлинг'))
-        # self.row(f, _('Upscaler', 'Апскейлер'), self.choice(f, 'upscaler', 'ini', UPSCALERS))
-        # self.row(f, _('Quality preset', 'Пресет'), self.choice(f, 'preset', 'ini', PRESETS),
-        #          _('Render scale per axis: Quality renders at 1/1.5 of the output size.',
-        #            'Масштаб рендера по каждой оси: Quality рисует в 1/1.5 размера вывода.'))
-        # self.row(f, _('Output resolution', 'Разрешение вывода'), self.choice(f, 'output_res', 'ini', OUTPUTS),
-        #          _('What the upscaler produces; the HUD is drawn at this size too.',
-        #            'Что выдаёт апскейлер; интерфейс рисуется в этом же размере.'))
-        # self.row(f, _('Live resolution changes', 'Смена разрешения на лету'), self.choice(f, 'live_resolution', 'ini', LIVE),
-        #          _('Off: outputs other than 1080p are set by a patch at start (fastest; changing them in the '
-        #            'game restarts it). On: change output and preset in the game without a restart, at a cost.',
-        #            'Выкл.: разрешения кроме 1080p задаются патчем при запуске (быстрее). Вкл.: менять в игре '
-        #            'без перезапуска, но медленнее.'))
-        # self.check(f, 'object_motion', 'ini', _('Object motion vectors', 'Векторы движения объектов'),
-        #            _('Less ghosting on characters, cloth and weapons; costs about 10% FPS.',
-        #              'Меньше гостинга на персонажах и одежде; стоит около 10% FPS.'))
+        self.build_display(f)
+        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS), restart=True)
+        self.row(f, 'Frames queued', self.choice(f, 'frames_queued', 'ini', FRAMES_QUEUED))
 
     def build_game_effects(self, f):
         self.section(f, 'Game rendering')
@@ -1848,9 +1850,6 @@ class Launcher:
 
     def build_performance(self):
         f = self.scrolled_page('performance', 'Performance', 'Conservative defaults; higher frame rates are unverified.')
-        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS),
-                 '60 FPS requires the verified CUSA01047 v1.00 build. Rejected patches use Original.', restart=True)
-        self.row(f, 'Frames queued', self.choice(f, 'frames_queued', 'ini', FRAMES_QUEUED))
         self.check(f, 'async_shaders', 'ini', 'Compile shaders in the background')
         self.check(f, 'background_warmup', 'app', 'Load shader cache in the background')
         self.check(f, 'parallel_warmup', 'app', 'Parallel shader cache loading')
@@ -1858,9 +1857,11 @@ class Launcher:
         self.check(f, 'deferred_readback', 'ini', 'Deferred GPU readbacks',
                    'Experimental: can stall Ratchet after difficulty selection. Keep off for the baseline.')
         self.check(f, 'stale_readback', 'ini', 'Allow stale GPU readbacks')
+        self.row(f, 'Stream buffer memory', self.choice(f, 'stream_memory', 'app', STREAM_MEMORY))
+
+    def build_gpu_selection(self, f):
         gpus = list_gpus()
         self.row(f, 'Graphics card', self.choice(f, 'gpu_id', 'app', [('', ('Automatic',))] + [(r[0], (r[1],)) for r in gpus]))
-        self.row(f, 'Stream buffer memory', self.choice(f, 'stream_memory', 'app', STREAM_MEMORY))
 
         card = self.var('gpu_id', 'app')
         box = self.choice(f, 'no_msaa', 'app', no_msaa_options(gpus, card.get()), width=46)
@@ -1878,10 +1879,41 @@ class Launcher:
                     'eboot.bin, sce_sys/param.sfo and sce_module', on_change=self.game_changed)
         self.folder(f, 'user_dir', 'Saves folder', 'Choose the saves folder',
                     'Empty uses the portable user folder.', on_change=self.refresh_status)
-        self.row(f, _('Game language'), self.choice(f, 'language', 'app',
+        self.row(f, 'Text and subtitles language', self.choice(f, 'language', 'app',
                  lambda: game_language_options(self.var('language', 'app').get())),
                  hint=_('Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'))
-        self.note(f, _('Text and voice currently follow the game language. Independent voice selection is not yet verified for this edition.'))
+        self.row(f, 'Voice language', self.choice(f, 'voice_language', 'app',
+                 [('same', ('Same as text',))] + LANGUAGES),
+                 'Experimental separation for USA v1.00. Save and restart. Unsupported patches fall back to matching text and voice.', restart=True)
+        archive_status = self.tk.StringVar(value='Choose a game folder to check voice data.')
+        label = self.tk.Label(f, textvariable=archive_status, bg=PANEL, fg=MUTED,
+                              justify='left', anchor='w', wraplength=self.px(480))
+        self.row(f, 'Voice archive', label)
+        generation = [0]
+        def check_archive(*_):
+            generation[0] += 1
+            ticket = generation[0]
+            folder = self.var('game_dir', 'app').get()
+            language = self.var('voice_language', 'app').get()
+            if language == 'same':
+                language = self.var('language', 'app').get()
+            archive_status.set('Checking voice archive…')
+            result = []
+            def worker():
+                result.append(voice_archive.inspect(folder, language))
+            threading.Thread(target=worker, daemon=True).start()
+            def poll():
+                if ticket != generation[0] or not label.winfo_exists():
+                    return
+                if not result:
+                    self.root.after(50, poll)
+                    return
+                report = result[0]
+                archive_status.set(report['archive'] + '\n' + report['integrity'] + ': ' + voice_archive.warning(report))
+            self.root.after(50, poll)
+        for key in ('game_dir', 'language', 'voice_language'):
+            self.var(key, 'app').trace_add('write', check_archive)
+        check_archive()
         self.build_save_backups(f)
         self.game_patch_title, self.game_patch_vars = None, {}
 
@@ -2066,6 +2098,30 @@ class Launcher:
         f = self.key_section = ttk.Frame(page)
         f.grid(row=self.next_row(page), column=0, columnspan=2, sticky='we')
         f.columnconfigure(1, weight=1)
+        self.row(f, _('Mouse controls'), self.choice(f, 'mouse_stick', 'ini',
+                 [('1', ('Left stick',)), ('2', ('Right stick',)), ('0', ('Off',)), ('3', ('Custom directions',))]))
+        directions = [('0', ('Off',))] + [(str(i+1), (name,)) for i, name in enumerate(('Left stick left', 'Left stick right', 'Left stick up', 'Left stick down', 'Right stick left', 'Right stick right', 'Right stick up', 'Right stick down'))]
+        for direction in ('left', 'right', 'up', 'down'):
+            box = self.choice(f, 'mouse_' + direction, 'ini', directions)
+            box.bind('<<ComboboxSelected>>', lambda _e: self.var('mouse_stick', 'ini').set('3'), add='+')
+            self.row(f, 'Mouse movement ' + direction, box,
+                     'Selecting a direction enables Custom directions. Save and restart.')
+        def shooter_defaults():
+            for key in ('mouse_stick', 'mouse_left', 'mouse_right', 'mouse_up', 'mouse_down', 'mouse_activation', 'mouse_invert_y', 'mouse_aim_style', 'mouse_aim_sensitivity'):
+                self.var(key, 'ini').set(INI_DEFAULTS[key])
+        self.row(f, 'Mouse camera', ttk.Button(f, text='Apply shooter defaults', command=shooter_defaults))
+        self.row(f, _('Mouse activation'), self.choice(f, 'mouse_activation', 'ini',
+                 [('0', ('Always',)), ('1', ('Hold L2',))]))
+        self.row(f, _('Mouse vertical direction'), self.choice(f, 'mouse_invert_y', 'ini',
+                 [('0', ('Normal',)), ('1', ('Inverted',))]))
+        self.row(f, _('Mouse stick style'), self.choice(f, 'mouse_aim_style', 'ini', AIM_STYLES),
+                 hint=_('Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.'))
+        self.row(f, _('Mouse stick sensitivity'), slider('mouse_aim_sensitivity', 10, 200, '%'),
+                 _('Lower values need more mouse movement for the same stick movement.'))
+        self.check(f, 'mouse_lock', 'ini', _('Keep the mouse in the game window'),
+                   _('While you play, the mouse stays in the game window, so a click cannot land on another monitor '
+                     'or app. The in-game menu and switching windows get it back. Also in the in-game menu.'))
+
         self.section(f, _('Keyboard & Mouse Mapping'), top=12)
         self.note(f, _('Which key or mouse input presses each button of the game.'), top=4)
         table = mapping_table()
@@ -2083,23 +2139,9 @@ class Launcher:
                                command=lambda b=button, d=default: self.assign_key('key', b, d))
             arrow.grid(row=r, column=3, sticky='w', padx=self.px((6, 0)))
             self.key_rows[button] = (box, arrow)
-        self.note(f, 'Select a box and press a key or mouse button. Mouse movement defaults to the left stick. Choose either stick below. Insert opens the port menu.')
+        self.note(f, 'Select a box and press a key or mouse button. Mouse movement defaults to the right stick. Choose a stick or map each direction above. Insert opens the port menu.')
         ttk.Button(f, text=_('Reset keyboard & mouse to defaults'), command=lambda: self.reset_controls('key')).grid(
             row=self.next_row(f), column=0, sticky='w', pady=self.px((14, 0)))
-        self.row(f, _('Mouse controls'), self.choice(f, 'mouse_stick', 'ini',
-                 [('1', ('Left stick',)), ('2', ('Right stick',)), ('0', ('Off',))]))
-        self.row(f, _('Mouse activation'), self.choice(f, 'mouse_activation', 'ini',
-                 [('0', ('Always',)), ('1', ('Hold L2',))]))
-        self.row(f, _('Mouse vertical direction'), self.choice(f, 'mouse_invert_y', 'ini',
-                 [('0', ('Normal',)), ('1', ('Inverted',))]))
-        self.row(f, _('Mouse stick style'), self.choice(f, 'mouse_aim_style', 'ini', AIM_STYLES),
-                 hint=_('Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.'))
-        self.row(f, _('Mouse stick sensitivity'), slider('mouse_aim_sensitivity', 10, 200, '%'),
-                 _('Lower values need more mouse movement for the same stick movement.'))
-        self.check(f, 'mouse_lock', 'ini', _('Keep the mouse in the game window'),
-                   _('While you play, the mouse stays in the game window, so a click cannot land on another monitor '
-                     'or app. The in-game menu and switching windows get it back. Also in the in-game menu.'))
-
         # Gamepad: the controller type names its buttons, then the vibration and the table.
         f = self.pad_section = ttk.Frame(page)
         f.grid(row=self.next_row(page), column=0, columnspan=2, sticky='we')
@@ -2257,7 +2299,7 @@ class Launcher:
                 if kind in (None, table) and row[0] in self.control_vars.get(table, {}):
                     self.control_vars[table][row[0]].set(default_input(row, table) or '')
         if kind in (None, 'key'):
-            for key in ('mouse_stick', 'mouse_activation', 'mouse_invert_y', 'mouse_aim_style', 'mouse_aim_sensitivity'):
+            for key in ('mouse_stick', 'mouse_left', 'mouse_right', 'mouse_up', 'mouse_down', 'mouse_activation', 'mouse_invert_y', 'mouse_aim_style', 'mouse_aim_sensitivity'):
                 self.var(key, 'ini').set(INI_DEFAULTS[key])
         self.relabel_pad_controls()
 

@@ -484,6 +484,27 @@ static void replay_sample(PadData *d) {
 enum { AIM_HOLD_US=40000, AIM_STEP_MIN_US=1000, AIM_STEP_MAX_US=50000, AIM_RADIUS_PX=200 };
 static const float AIM_FULL_PX_PER_MS=1.2f;
 static struct { uint64_t last, moved; int x, y; bool held; float offset_x, offset_y; } aim;
+/* Direction IDs: Off, LX-/+, LY-/+, RX-/+, RY-/+. Unmapped controller axes survive. */
+static void route_mouse_axes(PadData *d, int target, int x, int y) {
+    if (target != 3) {
+        *(target == 1 ? &d->left_x : &d->right_x) = (uint8_t)(128+x);
+        *(target == 1 ? &d->left_y : &d->right_y) = (uint8_t)(128+y);
+        return;
+    }
+    uint8_t *axes[] = {&d->left_x, &d->left_y, &d->right_x, &d->right_y};
+    int values[4] = {0}, used[4] = {0};
+    int strength[] = {x<0 ? -x : 0, x>0 ? x : 0, y<0 ? -y : 0, y>0 ? y : 0};
+    for (int i=0;i<4;++i) {
+        const int binding=ratchetgpu_mouse_direction(i);
+        if (binding<1 || binding>8) continue;
+        const int axis=(binding-1)/2;
+        used[axis]=1;
+        values[axis]+=(binding&1) ? -strength[i] : strength[i];
+    }
+    for (int i=0;i<4;++i) if (used[i])
+        *axes[i]=(uint8_t)(128+(values[i]<-128 ? -128 : values[i]>127 ? 127 : values[i]));
+}
+
 static void apply_mouse_aim(PadData *d) {
     if (SDL_SetAtomicInt(&mouse_focus_reset,0)) { aim.held=false; aim.moved=0; drop_wheel(); return; }
     float dx=SDL_SetAtomicInt(&mouse_motion[0],0)/16.0f, dy=SDL_SetAtomicInt(&mouse_motion[1],0)/16.0f;
@@ -497,8 +518,6 @@ static void apply_mouse_aim(PadData *d) {
     const int mode=target | (activation<<2) | (style<<3) | (invert<<4);
     if (previous!=mode) { aim.held=false; aim.moved=0; previous=mode; }
     if (!target || (activation && !(d->buttons & BTN_L2))) { aim.moved=0; aim.held=false; return; }
-    uint8_t *x_axis=target==1 ? &d->left_x : &d->right_x;
-    uint8_t *y_axis=target==1 ? &d->left_y : &d->right_y;
     if (invert) dy=-dy;
     if (!aim.held) { aim.held=true; aim.offset_x=aim.offset_y=0; }  /* a new press: the centre is here */
     const float sensitivity=ratchetgpu_mouse_aim_sensitivity()/100.0f;
@@ -508,8 +527,7 @@ static void apply_mouse_aim(PadData *d) {
         const float length=sqrtf(aim.offset_x*aim.offset_x+aim.offset_y*aim.offset_y);
         if (length>radius) { aim.offset_x*=radius/length; aim.offset_y*=radius/length; }
         if (aim.offset_x!=0 || aim.offset_y!=0) {
-            *x_axis=(uint8_t)(128+(int)(aim.offset_x*127/radius));
-            *y_axis=(uint8_t)(128+(int)(aim.offset_y*127/radius));
+            route_mouse_axes(d, target, (int)(aim.offset_x*127/radius), (int)(aim.offset_y*127/radius));
         }
         return;
     }
@@ -522,8 +540,7 @@ static void apply_mouse_aim(PadData *d) {
         aim.moved=d->timestamp;
     }
     if (aim.moved && d->timestamp-aim.moved<AIM_HOLD_US) {
-        *x_axis=(uint8_t)(128+aim.x);
-        *y_axis=(uint8_t)(128+aim.y);
+        route_mouse_axes(d, target, aim.x, aim.y);
     }
 }
 

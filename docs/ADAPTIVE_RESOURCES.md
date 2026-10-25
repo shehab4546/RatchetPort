@@ -17,17 +17,23 @@ Adaptive collection is enabled by default. The earlier experimental `RATCHET_GC0
 
 Controls exposes all eight stick directions alongside the existing button assignments. Select a field and press the desired key or mouse button; resetting keyboard and mouse restores both the assignments and mouse settings.
 
-Mouse movement defaults to the **left stick**, with **Always** activation. The launcher and in-game Controls menu offer **Left stick / Right stick / Off**, **Always / Hold L2**, relative or absolute movement, sensitivity, and vertical inversion. WASD still maps to the left stick and arrows to the right unless reassigned. When mouse movement actively drives a stick, it takes priority over that stick's keyboard/controller value; idle relative movement releases it. Overlay capture and focus loss clear the mouse state.
+Mouse movement defaults to the **right stick**, with **Always** activation. The launcher and in-game Controls menu offer **Left stick / Right stick / Off / Custom directions**, **Always / Hold L2**, relative or absolute movement, sensitivity, and vertical inversion. WASD still maps to the left stick and arrows to the right unless reassigned. When mouse movement actively drives a stick, it takes priority over that stick's keyboard/controller value; idle relative movement releases it. Overlay capture and focus loss clear the mouse state.
 
-`ratchet.ini` stores `mouse_stick` (0 off, 1 left, 2 right), `mouse_activation` (0 always, 1 L2), `mouse_invert_y` (0 normal, 1 inverted), `mouse_aim_style` and `mouse_aim_sensitivity`. Keyboard stick assignments are saved in `settings.json` and sent through `RATCHET_STICK_KEYS`; button assignments retain their existing format.
+`ratchet.ini` stores `mouse_stick` (0 off, 1 left, 2 right, 3 custom), `mouse_activation` (0 always, 1 L2), `mouse_invert_y` (0 normal, 1 inverted), `mouse_aim_style` and `mouse_aim_sensitivity`. Keyboard stick assignments are saved in `settings.json` and sent through `RATCHET_STICK_KEYS`; button assignments retain their existing format.
+
+Each mouse direction can target any signed stick axis or Off in Custom directions mode. `mouse_left`, `mouse_right`, `mouse_up`, and `mouse_down` use 0 for Off, then 1–8 for LX−/+, LY−/+, RX−/+, RY−/+. The shooter-defaults button restores right-stick, always-active relative movement. Existing saved preferences are retained. Mouse input remains analog-stick emulation and retains the game's camera speed limits.
+
+## Graphics presets
+
+Graphics owns resolution, effects, display and frame-pacing settings. Low, Medium, High, Very High and Ultra set internal/output resolution, shadow cap, anisotropy and motion blur together. A manual mismatch displays Custom. Presets preserve input, language, frame-rate, HDR and driver-safety preferences. No new texture-quality or geometry control is implied. Save and restart to apply patched rendering settings.
 
 ## Game language
 
-Game and saves now includes a persistent **Game language** selector independent of the launcher language. Existing system-language IDs are retained, including Latin American Spanish (20) and Brazilian Portuguese (17). Changes apply after restarting the game.
+Game and saves includes persistent **Text / Subtitles** and **Voice** selectors independent of the launcher language. Existing system-language IDs are retained, including Latin American Spanish (20) and Brazilian Portuguese (17). Changes apply after restarting the game.
 
 The inspected CUSA01047 v1.00 NA selector accepts English, French, Portuguese (Portugal/Brazil), and Latin American Spanish. Only these five languages are offered. Previously saved unsupported IDs remain visible as unavailable and launch with an explicit English fallback. System ID 22 also resolves to the same French content. Selection does not install missing language assets or bypass those rules. The earlier language-list comments referred to a different game's content and have been removed.
 
-Text and voice currently follow the game's own language pairing. The executable has two language outputs, but an independent audio-bank selection path has not been verified. No independent voice selector is advertised as functional. References: issues #14 and #5; [USA language verification](USA_LANGUAGES.md).
+The experimental text-resource override allows independent voice selection on the verified executable. Archive sampling warns about missing or repeated-block voice data without blocking play. See [USA language verification](USA_LANGUAGES.md) for the selection path and playback limits.
 
 ## Validation
 

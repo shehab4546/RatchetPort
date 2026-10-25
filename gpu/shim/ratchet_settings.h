@@ -65,7 +65,8 @@ struct Values {
     /// Keep the mouse in the game window while the game has it (window.cpp). Live.
     std::atomic<bool> mouse_lock{true};
     /// Mouse target: 0 off, 1 left, 2 right. Activation: 0 always, 1 while L2 is held. Live.
-    std::atomic<int> mouse_stick{1};
+    std::atomic<int> mouse_stick{2};
+    std::atomic<int> mouse_directions[4]{{5}, {6}, {7}, {8}}; // left/right/up/down -> signed stick axis
     std::atomic<int> mouse_activation{0};
     std::atomic<int> mouse_invert_y{0};
     /// Mouse style: 0 relative, 1 absolute.

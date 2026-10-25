@@ -75,7 +75,7 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
         self.assertEqual(launcher.load_app_settings()['language'], '20')
         self.assertEqual(launcher.game_environment(self.app.gather()['app'])['RATCHET_LANGUAGE'], '20')
         self.app.reset_controls('key')
-        self.assertEqual(self.app.vars['mouse_stick'].get(), '1')
+        self.assertEqual(self.app.vars['mouse_stick'].get(), '2')
         self.assertEqual(self.app.control_vars['key']['lx_neg'].get(), 'A')
 
     def test_visual_dropdowns_share_values_and_save(self):
@@ -89,17 +89,45 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
             labels = tuple(text[0] for _value, text in choices)
             boxes = [w for w in widgets(self.root) if isinstance(w, ttk.Combobox)
                      and tuple(w['values']) == labels]
-            self.assertEqual(len(boxes), 2)  # Home and Graphics
+            self.assertEqual(len(boxes), 1)  # Graphics owns each quality setting
             index = [value for value, _text in choices].index(selected)
             boxes[0].current(index)
             boxes[0].event_generate('<<ComboboxSelected>>')
             self.root.update_idletasks()
-            self.assertEqual(boxes[1].current(), index)
             self.assertEqual(self.app.vars[key].get(), selected)
         self.app.save()
         values, _lines = launcher.load_ini()
         self.assertEqual((values['motion_blur'], values['shadow_resolution']), ('off', '512'))
         self.assertEqual(values['internal_resolution'], '4K')
+
+    def test_footer_survives_long_status(self):
+        self.root.geometry('900x650')
+        self.app.status.configure(text='Long archive warning ' * 100)
+        self.root.update()
+        for button in (self.app.save_button, self.app.play_button):
+            self.assertTrue(button.winfo_ismapped())
+            self.assertGreater(button.winfo_width(), 20)
+            self.assertLessEqual(button.winfo_rootx() + button.winfo_width(),
+                                 self.root.winfo_rootx() + self.root.winfo_width())
+        self.assertLessEqual(self.app.status.winfo_x() + self.app.status.winfo_width(),
+                             self.app.save_button.winfo_x())
+
+    def test_presets_apply_every_quality_setting(self):
+        self.app.quality.set('Ultra')
+        def widgets(parent):
+            for child in parent.winfo_children():
+                yield child
+                yield from widgets(child)
+        box = next(w for w in widgets(self.root) if isinstance(w, ttk.Combobox)
+                   and tuple(w['values']) == ('Custom', 'Low', 'Medium', 'High', 'Very High', 'Ultra'))
+        for name, values in launcher.graphics_presets.PRESETS.items():
+            box.set(name)
+            box.event_generate('<<ComboboxSelected>>')
+            for key, value in values.items():
+                self.assertEqual(self.app.var(key, 'ini').get(), value)
+            self.assertEqual(self.app.quality.get(), name)
+        self.app.var('shadow_resolution', 'ini').set('256')
+        self.assertEqual(self.app.quality.get(), 'Custom')
 
     def test_failed_save_does_not_close_the_launcher(self):
         with mock.patch.object(self.app, 'collect', return_value=False), \
