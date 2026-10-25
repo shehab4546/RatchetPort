@@ -9,6 +9,13 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
+**In development: V1.7 — Adaptive Controls Preview.** Adaptive texture-cache cleanup,
+configurable mouse and keyboard sticks, and language choices verified against the
+USA selector. See [feature notes](docs/releases/V1.7-Adaptive-Controls-Preview.md)
+and [USA text/voice support](docs/USA_LANGUAGES.md). V1.6 remains the published download
+until V1.7 finishes validation.
+
+
 **V1.6 — Resolution Preview · Windows x64 · CUSA01047 USA v1.00**
 
 This preview adds **internal scene resolution: Original, 720p, 900p, 1080p,

@@ -160,6 +160,7 @@ public:
     BackingImage* backing{};
     /// ratchetport: gc tick of the last LRU touch; skips the LRU list (a cache miss) when current.
     mutable u64 lru_touched_tick = ~0ULL;
+    mutable u64 gc_retry_after = 0;
     u64 tick_accessed_last{};
     ImageId depth_id{};
     u64 depth_uid{};

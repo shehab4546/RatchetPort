@@ -20,6 +20,7 @@
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "video_core/renderer_vulkan/vk_wait_diagnostics.h"
 #include "video_core/texture_cache/aliasing.h"
+#include "video_core/texture_cache/gc_policy.h"
 #include "video_core/texture_cache/host_compatibility.h"
 #include "video_core/texture_cache/texture_cache.h"
 #include "video_core/texture_cache/churn_trace.h"
@@ -75,15 +76,8 @@ TextureCache::TextureCache(const Vulkan::Instance& instance_, Vulkan::Scheduler&
                       DEFAULT_CRITICAL_GC_MEMORY));
     trigger_gc_memory = static_cast<u64>((device_local_memory - mem_threshold) / 2);
 
-    // Ratchet low-spec diagnostic profile:
-    // keep a much larger safety margin on integrated GPUs.
-    pressure_gc_memory = std::min<u64>(pressure_gc_memory, 2500_MB);
-    critical_gc_memory = std::min<u64>(critical_gc_memory, 3200_MB);
-
-    LOG_INFO(Render,
-             "Ratchet low-memory GC: pressure={} MiB, critical={} MiB",
-             pressure_gc_memory / 1_MB,
-             critical_gc_memory / 1_MB);
+    LOG_INFO(Render, "Texture cache fallback thresholds: pressure={} MiB, critical={} MiB",
+             pressure_gc_memory / 1_MB, critical_gc_memory / 1_MB);
 }
 
 TextureCache::~TextureCache() {
@@ -1669,171 +1663,88 @@ void TextureCache::UntrackImageTail(ImageId image_id) {
 
 void TextureCache::GarbageCollectImages() {
     RatchetStats::Timer gc_timer{RatchetStats::t_gc};
+    // Keep logical cache bytes separate from driver heap usage: freeing an alias or a deferred
+    // Vulkan allocation does not immediately reclaim its guest size from the physical heap.
+    const bool measured = instance.CanReportMemoryUsage();
+    const u64 usage = measured ? instance.GetDeviceMemoryUsage() : total_used_memory;
+    const u64 budget = measured ? instance.GetDeviceMemoryBudgetNow() : 0;
+    if (budget) {
+        trigger_gc_memory = GcPolicy::Percent(budget, 78);
+        pressure_gc_memory = GcPolicy::Percent(budget, 85);
+        critical_gc_memory = GcPolicy::Percent(budget, 95);
+    }
+    const u64 trigger = trigger_gc_memory ? trigger_gc_memory : pressure_gc_memory;
+    const u64 recovery = budget ? GcPolicy::Percent(budget, 71)
+                                : GcPolicy::Percent(trigger, 90);
+    GcPolicy policy{adaptive_gc_active};
+    adaptive_gc_active = policy.Update(usage, trigger, recovery);
+    if (!adaptive_gc_active) return;
 
-    // Ratchet GC01: opt-in bounded look-ahead. Keep the original path for A/B tests.
-    static const bool ratchet_gc01 = [] {
-        const char* value = std::getenv("RATCHET_GC01");
-        const bool enabled = value && value[0] == '1' && value[1] == '\0';
-        std::printf("RATCHET GC01: %s (scan cap 1024/call, soft 2 ms deadline)\n",
-                    enabled ? "ON" : "OFF - original policy");
-        std::fflush(stdout);
-        return enabled;
-    }();
-    static u64 ratchet_gc_scan_stops = 0;
-    static u64 ratchet_gc_time_stops = 0;
-    static u64 ratchet_gc_guest_bytes_evicted = 0;
-    // Interval counters count attempts, not unique image objects.
-    static u64 ratchet_gc_candidates = 0;
-    static u64 ratchet_gc_tiled_download_blocked = 0;
-    static u64 ratchet_gc_download_unpressured_blocked = 0;
-    if (instance.CanReportMemoryUsage()) {
-        total_used_memory = instance.GetDeviceMemoryUsage();
-        // ratchetport: on integrated GPUs (Steam Deck) the usage covers system-memory heaps holding
-        // much more than images (buffers backing guest memory), and the startup budget left
-        // ~1 GB after its 8 GB system reserve: usage stayed above the critical mark, so the
-        // collector evicted images used two or three frames ago on every submission and wrote
-        // GPU-written ones back. Compare with the driver's current budget instead.
-        // RATCHET_GC_BUDGET_MB=N: this rule with a fixed budget on any GPU (tests on a desktop).
-        static const u64 forced_budget = [] {
-            const char* env = std::getenv("RATCHET_GC_BUDGET_MB");
-            return env ? std::strtoull(env, nullptr, 10) << 20 : 0;
-        }();
-        if (instance.IsIntegrated() || forced_budget) {
-            const u64 budget = forced_budget ? forced_budget : instance.GetDeviceMemoryBudgetNow();
-            if (budget != 0) {
-                trigger_gc_memory = budget / 10 * 7;
-                pressure_gc_memory = budget / 100 * 85;
-                critical_gc_memory = budget / 100 * 95;
-            }
-        }
-    }
-    if (total_used_memory < trigger_gc_memory) {
-        return;
-    }
     std::scoped_lock lock{mutex};
-    bool pressured = false;
-    bool aggresive = false;
-    u64 ticks_to_destroy = 0;
-    size_t num_deletions = 0;
-    // Shared by both passes. A blocked image consumes a scan, not a deletion.
-    size_t scans_left = 1024;
-    const auto scan_start = ratchet_gc01 ? std::chrono::steady_clock::now()
-                                       : std::chrono::steady_clock::time_point{};
-
-    const auto configure = [&](bool allow_aggressive) {
-        pressured = total_used_memory >= pressure_gc_memory;
-        aggresive = allow_aggressive && total_used_memory >= critical_gc_memory;
-        ticks_to_destroy = aggresive ? 160 : pressured ? 80 : 16;
-        ticks_to_destroy = std::min(ticks_to_destroy, gc_tick);
-        num_deletions = aggresive ? 40 : pressured ? 20 : 10;
-    };
-    const auto clean_up = [&](ImageId image_id) {
-        if (num_deletions == 0) {
-            return true;
-        }
-        if (ratchet_gc01) {
-            if (scans_left == 0) {
-                ++ratchet_gc_scan_stops;
-                return true;
-            }
-            // Cooperative limit: an individual readback can exceed this deadline.
-            if (std::chrono::steady_clock::now() - scan_start >= std::chrono::milliseconds(2)) {
-                ++ratchet_gc_time_stops;
-                return true;
-            }
-            --scans_left;
-        } else {
-            --num_deletions;
-        }
-        ++ratchet_gc_candidates;
+    const bool pressured = usage >= pressure_gc_memory;
+    const bool critical = usage >= critical_gc_memory;
+    const u64 age = GcPolicy::MinimumAge(pressured, critical);
+    if (gc_tick < age) return; // Never evict new images merely because the cache just started.
+    size_t deletions_left = GcPolicy::DeletionLimit(pressured, critical);
+    size_t readbacks_left = 1; // At most one synchronous download per sweep.
+    const auto start = std::chrono::steady_clock::now();
+    static u64 candidates = 0, blocked = 0, cooldown = 0, time_stops = 0, guest_bytes = 0;
+    static u64 elapsed_us = 0, max_us = 0;
+    lru_cache.ResumeItemsBelow(gc_tick - age, GcPolicy::ScanLimit, [&](ImageId image_id) {
+        if (!deletions_left) return true;
+        // Cooperative deadline. One GPU synchronization may take longer than this limit.
+        if (std::chrono::steady_clock::now() - start >=
+            std::chrono::milliseconds(GcPolicy::DeadlineMs)) { ++time_stops; return true; }
+        ++candidates;
         auto& image = slot_images[image_id];
-        ResolveReadbacks(image.info.guest_address, image.info.guest_size, true,
-                         ReadbackSource::CacheCleanup);
-        const bool download = image.SafeToDownload();
-        const bool tiled = image.info.IsTiled();
-        if (tiled && download) {
-            // This is a workaround for now. We can't handle non-linear image downloads.
-            ++ratchet_gc_tiled_download_blocked;
+        if (gc_tick < image.gc_retry_after) { ++cooldown; return false; }
+        // Avoid waiting for readbacks of images that cannot currently be reclaimed anyway.
+        if (image.SafeToDownload() && (image.info.IsTiled() || !pressured)) {
+            image.gc_retry_after = gc_tick + GcPolicy::RetryTicks;
+            ++blocked;
             return false;
         }
-        if (download && !pressured) {
-            ++ratchet_gc_download_unpressured_blocked;
+        ResolveReadbacks(image.info.guest_address, image.info.guest_size, true,
+                         ReadbackSource::CacheCleanup);
+        // Readback resolution can change flags; re-check before freeing anything.
+        const bool download = image.SafeToDownload();
+        if (download && (image.info.IsTiled() || !pressured || !readbacks_left)) {
+            image.gc_retry_after = gc_tick + GcPolicy::RetryTicks;
+            ++blocked;
             return false;
         }
         if (download) {
-            // ratchetport: synchronously, while the image still protects its pages. A deferred
-            // write-back landed after FreeImage had unprotected them, over whatever the game
-            // had meanwhile stored there (e.g. its heap after unloading an area).
-            DownloadImageMemory(image_id, true);
+            DownloadImageMemory(image_id, true); // Keep pages protected until writeback finishes.
+            --readbacks_left;
             ++gc_downloads;
         }
-        if (ratchet_gc01) {
-            --num_deletions;
-        }
-        ratchet_gc_guest_bytes_evicted += image.info.guest_size;
+        guest_bytes += image.info.guest_size;
+        --deletions_left;
         ++gc_evictions;
-        FreeImage(image_id);
-        if (total_used_memory < critical_gc_memory) {
-            if (aggresive) {
-                num_deletions >>= 2;
-                aggresive = false;
-                return false;
-            }
-            if (pressured && total_used_memory < pressure_gc_memory) {
-                num_deletions >>= 1;
-                pressured = false;
-            }
-        }
+        FreeImage(image_id); // Existing deferred destruction preserves in-flight GPU resources.
         return false;
-    };
-
-    // Try to remove anything old enough and not high priority.
-    configure(false);
-    lru_cache.ForEachItemBelow(gc_tick - ticks_to_destroy, clean_up);
-
-    if (total_used_memory >= critical_gc_memory) {
-        // If we are still over the critical limit, run an aggressive GC
-        configure(true);
-        lru_cache.ForEachItemBelow(gc_tick - ticks_to_destroy, clean_up);
-    }
-    // ratchetport: evictions under memory pressure, at most every 5 s (RATCHET_FRAME_STATS or not).
-    if (pressured || gc_downloads != 0) {
-        const auto now = std::chrono::steady_clock::now();
-        if (now - gc_report_time >= std::chrono::seconds(5)) {
-            std::printf("Texture cache: memory pressure, %llu of %llu MiB (critical %llu): "
-                        "%llu images evicted, %llu written back; "
-                        "GC candidates=%llu, tiled+download blocked=%llu, "
-                        "download-unpressured blocked=%llu\n",
-                        (unsigned long long)(total_used_memory >> 20),
-                        (unsigned long long)(pressure_gc_memory >> 20),
-                        (unsigned long long)(critical_gc_memory >> 20),
-                        (unsigned long long)gc_evictions,
-                        (unsigned long long)gc_downloads,
-                        (unsigned long long)ratchet_gc_candidates,
-                        (unsigned long long)ratchet_gc_tiled_download_blocked,
-                        (unsigned long long)ratchet_gc_download_unpressured_blocked);
-
-            // Guest-byte totals are logical evictions, not physical VRAM reclaimed.
-            const u64 heap_now = instance.CanReportMemoryUsage()
-                                     ? instance.GetDeviceMemoryUsage() : 0;
-            std::printf("RATCHET GC01 stats: mode=%s scan_stops=%llu time_stops=%llu "
-                        "guest_evicted_MiB=%llu heap_sample_MiB=%llu heap_sample_valid=%u\n",
-                        ratchet_gc01 ? "ON" : "OFF",
-                        (unsigned long long)ratchet_gc_scan_stops,
-                        (unsigned long long)ratchet_gc_time_stops,
-                        (unsigned long long)(ratchet_gc_guest_bytes_evicted >> 20),
-                        (unsigned long long)(heap_now >> 20),
-                        instance.CanReportMemoryUsage() ? 1u : 0u);
-            std::fflush(stdout);
-            ratchet_gc_scan_stops = 0;
-            ratchet_gc_time_stops = 0;
-            ratchet_gc_guest_bytes_evicted = 0;
-            gc_report_time = now;
-            gc_evictions = gc_downloads = 0;
-            ratchet_gc_candidates = 0;
-            ratchet_gc_tiled_download_blocked = 0;
-            ratchet_gc_download_unpressured_blocked = 0;
-        }
+    });
+    const auto now = std::chrono::steady_clock::now();
+    const u64 duration = std::chrono::duration_cast<std::chrono::microseconds>(now - start).count();
+    elapsed_us += duration;
+    max_us = std::max(max_us, duration);
+    if (now - gc_report_time >= std::chrono::seconds(5)) {
+        const u64 heap_now = measured ? instance.GetDeviceMemoryUsage() : 0;
+        std::printf("Adaptive texture GC: usage=%llu budget=%llu MiB measured=%u "
+                    "candidates=%llu blocked=%llu cooldown=%llu evicted=%llu writebacks=%llu "
+                    "time_stops=%llu total_us=%llu max_sweep_us=%llu "
+                    "guest_evicted_MiB=%llu heap_sample_MiB=%llu\n",
+                    (unsigned long long)(usage >> 20), (unsigned long long)(budget >> 20),
+                    measured ? 1u : 0u, (unsigned long long)candidates,
+                    (unsigned long long)blocked, (unsigned long long)cooldown,
+                    (unsigned long long)gc_evictions, (unsigned long long)gc_downloads,
+                    (unsigned long long)time_stops, (unsigned long long)elapsed_us,
+                    (unsigned long long)max_us, (unsigned long long)(guest_bytes >> 20),
+                    (unsigned long long)(heap_now >> 20));
+        std::fflush(stdout);
+        candidates = blocked = cooldown = time_stops = guest_bytes = elapsed_us = max_us = 0;
+        gc_evictions = gc_downloads = 0;
+        gc_report_time = now;
     }
 }
 
@@ -1895,6 +1806,7 @@ void TextureCache::TouchImage(const Image& image) {
         return;
     }
     image.lru_touched_tick = gc_tick;
+    image.gc_retry_after = 0;
     lru_cache.Touch(image.lru_id, gc_tick);
 }
 

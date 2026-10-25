@@ -59,6 +59,25 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
 
 
 class SaveButtonTest(LauncherOverTemporaryFiles):
+    def test_language_and_mouse_options_survive_save_and_rebuild(self):
+        self.assertEqual(self.app.vars['language'].get(), '1')
+        self.app.var('language', 'app').set('20')
+        self.app.var('mouse_stick', 'ini').set('2')
+        self.app.var('mouse_activation', 'ini').set('1')
+        self.app.control_vars['key']['lx_neg'].set('J')
+        self.app.save()
+        self.app.rebuild('es')
+        self.root.update()
+        self.assertEqual(self.app.vars['language'].get(), '20')
+        self.assertEqual(self.app.vars['mouse_stick'].get(), '2')
+        self.assertEqual(self.app.vars['mouse_activation'].get(), '1')
+        self.assertEqual(self.app.control_vars['key']['lx_neg'].get(), 'J')
+        self.assertEqual(launcher.load_app_settings()['language'], '20')
+        self.assertEqual(launcher.game_environment(self.app.gather()['app'])['RATCHET_LANGUAGE'], '20')
+        self.app.reset_controls('key')
+        self.assertEqual(self.app.vars['mouse_stick'].get(), '1')
+        self.assertEqual(self.app.control_vars['key']['lx_neg'].get(), 'A')
+
     def test_visual_dropdowns_share_values_and_save(self):
         def widgets(parent):
             for child in parent.winfo_children():

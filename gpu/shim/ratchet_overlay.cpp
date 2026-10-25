@@ -286,11 +286,16 @@ void ControlsTab() {
         SliderRow("Vibration", s.vibration, 0, 100, "%d%%",
                   "Strength of the controller's vibration. 0% turns it off.");
         static const char* const aim_styles[] = {"Relative", "Absolute"};
-        ChoiceRow("Right stick style", s.mouse_aim_style, aim_styles, nullptr, 2,
-                  "Mouse aiming while L2 is held. Relative follows mouse movement; Absolute points from "
-                  "the position where L2 was pressed.");
-        SliderRow("Right stick sensitivity", s.mouse_aim_sensitivity, 10, 200, "%d%%",
-                  "Mouse-to-right-stick sensitivity while L2 is held.");
+        static const char* const sticks[] = {"Off", "Left stick", "Right stick"};
+        static const char* const activation[] = {"Always", "Hold L2"};
+        static const char* const vertical[] = {"Normal", "Inverted"};
+        ChoiceRow("Mouse controls", s.mouse_stick, sticks, nullptr, 3, "Select the stick driven by mouse movement.");
+        ChoiceRow("Mouse activation", s.mouse_activation, activation, nullptr, 2, "Always active or only while L2 is held.");
+        ChoiceRow("Mouse vertical direction", s.mouse_invert_y, vertical, nullptr, 2, "Invert vertical mouse movement.");
+        ChoiceRow("Mouse stick style", s.mouse_aim_style, aim_styles, nullptr, 2,
+                  "Relative follows mouse movement; Absolute holds the offset from the activation position.");
+        SliderRow("Mouse stick sensitivity", s.mouse_aim_sensitivity, 10, 200, "%d%%",
+                  "Mouse-to-stick sensitivity.");
         CheckRow("Keep mouse in window", s.mouse_lock,
                  "While you play, the mouse stays in the game window; this menu and other windows get it back.");
         ImGui::EndTable();
