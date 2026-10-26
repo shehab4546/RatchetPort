@@ -25,6 +25,7 @@
 #include "video_core/amdgpu/regs_color.h"
 #include "video_core/amdgpu/regs_primitive.h"
 #include "video_core/renderer_vulkan/vk_resource_pool.h"
+#include "video_core/renderer_vulkan/vk_record_chunk.h"
 #include "video_core/renderer_vulkan/vk_semaphore.h"
 
 namespace tracy {
@@ -577,116 +578,6 @@ struct DynamicState {
 
 using SubmitFunc = Common::UniqueFunction<void, SubmitInfo&>;
 
-/// ratchetport: a block of deferred Vulkan commands. Commands are closures placed in
-/// fixed storage (no allocation per command) and run in order on the recording thread.
-class RecordChunk {
-public:
-    static constexpr size_t Capacity = 128 * 1024;
-
-    /// Returns false (and leaves `func` untouched) when the chunk has no room.
-    template <typename Func>
-    bool Push(Func&& func) {
-        using Command = TypedCommand<std::decay_t<Func>>;
-        static_assert(sizeof(Command) <= Capacity, "recorded command is too large");
-        const size_t offset = (used + alignof(Command) - 1) & ~(alignof(Command) - 1);
-        if (offset + sizeof(Command) > Capacity) {
-            return false;
-        }
-        auto* command = new (storage + offset) Command(std::forward<Func>(func));
-        if (last) {
-            last->next = command;
-        } else {
-            first = command;
-        }
-        last = command;
-        used = offset + sizeof(Command);
-        PrefetchAhead();
-        return true;
-    }
-
-    /// Raw storage in the chunk for a command's variable-length data; null when full.
-    void* Allocate(size_t bytes, size_t align) {
-        const size_t offset = (used + align - 1) & ~(align - 1);
-        if (offset + bytes > Capacity) {
-            return nullptr;
-        }
-        used = offset + bytes;
-        PrefetchAhead();
-        return storage + offset;
-    }
-
-    /*
-     * Storage for deferred command data that is larger than the fixed
-     * 128 KiB recording chunk.
-     *
-     * The allocation belongs to this RecordChunk, so pointers captured by
-     * deferred Vulkan commands remain valid until Execute() has consumed
-     * every command in the chunk.
-     */
-    void* AllocateOverflow(size_t bytes) {
-        overflow.push_back(std::make_unique<std::byte[]>(bytes));
-        return overflow.back().get();
-    }
-
-    void Execute(vk::CommandBuffer cmdbuf) {
-        for (CommandBase* command = first; command;) {
-            CommandBase* const next = command->next;
-            command->Execute(cmdbuf);
-            command->~CommandBase();
-            command = next;
-        }
-        first = last = nullptr;
-        used = 0;
-        overflow.clear();
-    }
-
-    [[nodiscard]] bool Empty() const noexcept {
-        return first == nullptr;
-    }
-
-    [[nodiscard]] size_t Size() const noexcept {
-        return used;
-    }
-
-private:
-    /// The recording thread last read these cache lines: the first write to each has to take
-    /// it back from that core. Requesting ownership a few lines ahead overlaps those
-    /// transfers instead of stalling on each (RecordPrefetch).
-    void PrefetchAhead() const {
-        if (!RatchetToggle::Disabled(RatchetToggle::RecordPrefetch)) {
-            __builtin_prefetch(storage + used + 384, 1, 3);
-            __builtin_prefetch(storage + used + 448, 1, 3);
-        }
-    }
-
-    struct CommandBase {
-        virtual ~CommandBase() = default;
-        virtual void Execute(vk::CommandBuffer cmdbuf) = 0;
-        CommandBase* next{};
-    };
-    template <typename Func>
-    struct TypedCommand final : CommandBase {
-        explicit TypedCommand(Func&& func_) : func{std::move(func_)} {}
-        explicit TypedCommand(const Func& func_) : func{func_} {}
-        void Execute(vk::CommandBuffer cmdbuf) override {
-            func(cmdbuf);
-        }
-        Func func;
-    };
-
-    alignas(64) std::byte storage[Capacity];
-
-    /*
-     * Large RecordData() payloads which cannot fit in storage[].
-     * Cleared only after Execute(), preserving deferred-command lifetime.
-     */
-    std::vector<std::unique_ptr<std::byte[]>> overflow;
-
-    size_t used = 0;
-    CommandBase* first{};
-    CommandBase* last{};
-};
-
 class Scheduler {
 public:
     /// `threaded_recording`: Vulkan commands passed to Record() are recorded by a worker thread.
@@ -790,17 +681,14 @@ public:
     /// Makes room for `bytes` of RecordData() plus the command that uses them in the current
     /// chunk: data and command must share a chunk, which is recycled once executed.
     void ReserveRecordData(size_t bytes) {
-        /*
-         * Payloads larger than a complete fixed chunk are handled by
-         * RecordData() through AllocateOverflow(). There is nothing useful
-         * to reserve inside storage[] for them.
-         */
-        if (!IsRecordingDeferred() ||
-            bytes + 1024 > RecordChunk::Capacity) {
+        if (!IsRecordingDeferred()) {
             return;
         }
-
-        if (RecordChunk::Capacity - record_chunk->Size() < bytes + 1024) {
+        // Oversized payloads live outside storage[], but their closure still needs room.
+        const size_t inline_bytes = bytes > RecordChunk::Capacity - RecordChunk::CommandReserve
+                                        ? 0 : bytes;
+        if (RecordChunk::Capacity - record_chunk->Size() <
+            inline_bytes + RecordChunk::CommandReserve) {
             full_chunks.push_back(std::move(record_chunk));
             record_chunk = AcquireChunk();
         }
@@ -813,27 +701,14 @@ public:
         if (!IsRecordingDeferred() || data.empty()) {
             return data;
         }
-        // Room for the data and the command that follows it, so both stay in one chunk.
-        const size_t bytes = data.size_bytes();
-
-        /*
-         * Ratchet can generate transfer batches far larger than the normal
-         * 128 KiB command-data chunk. Keep the deferred recording model, but
-         * put those payloads in storage owned by the same RecordChunk.
-         */
-        if (bytes + alignof(T) + 1024 > RecordChunk::Capacity) {
-            auto* dst =
-                static_cast<T*>(record_chunk->AllocateOverflow(bytes));
-            std::memcpy(dst, data.data(), bytes);
-            return {dst, data.size()};
+        auto copy = record_chunk->CopyData(data);
+        if (copy.empty()) {
+            full_chunks.push_back(std::move(record_chunk));
+            record_chunk = AcquireChunk();
+            copy = record_chunk->CopyData(data);
+            ASSERT(!copy.empty());
         }
-
-        ReserveRecordData(bytes + alignof(T));
-        auto* dst =
-            static_cast<T*>(record_chunk->Allocate(bytes, alignof(T)));
-        ASSERT(dst != nullptr);
-        std::memcpy(dst, data.data(), bytes);
-        return {dst, data.size()};
+        return copy;
     }
 
     /// Hands recorded commands to the recording thread. Called at points where no caller holds
