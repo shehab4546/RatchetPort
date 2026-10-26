@@ -66,16 +66,23 @@ filtering includes full/half/quarter/eighth families and padded dimensions; it
 does not identify an image as TAA/history, GI, motion vectors or display output.
 Those roles remain **unclassified** until shader/control-flow evidence identifies them.
 
-The first matching scene candidate requests one automatic frame resource graph
+The first screen-sized depth pass exporting at least three colors requests one automatic resource graph
 in `user/captures/` (or the configured capture directory), without dumping
 constant buffers. The Graphics panel also offers **Capture graphics frame** for
-an exact failing scene. Captures include ordered graphics/compute passes,
-sampled/storage addresses, geometry and sample counts. They stop after 512 passes
-or eight presentation flips if a normal display boundary is missing, and mark
-`capture_truncated=1`. A capture is metadata, not a screenshot or proof of correct
-pixels. If no candidate is detected, use the manual capture button.
-If recording cannot start within eight flips, it cancels with an explicit
-no-display-boundary message instead of leaving the renderer in capture mode.
+the failing scene. Captures include ordered graphics/compute passes,
+sampled/storage addresses, geometry, sample counts and color-binding registers.
+They record across four presentation flips, with a hard limit of 512 entries.
+Reaching that entry limit marks `capture_truncated=1`. The file declares
+`capture_scope=multi-flip-window`: this is not an exact game-frame boundary.
+Repeated display-buffer writes do not stop recording; UI/composition can write
+those buffers multiple times before world rendering. A capture is metadata,
+not a screenshot or proof of correct pixels. If no candidate is detected, use
+the manual capture button. The trigger does not update observed scene dimensions.
+
+Skipped shader color exports log their address, format, write mask and color mode
+under the bounded failure channel. Disabled writes can be intentional; these
+records do not establish an allocation failure. See
+[the paired RTX 5070 capture analysis](evidence/issue19-paired-captures.md).
 
 The Graphics panel separates requested/prepared startup dimensions from the last
 observed scene/depth candidate and viewport, marks mismatches, reports raster

@@ -349,6 +349,22 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
         const auto& col_buf = regs.color_buffers[cb];
         const u32 target_mask = regs.color_target_mask.GetMask(cb);
         if (skip_cb_binding || !col_buf || !target_mask || (key.mrt_mask & (1 << cb)) == 0) {
+            namespace RD = RatchetResolutionDiagnostics;
+            if (RD::Enabled() && (key.mrt_mask & (1u << cb))) {
+                // An enabled shader export can legitimately have writes disabled.
+                // Record the actual register gates instead of inferring allocation failure.
+                RD::Once(RD::Channel::Failure,
+                    RD::Key({key.mrt_mask, unsigned(cb), col_buf.Address(),
+                        unsigned(col_buf.info.format), target_mask, unsigned(regs.color_control.mode)}),
+                    [&] {
+                        return fmt::format("color-binding-skipped slot={} mrt={:#x} addr={:#x} "
+                            "format={} target_mask={:#x} color_mode={} mode_disabled={} "
+                            "descriptor_valid={} writes_enabled={}; may be intentional",
+                            cb, key.mrt_mask, col_buf.Address(), unsigned(col_buf.info.format),
+                            target_mask, unsigned(regs.color_control.mode), skip_cb_binding,
+                            bool(col_buf), target_mask != 0);
+                    });
+            }
             image_id = {};
             continue;
         }
@@ -380,6 +396,17 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
     } else {
         db_desc.first = {};
     }
+    // A diagnostic trigger need not assert a scene identity. Ratchet's recorded
+    // world passes export three colors, including the failing all-unbound case.
+    if (!resolution_capture_requested && RatchetResolutionDiagnostics::Enabled() &&
+        db_desc.first && std::popcount(key.mrt_mask) >= 3) {
+        const auto& depth = texture_cache.GetImage(db_desc.first);
+        if (depth.info.size.width >= 640 && depth.info.size.height >= 360 &&
+            RatchetResolutionDiagnostics::Relevant(depth.info.size.width, depth.info.size.height)) {
+            resolution_capture_requested = true;
+            FrameCapture::Request(false);
+        }
+    }
     // Observe native attachments independently of upscaling. Requested mode and
     // presentation size are deliberately absent from candidate identification.
     if (db_desc.first && std::popcount(key.mrt_mask) >= 5) {
@@ -410,10 +437,6 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
                     RatchetResolution::Labels[RatchetResolution::Valid(settings.applied_internal_resolution)],
                     sample.width, sample.height, sample.viewport_width, sample.viewport_height,
                     unsigned(key.num_samples));
-                if (!resolution_capture_requested && RatchetResolutionDiagnostics::Enabled()) {
-                    resolution_capture_requested = true;
-                    FrameCapture::Request(false); // resource graph only; avoid constant-buffer dumps
-                }
             }
         }
     }
@@ -3404,8 +3427,16 @@ RenderState Rasterizer::BeginRenderingFull(const GraphicsPipeline* pipeline) {
             unsigned(win.top_left_x), unsigned(win.top_left_y), unsigned(win.bottom_right_x), unsigned(win.bottom_right_y),
             unsigned(gen.top_left_x), unsigned(gen.top_left_y), unsigned(gen.bottom_right_x), unsigned(gen.bottom_right_y),
             target_scale[0], target_scale[1]);
+        std::string color_registers = fmt::format(" color_mode={} mrt={:#x}",
+            unsigned(regs.color_control.mode), key.mrt_mask);
+        for (u32 cb = 0; cb < state.num_color_attachments; ++cb) {
+            const auto& color = regs.color_buffers[cb];
+            color_registers += fmt::format(" C{}reg=[addr={:#x} format={} mask={:#x} bound={}]",
+                cb, color.Address(), unsigned(color.info.format),
+                regs.color_target_mask.GetMask(cb), bool(cb_descs[cb].first));
+        }
         FrameCapture::BeginPass(colors.data(), state.num_color_attachments, depth,
-                                PassCensus::Format(census) + geometry);
+                                PassCensus::Format(census) + geometry + color_registers);
         diag_targets.clear();
         for (u32 cb = 0; cb < state.num_color_attachments; ++cb) {
             if (cb_descs[cb].first) {
