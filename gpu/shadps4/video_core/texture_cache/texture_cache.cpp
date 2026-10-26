@@ -6,6 +6,8 @@
 #include "video_core/amdgpu/liverpool.h"
 
 #include "ratchet_toggles.h"
+#include "ratchet_resolution_diagnostics.h"
+#include "ratchet_settings.h"
 #include "common/assert.h"
 #include "common/debug.h"
 #include "common/div_ceil.h"
@@ -33,6 +35,22 @@ namespace VideoCore {
 static constexpr u64 PageShift = 12;
 static constexpr u64 NumFramesBeforeRemoval = 32;
 
+static void DiagnoseLookup(const ImageInfo& requested, const Image& image,
+                            const char* origin, int mip, int slice) {
+    namespace RD = RatchetResolutionDiagnostics;
+    if (!RD::Relevant(requested.size.width, requested.size.height)) return;
+    RD::Once(RD::Channel::Lookup, RD::Key({image.image_uid, requested.size.width,
+        requested.size.height, requested.pitch, requested.guest_samples, u64(mip), u64(slice)}), [&] {
+        return fmt::format("origin={} uid={} addr={:#x} requested={}x{} pitch={} samples={} bytes={} "
+            "cached={}x{} pitch={} samples={} bytes={} view_mip={} view_slice={}; "
+            "subresource views may legitimately differ",
+            origin, image.image_uid, requested.guest_address, requested.size.width, requested.size.height,
+            requested.pitch, requested.guest_samples, requested.guest_size, image.info.size.width,
+            image.info.size.height, image.info.pitch, image.info.guest_samples, image.info.guest_size,
+            mip, slice);
+    });
+}
+
 TextureCache::TextureCache(const Vulkan::Instance& instance_, Vulkan::Scheduler& scheduler_,
                            Vulkan::Runtime& runtime_, AmdGpu::Liverpool* liverpool_,
                            BufferCache& buffer_cache_, PageManager& tracker_)
@@ -44,6 +62,10 @@ TextureCache::TextureCache(const Vulkan::Instance& instance_, Vulkan::Scheduler&
     std::printf("Ratchet: linear image readbacks = %s (TextureCache)\n",
                 readback_linear_images ? "ON" : "OFF");
     std::fflush(stdout);
+
+    std::fprintf(stderr, "ResolutionDiag version=1 enabled=%u; bounded resource/pass logging, "
+        "one automatic scene-candidate capture; RATCHET_RESOLUTION_DIAGNOSTICS=0 disables\n",
+        unsigned(RatchetResolutionDiagnostics::Enabled()));
 
     std::printf("GPU: deferred image readback %s (64 copies, 64 MiB pending limit)%s\n",
                 deferred_readbacks ? "enabled" : "disabled",
@@ -1112,6 +1134,7 @@ ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
         if (cached.view_slice > 0) {
             desc.view_info.range.base.layer = cached.view_slice;
         }
+        DiagnoseLookup(info, image, "cache-hit", cached.view_mip, cached.view_slice);
         return cached.image_id;
     }
 
@@ -1198,6 +1221,7 @@ ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
         }
     }
     // Create and register a new image
+    const bool created_now = !image_id;
     if (!image_id) {
         image_id = slot_images.insert(instance, runtime, slot_image_views, info);
         RegisterImage(image_id);
@@ -1247,6 +1271,7 @@ ImageId TextureCache::FindImage(ImageDesc& desc, bool exact_fmt) {
         .view_mip = view_mip,
         .view_slice = view_slice,
     };
+    DiagnoseLookup(info, image, created_now ? "new" : "reuse-or-view", view_mip, view_slice);
     return image_id;
 }
 
@@ -1501,6 +1526,7 @@ void TextureCache::RegisterImage(ImageId image_id) {
     image.flags |= ImageFlagBits::Registered;
     ++registry_generation;
     total_used_memory += Common::AlignUp(image.info.guest_size, 1024);
+    RatchetSettings::Get().texture_cache_guest_bytes = total_used_memory;
     image.lru_id = lru_cache.Insert(image_id, gc_tick);
     image.lru_touched_tick = gc_tick;
 
@@ -1531,12 +1557,20 @@ void TextureCache::RegisterImage(ImageId image_id) {
 
 void TextureCache::UnregisterImage(ImageId image_id) {
     Image& image = slot_images[image_id];
+    namespace RD = RatchetResolutionDiagnostics;
+    if (RD::Relevant(image.info.size.width, image.info.size.height)) {
+        RD::Once(RD::Channel::Resource, RD::Key({image.image_uid, 1}), [&] {
+            return fmt::format("unregister uid={} addr={:#x} size={}x{}; host destruction may be deferred",
+                image.image_uid, image.info.guest_address, image.info.size.width, image.info.size.height);
+        });
+    }
     ASSERT_MSG(True(image.flags & ImageFlagBits::Registered),
                "Trying to unregister an already unregistered image");
     image.flags &= ~ImageFlagBits::Registered;
     ++registry_generation;
     lru_cache.Free(image.lru_id);
     total_used_memory -= Common::AlignUp(image.info.guest_size, 1024);
+    RatchetSettings::Get().texture_cache_guest_bytes = total_used_memory;
     ForEachPage(image.info.guest_address, image.info.guest_size, [this, image_id](u64 page) {
         const auto page_it = page_table.find(page);
         if (page_it == nullptr) {
@@ -1676,6 +1710,12 @@ void TextureCache::GarbageCollectImages() {
     const u64 trigger = trigger_gc_memory ? trigger_gc_memory : pressure_gc_memory;
     const u64 recovery = budget ? GcPolicy::Percent(budget, 71)
                                 : GcPolicy::Percent(trigger, 90);
+    namespace RD = RatchetResolutionDiagnostics;
+    RD::Once(RD::Channel::Cache, RD::Key({usage / 256_MB, budget / 256_MB}), [&] {
+        return fmt::format("logical_bytes={} usage_bytes={} driver_measured={} budget_bytes={} "
+            "trigger_bytes={} pressure_bytes={} critical_bytes={}; scan/eviction counts in Adaptive texture GC",
+            total_used_memory, usage, measured, budget, trigger, pressure_gc_memory, critical_gc_memory);
+    });
     GcPolicy policy{adaptive_gc_active};
     adaptive_gc_active = policy.Update(usage, trigger, recovery);
     if (!adaptive_gc_active) return;

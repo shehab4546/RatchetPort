@@ -52,7 +52,7 @@ public:
     static void Note(const char* text);
 
     /// In-game menu: records the next full frame (as the trigger file does).
-    static void Request();
+    static void Request(bool include_buffers = true);
     /// What the last request did, for the menu: empty, "Capturing...", the file or an error.
     static std::string LastResult();
 

@@ -25,6 +25,11 @@ inline std::uint64_t Pack(unsigned width, unsigned height) {
 }
 inline unsigned Width(std::uint64_t size) { return unsigned(size >> 32); }
 inline unsigned Height(std::uint64_t size) { return unsigned(size); }
+inline std::uint64_t Expected(int index) {
+    constexpr std::array<unsigned, 6> widths{0, 1280, 1600, 1920, 2560, 3840};
+    constexpr std::array<unsigned, 6> heights{0, 720, 900, 1080, 1440, 2160};
+    return Pack(widths[Valid(index)], heights[Valid(index)]);
+}
 
 // Read-only diagnostic. Never infer observed dimensions from the requested mode,
 // presentation image, or upscaler settings. Identification remains a candidate:

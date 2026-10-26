@@ -33,6 +33,7 @@ See [V1.6 feature notes](docs/releases/V1.6-Resolution-Preview.md),
 Windows build, packaging and launcher checks passed. **V1.6 is the published
 Latest release.** In-game resolution quality, temporal effects and 4K stability
 remain experimental and need gameplay validation.
+[Issue #19](https://github.com/shehab4546/RatchetPort/issues/19) reports a black 3D world at explicit internal resolutions. V1.7 adds bounded diagnostics for this investigation; a rendering fix and 1440p/4K gameplay verification are still pending.
 
 [Download V1.6 Resolution Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.6-resolution-preview)
 · [Latest non-prerelease build](https://github.com/shehab4546/RatchetPort/releases/latest)

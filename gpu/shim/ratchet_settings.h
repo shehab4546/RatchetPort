@@ -83,6 +83,8 @@ struct Values {
     int applied_internal_resolution = 0; // Prepared startup mode, not a measurement.
     // Last matching MRT/depth draw and its viewport; zero means not observed.
     std::atomic<std::uint64_t> observed_scene_size{0}, observed_scene_viewport{0};
+    std::atomic<unsigned> observed_scene_samples{0};
+    std::atomic<std::uint64_t> texture_cache_guest_bytes{0};
     bool applied_motion_blur_off = false;
     int applied_shadow_resolution = 0;
     // Synchronous readbacks are the Ratchet baseline: deferred reads stalled scene entry.

@@ -352,6 +352,8 @@ void ImageTab() {
         char text[96];
         std::snprintf(text, sizeof(text), "%d x %d", iw, ih);
         InfoRow("Presented game image", text);
+        InfoRow("Requested internal resolution",
+                RatchetResolution::Labels[RatchetResolution::Valid(s.internal_resolution.load())]);
         InfoRow("Internal resolution (startup)",
                 RatchetResolution::Labels[RatchetResolution::Valid(s.applied_internal_resolution)]);
         const auto observed = s.observed_scene_size.load();
@@ -370,6 +372,18 @@ void ImageTab() {
             std::snprintf(text, sizeof(text), "Not observed yet");
         }
         InfoRow("Scene candidate viewport", text);
+        const auto expected = RatchetResolution::Expected(s.applied_internal_resolution);
+        InfoRow("Startup / observed comparison", !expected ? "Game controlled" :
+            !observed ? "Not observed yet" : expected == observed ? "Dimensions match" :
+            "Dimensions differ (last matching draw)");
+        const auto samples = s.observed_scene_samples.load();
+        if (samples) std::snprintf(text, sizeof(text), "%u (last matching draw)", samples);
+        else std::snprintf(text, sizeof(text), "Not observed yet");
+        InfoRow("Scene raster samples", text);
+        InfoRow("Temporal/history", "Not identified; see frame capture");
+        std::snprintf(text, sizeof(text), "%.1f MiB (logical; not resident VRAM)",
+                      double(s.texture_cache_guest_bytes.load()) / (1024 * 1024));
+        InfoRow("Texture cache", text);
         std::snprintf(text, sizeof(text), "%d x %d", ww, wh);
         InfoRow("Window", text);
         InfoRow("Sharpening", s.rcas_applied ? "applied" : "not applied");
@@ -383,6 +397,9 @@ void ImageTab() {
         InfoRow("Change game effects", "Choose in the launcher, then restart the game");
         ImGui::EndTable();
     }
+    if (ImGui::Button("Capture graphics frame")) Vulkan::FrameCapture::Request();
+    const auto capture_result = Vulkan::FrameCapture::LastResult();
+    if (!capture_result.empty()) ImGui::TextWrapped("%s", capture_result.c_str());
 }
 
 void PerformanceTab() {

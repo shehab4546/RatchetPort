@@ -138,6 +138,7 @@ public:
     bool ReadMemory(VAddr addr, u64 size, bool assume_locks = false);
     void ProcessDownloadImages();
     bool IsMapped(VAddr addr, u64 size);
+    u64 MappedBytes(VAddr addr, u64 size);
     void MapMemory(VAddr addr, u64 size);
     void RegisterMemory(VAddr addr, u64 size);
     void UnmapMemory(VAddr addr, u64 size);
@@ -166,6 +167,8 @@ public:
 
 private:
     void PrepareRenderState(const GraphicsPipeline* pipeline);
+    void DiagnoseImage(const VideoCore::Image& image, const char* role, u64 shader = 0);
+    bool resolution_capture_requested = false;
     RenderState BeginRendering(const GraphicsPipeline* pipeline);
     RenderState BeginRenderingFull(const GraphicsPipeline* pipeline);
     /// ratchetport: a draw continuing the open render pass with the same inputs gets the same render

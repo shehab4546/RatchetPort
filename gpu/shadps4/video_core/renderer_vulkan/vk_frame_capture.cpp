@@ -19,6 +19,7 @@ struct Target {
     VAddr address{};
     vk::Format format{};
     u32 width{}, height{};
+    u32 layers{}, levels{}, samples{}, pitch{}, bytes{}, tile{};
     bool operator==(const Target&) const = default;
 };
 
@@ -45,12 +46,15 @@ void AddBuffers(Entry& entry) {
     // of each geometry pass.
     if (entry.draws <= 4) {
         for (auto& b : pending_buffers) {
-            entry.buffers.push_back(std::move(b));
+            if (entry.buffers.size() < 64) entry.buffers.push_back(std::move(b));
         }
     }
     pending_buffers.clear();
 }
 bool pass_open = false;
+u64 recording_flip = 0;
+std::atomic<bool> requested_buffers{true}, capture_buffers{true};
+std::atomic<u64> armed_flip{0};
 std::mutex display_mutex;
 std::vector<VAddr> display_buffers;
 // ratchetport: read on every draw; the game registers a handful of display buffers once.
@@ -58,14 +62,19 @@ std::array<std::atomic<VAddr>, 16> display_list{};
 std::atomic<u32> display_count{0};
 
 Target ToTarget(const VideoCore::ImageInfo& info) {
-    return {info.guest_address, info.pixel_format, info.size.width, info.size.height};
+    return {info.guest_address, info.pixel_format, info.size.width, info.size.height,
+            info.resources.layers, info.resources.levels, info.guest_samples,
+            info.pitch, info.guest_size, u32(info.tile_mode)};
 }
 
 std::string Describe(const Target& t) {
     if (!t.address) {
         return "-";
     }
-    return std::format("{:#x} {} {}x{}", t.address, vk::to_string(t.format), t.width, t.height);
+    return std::format("{:#x} {} {}x{} layers={} mips={} guest_samples={} pitch={} "
+                       "guest_bytes={} tile={} role/history=unclassified",
+                       t.address, vk::to_string(t.format), t.width, t.height,
+                       t.layers, t.levels, t.samples, t.pitch, t.bytes, t.tile);
 }
 
 void AddSampled(Entry& entry) {
@@ -102,7 +111,7 @@ std::filesystem::path CaptureDir() {
     return std::filesystem::path(user && user[0] ? user : "user") / "captures";
 }
 
-void Write(VAddr presented) {
+void Write(VAddr presented, bool truncated = false) {
     const auto dir = CaptureDir();
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
@@ -118,6 +127,8 @@ void Write(VAddr presented) {
         return;
     }
     std::fprintf(f, "presented buffer %#llx\n", static_cast<unsigned long long>(presented));
+    std::fprintf(f, "capture_truncated=%u; resource roles/history are not inferred from dimensions\n",
+                 unsigned(truncated));
     u32 index = 0;
     for (const auto& e : entries) {
         if (e.compute) {
@@ -168,15 +179,19 @@ void FrameCapture::OnFlip(VAddr presented_address) {
         std::error_code ec;
         std::filesystem::remove(trigger, ec);
         arm = true;
+        requested_buffers.store(true, std::memory_order_release);
     }
     if (arm) {
+        capture_buffers.store(requested_buffers.load(std::memory_order_acquire), std::memory_order_release);
+        armed_flip.store(flips.load(std::memory_order_relaxed), std::memory_order_release);
         state.store(Armed, std::memory_order_release);
         std::printf("Frame capture: armed\n");
     }
 }
 
-void FrameCapture::Request() {
+void FrameCapture::Request(bool include_buffers) {
     SetResult("Capturing the next frame...");
+    requested_buffers.store(include_buffers, std::memory_order_release);
     requested.store(true, std::memory_order_release);
 }
 
@@ -185,7 +200,26 @@ std::string FrameCapture::LastResult() {
     return result;
 }
 
-void FrameCapture::Poll() {}
+void FrameCapture::Poll() {
+    if (state.load(std::memory_order_relaxed) == Armed &&
+        flips.load(std::memory_order_acquire) - armed_flip.load(std::memory_order_acquire) >= 8) {
+        pending_sampled.clear();
+        pending_buffers.clear();
+        state.store(Idle, std::memory_order_release);
+        SetResult("Capture unavailable: no display-pass boundary in eight flips");
+        return;
+    }
+    // A missing display boundary must not grow a diagnostic recording forever.
+    if (state.load(std::memory_order_relaxed) == Recording &&
+        (entries.size() >= 512 || flips.load(std::memory_order_acquire) - recording_flip >= 8)) {
+        Write(last_presented.load(std::memory_order_relaxed), true);
+        entries.clear();
+        pending_sampled.clear();
+        pending_buffers.clear();
+        pass_open = false;
+        state.store(Idle, std::memory_order_release);
+    }
+}
 
 bool FrameCapture::IsDisplayBuffer(VAddr address) {
     const u32 count = display_count.load(std::memory_order_acquire);
@@ -243,6 +277,7 @@ void FrameCapture::BeginPass(const VideoCore::ImageInfo* const* colors, u32 num_
         pending_sampled.clear();
         pending_buffers.clear();
         pass_open = false;
+        recording_flip = flips.load(std::memory_order_acquire);
         state.store(Recording, std::memory_order_release);
     }
     if (state.load(std::memory_order_relaxed) != Recording) {
@@ -293,7 +328,7 @@ void FrameCapture::Dispatch(u64 cs_hash, u32 x, u32 y, u32 z) {
 }
 
 void FrameCapture::Buffer(u64 stage_hash, u32 slot, VAddr address, const void* data, u64 size) {
-    if (!data) {
+    if (!data || !capture_buffers.load(std::memory_order_relaxed) || pending_buffers.size() >= 32) {
         return;
     }
     const u64 bytes = std::min<u64>(size, 1024) & ~u64(3);

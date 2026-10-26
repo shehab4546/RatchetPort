@@ -3,6 +3,7 @@
 
 #include <boost/container/small_vector.hpp>
 #include "ratchet_toggles.h"
+#include "ratchet_resolution_diagnostics.h"
 #include "video_core/buffer_cache/buffer.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
@@ -17,6 +18,23 @@
 #include <vulkan/vulkan_format_traits.hpp>
 
 namespace Vulkan {
+
+static void DiagnoseTransfer(const VideoCore::Image& src, const VideoCore::Image& dst,
+                             bool resolve, unsigned src_mip = 0, unsigned dst_mip = 0) {
+    namespace RD = RatchetResolutionDiagnostics;
+    if (!RD::Relevant(src.info.size.width, src.info.size.height) &&
+        !RD::Relevant(dst.info.size.width, dst.info.size.height)) return;
+    RD::Once(RD::Channel::Transfer,
+        RD::Key({src.image_uid, dst.image_uid, resolve, src_mip, dst_mip}), [&] {
+            return fmt::format("operation={} src_uid={} src_addr={:#x} src={}x{} "
+                "src_samples={} src_mip={} dst_uid={} dst_addr={:#x} dst={}x{} "
+                "dst_samples={} dst_mip={} base_extent_equal={}; different extents require pass inspection",
+                resolve ? "resolve" : "copy", src.image_uid, src.info.guest_address,
+                src.info.size.width, src.info.size.height, src.backing->num_samples, src_mip,
+                dst.image_uid, dst.info.guest_address, dst.info.size.width, dst.info.size.height,
+                dst.backing->num_samples, dst_mip, src.info.size == dst.info.size);
+        });
+}
 
 static vk::ImageType ConvertImageType(AmdGpu::ImageType type) noexcept {
     switch (type) {
@@ -332,6 +350,7 @@ void Runtime::DownloadImage(VideoCore::Image* src, const VideoCore::Buffer* dst,
 }
 
 void Runtime::CopyImage(VideoCore::Image* src, VideoCore::Image* dst) {
+    DiagnoseTransfer(*src, *dst, false);
     const u32 num_mips = std::min(src->info.resources.levels, dst->info.resources.levels);
 
     // Format mismatch warning (safe but useful)
@@ -631,6 +650,7 @@ void Runtime::ResolveImage(VideoCore::Image* src, VideoCore::Image* dst,
                            const VideoCore::SubresourceRange& src_range,
                            const VideoCore::SubresourceRange& dst_range) {
     SetBackingSamples(dst, 1, false);
+    DiagnoseTransfer(*src, *dst, true, src_range.base.level, dst_range.base.level);
     scheduler.EndRendering();
 
     const bool needs_resolve = src->backing->num_samples != 1;
