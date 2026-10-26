@@ -325,6 +325,19 @@ static void load_button_maps(void) {
 static void key_axis(uint8_t *axis, bool negative, bool positive) {
     if (negative || positive) *axis=(uint8_t)(negative==positive ? 128 : negative ? 0 : 255);
 }
+/* Virtual sticks use a circular range. Preserve both components at diagonals. */
+static void circular_stick(uint8_t *x, uint8_t *y) {
+    const float dx=(float)*x-128.0f, dy=(float)*y-128.0f;
+    const float length=sqrtf(dx*dx+dy*dy);
+    if (length>127.0f && dx!=0 && dy!=0) {
+        *x=(uint8_t)(128+(int)lroundf(dx*127.0f/length));
+        *y=(uint8_t)(128+(int)lroundf(dy*127.0f/length));
+    }
+}
+static void keyboard_stick(uint8_t *x, uint8_t *y, bool left, bool right, bool up, bool down) {
+    key_axis(x,left,right); key_axis(y,up,down);
+    if (left || right || up || down) circular_stick(x,y);
+}
 static void sample_host(PadData *d) {
     memset(d,0,sizeof(*d));
     d->left_x=d->left_y=d->right_x=d->right_y=128;
@@ -369,8 +382,9 @@ static void sample_host(PadData *d) {
     if (d->buttons & BTN_L2) d->l2=255;
     if (d->buttons & BTN_R2) d->r2=255;
     uint8_t *axes[]={&d->left_x,&d->left_y,&d->right_x,&d->right_y};
-    for (int i=0;i<4;++i) key_axis(axes[i],source_down(stick_keys[i*2],k,mouse,wheel),
-                                 source_down(stick_keys[i*2+1],k,mouse,wheel));
+    for (int i=0;i<2;++i) keyboard_stick(axes[i*2],axes[i*2+1],
+        source_down(stick_keys[i*4],k,mouse,wheel), source_down(stick_keys[i*4+1],k,mouse,wheel),
+        source_down(stick_keys[i*4+2],k,mouse,wheel), source_down(stick_keys[i*4+3],k,mouse,wheel));
 }
 
 /* RATCHET_PAD_FILE=<file>: scripted input for automated runs. The file holds whitespace-separated
@@ -503,14 +517,17 @@ static void apply_mouse_aim(PadData *d) {
     uint64_t step=aim.last && d->timestamp>aim.last ? d->timestamp-aim.last : 16667;
     aim.last=d->timestamp;
     if (dx!=0 || dy!=0) {
-        aim.x=mouse_strength(dx,step)*(dx<0 ? -1 : 1);
-        aim.y=mouse_strength(dy,step)*(dy<0 ? -1 : 1);
+        const float length=sqrtf(dx*dx+dy*dy);
+        const int strength=mouse_strength(length,step);
+        aim.x=(int)lroundf(dx/length*(float)strength);
+        aim.y=(int)lroundf(dy/length*(float)strength);
         aim.moved=d->timestamp;
     }
     if (!aim.moved || d->timestamp-aim.moved>=AIM_HOLD_US) return;
     int strength[]={aim.x<0 ? -aim.x : 0, aim.x>0 ? aim.x : 0,
                     aim.y<0 ? -aim.y : 0, aim.y>0 ? aim.y : 0};
     uint8_t *axes[]={&d->left_x,&d->left_y,&d->right_x,&d->right_y};
+    bool touched[2]={false,false};
     for (int axis=0;axis<4;++axis) {
         int value=0; bool active=false;
         for (int side=0;side<2;++side) {
@@ -519,8 +536,12 @@ static void apply_mouse_aim(PadData *d) {
                 value+=side ? strength[source] : -strength[source]; active=true;
             }
         }
-        if (active) *axes[axis]=(uint8_t)(128+(value<-128 ? -128 : value>127 ? 127 : value));
+        if (active) {
+            *axes[axis]=(uint8_t)(128+(value<-128 ? -128 : value>127 ? 127 : value));
+            touched[axis/2]=true;
+        }
     }
+    for (int stick=0;stick<2;++stick) if (touched[stick]) circular_stick(axes[stick*2],axes[stick*2+1]);
 }
 
 /* The right-touchpad keyboard mapping toggles host mouse capture (gpu/shim/window.cpp). */

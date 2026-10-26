@@ -124,6 +124,19 @@ int main(void) {
     menu.buttons=CLICK_RIGHT; note_pause_key(&menu);
     assert(pause_keys==2);
 
+    /* All four diagonals keep both axes, with a circular rather than square range. */
+    for (int horizontal=-1;horizontal<=1;horizontal+=2) for (int vertical=-1;vertical<=1;vertical+=2) {
+        uint8_t x=128,y=128;
+        keyboard_stick(&x,&y,horizontal<0,horizontal>0,vertical<0,vertical>0);
+        assert(((int)x-128)*horizontal>0 && ((int)y-128)*vertical>0);
+        assert(abs(abs((int)x-128)-abs((int)y-128))<=1);
+        assert(hypotf((float)x-128,(float)y-128)<=128);
+    }
+    uint8_t kx=128,ky=128;
+    keyboard_stick(&kx,&ky,false,true,true,false);
+    keyboard_stick(&kx,&ky,true,true,true,false);
+    assert(kx==128 && ky==0); // horizontal opposites cancel; forward remains
+
     /* Small continuous movements clear the game dead zone; no L2 or offset mode. */
     SDL_Event glide={0}; glide.type=SDL_EVENT_MOUSE_MOTION;
     PadData item={0}; item.timestamp=50000000;
@@ -131,8 +144,14 @@ int main(void) {
         item.left_x=item.left_y=item.right_x=item.right_y=128;
         item.timestamp+=16667; glide.motion.xrel=1; glide.motion.yrel=-1;
         mouse_watch(NULL,&glide); apply_mouse_aim(&item);
-        assert(item.right_x>=164 && item.right_y<=92 && item.left_x==128);
+        assert(item.right_x>128 && item.right_y<128 && item.left_x==128);
     }
+    /* Shallow mouse angles are preserved instead of lifting both axes separately. */
+    item.timestamp+=16667; glide.motion.xrel=40; glide.motion.yrel=-10;
+    mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+    assert(item.right_x>128 && item.right_y<128);
+    assert(abs(((int)item.right_x-128)-4*(128-(int)item.right_y))<=3);
+    assert(hypotf((float)item.right_x-128,(float)item.right_y-128)<=128);
     const uint8_t tilt=item.right_x;
     item.right_x=item.right_y=128; item.timestamp+=1000; apply_mouse_aim(&item);
     assert(item.right_x==tilt); // multiple reads between reports preserve movement

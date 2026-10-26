@@ -21,7 +21,7 @@ Mouse movement defaults to the **right stick**. In the same keyboard mapping tab
 
 `settings.json` stores these bindings with the other keyboard inputs, and `RATCHET_STICK_KEYS` passes `Mouse Move Left/Right/Up/Down` to the runtime. There are no relative/absolute, stick-target, activation or per-direction setup panels. Earlier mouse-mode INI fields are retained for file compatibility but do not control this path. The game captures the pointer automatically; menus, pause and lost focus release it.
 
-Motion speed produces a bounded stick signal with compensation for the game's dead zone. A 40 ms report hold bridges closely spaced pad reads, then releases to physical controller/keyboard input. There is no accumulated center offset. Overlay capture and focus loss discard pending movement. This is still stick emulation, with the game's maximum camera-turn speed; it is not a native camera-angle patch or guaranteed one-to-one mouse aiming.
+Keyboard diagonals combine both axes inside a circular stick range. Mouse speed applies dead-zone compensation to the whole movement vector, preserving its angle rather than boosting each axis separately. A 40 ms report hold bridges closely spaced pad reads, then releases to physical controller/keyboard input. There is no accumulated center offset. Overlay capture and focus loss discard pending movement. This is still stick emulation, with the game's maximum camera-turn speed; it is not a native camera-angle patch or guaranteed one-to-one mouse aiming.
 
 ## Graphics presets
 
