@@ -573,8 +573,8 @@ CONTROLS_LAYOUT = 2  # settings layout: 2 = one keyboard & mouse table (migrate_
 
 STICK_CONTROLS = [('lx_neg', 'A', None), ('lx_pos', 'D', None),
                   ('ly_neg', 'W', None), ('ly_pos', 'S', None),
-                  ('rx_neg', 'Left', None), ('rx_pos', 'Right', None),
-                  ('ry_neg', 'Up', None), ('ry_pos', 'Down', None)]
+                  ('rx_neg', 'Mouse Move Left', None), ('rx_pos', 'Mouse Move Right', None),
+                  ('ry_neg', 'Mouse Move Up', None), ('ry_pos', 'Mouse Move Down', None)]
 PS_BUTTON_NAMES.update(dict(zip((r[0] for r in STICK_CONTROLS),
     ('Left stick left', 'Left stick right', 'Left stick up', 'Left stick down',
      'Right stick left', 'Right stick right', 'Right stick up', 'Right stick down'))))
@@ -582,7 +582,17 @@ PS_BUTTON_NAMES.update(dict(zip((r[0] for r in STICK_CONTROLS),
 
 def table_rows(kind):
     return CONTROLS + STICK_CONTROLS if kind == 'key' else CONTROLS
-MOUSE_NAMES = {name.casefold() for name in (*TK_TO_MOUSE.values(), 'Wheel Up', 'Wheel Down')}
+MOUSE_MOVEMENTS = ('Mouse Move Left', 'Mouse Move Right', 'Mouse Move Up', 'Mouse Move Down')
+MOUSE_NAMES = {name.casefold() for name in (*TK_TO_MOUSE.values(), 'Wheel Up', 'Wheel Down', *MOUSE_MOVEMENTS)}
+
+
+def mouse_movement_name(dx, dy):
+    """Ignore click jitter; capture the dominant direction of an intentional movement."""
+    if max(abs(dx), abs(dy)) < 12:
+        return None
+    if abs(dx) >= abs(dy):
+        return 'Mouse Move Left' if dx < 0 else 'Mouse Move Right'
+    return 'Mouse Move Up' if dy < 0 else 'Mouse Move Down'
 
 
 def is_mouse_name(name):
@@ -2098,30 +2108,6 @@ class Launcher:
         f = self.key_section = ttk.Frame(page)
         f.grid(row=self.next_row(page), column=0, columnspan=2, sticky='we')
         f.columnconfigure(1, weight=1)
-        self.row(f, _('Mouse controls'), self.choice(f, 'mouse_stick', 'ini',
-                 [('1', ('Left stick',)), ('2', ('Right stick',)), ('0', ('Off',)), ('3', ('Custom directions',))]))
-        directions = [('0', ('Off',))] + [(str(i+1), (name,)) for i, name in enumerate(('Left stick left', 'Left stick right', 'Left stick up', 'Left stick down', 'Right stick left', 'Right stick right', 'Right stick up', 'Right stick down'))]
-        for direction in ('left', 'right', 'up', 'down'):
-            box = self.choice(f, 'mouse_' + direction, 'ini', directions)
-            box.bind('<<ComboboxSelected>>', lambda _e: self.var('mouse_stick', 'ini').set('3'), add='+')
-            self.row(f, 'Mouse movement ' + direction, box,
-                     'Selecting a direction enables Custom directions. Save and restart.')
-        def shooter_defaults():
-            for key in ('mouse_stick', 'mouse_left', 'mouse_right', 'mouse_up', 'mouse_down', 'mouse_activation', 'mouse_invert_y', 'mouse_aim_style', 'mouse_aim_sensitivity'):
-                self.var(key, 'ini').set(INI_DEFAULTS[key])
-        self.row(f, 'Mouse camera', ttk.Button(f, text='Apply shooter defaults', command=shooter_defaults))
-        self.row(f, _('Mouse activation'), self.choice(f, 'mouse_activation', 'ini',
-                 [('0', ('Always',)), ('1', ('Hold L2',))]))
-        self.row(f, _('Mouse vertical direction'), self.choice(f, 'mouse_invert_y', 'ini',
-                 [('0', ('Normal',)), ('1', ('Inverted',))]))
-        self.row(f, _('Mouse stick style'), self.choice(f, 'mouse_aim_style', 'ini', AIM_STYLES),
-                 hint=_('Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.'))
-        self.row(f, _('Mouse stick sensitivity'), slider('mouse_aim_sensitivity', 10, 200, '%'),
-                 _('Lower values need more mouse movement for the same stick movement.'))
-        self.check(f, 'mouse_lock', 'ini', _('Keep the mouse in the game window'),
-                   _('While you play, the mouse stays in the game window, so a click cannot land on another monitor '
-                     'or app. The in-game menu and switching windows get it back. Also in the in-game menu.'))
-
         self.section(f, _('Keyboard & Mouse Mapping'), top=12)
         self.note(f, _('Which key or mouse input presses each button of the game.'), top=4)
         table = mapping_table()
@@ -2139,7 +2125,7 @@ class Launcher:
                                command=lambda b=button, d=default: self.assign_key('key', b, d))
             arrow.grid(row=r, column=3, sticky='w', padx=self.px((6, 0)))
             self.key_rows[button] = (box, arrow)
-        self.note(f, 'Select a box and press a key or mouse button. Mouse movement defaults to the right stick. Choose a stick or map each direction above. Insert opens the port menu.')
+        self.note(f, 'Select a stick direction, then move the mouse in the desired direction or press a key. Mouse movement controls the right stick by default. Insert opens the port menu.')
         ttk.Button(f, text=_('Reset keyboard & mouse to defaults'), command=lambda: self.reset_controls('key')).grid(
             row=self.next_row(f), column=0, sticky='w', pady=self.px((14, 0)))
         # Gamepad: the controller type names its buttons, then the vibration and the table.
@@ -2197,6 +2183,7 @@ class Launcher:
         box = self.ttk.Button(parent, width=16, takefocus=False)
         mouse = kind == 'key'
         countdown = None
+        origin = [0, 0]
 
         def show(*_a):
             box.configure(text=_('(none)') if var.get() in ('', 'None') else var.get())
@@ -2205,7 +2192,7 @@ class Launcher:
 
         def finish(_e=None):
             nonlocal countdown
-            for sequence in ('<KeyPress>', '<FocusOut>', '<ButtonPress>'):
+            for sequence in ('<KeyPress>', '<FocusOut>', '<ButtonPress>', '<Motion>'):
                 box.unbind(sequence)
             box.grab_release()
             if countdown:
@@ -2235,6 +2222,11 @@ class Launcher:
         def wheeled(event):
             return bind(mouse_name(wheel_delta=event.delta or {4: 1, 5: -1}.get(event.num, 0))) if mouse else finish()
 
+        def moved(event):
+            dx, dy = event.x_root - origin[0], event.y_root - origin[1]
+            name = mouse_movement_name(dx, dy)
+            return bind(name) if name else 'break'
+
         def capture():
             if self.capturing_key not in (None, box):
                 self.capturing_key.event_generate('<FocusOut>')
@@ -2249,6 +2241,9 @@ class Launcher:
                 box.configure(text=f'{prompt} ({left})')
                 countdown = box.after(1000, tick, left - 1)
             tick(CAPTURE_SECONDS)
+            origin[:] = [box.winfo_pointerx(), box.winfo_pointery()]
+            if mouse and button in {row[0] for row in STICK_CONTROLS}:
+                box.bind('<Motion>', moved)
             box.bind('<KeyPress>', pressed)
             box.bind('<ButtonPress>', clicked)
             box.bind('<FocusOut>', finish)

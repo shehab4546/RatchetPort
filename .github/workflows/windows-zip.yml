@@ -59,9 +59,10 @@ jobs:
       - name: Build
         run: |
           bash build.sh
-          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test adaptive-gc-test pad-map-test --parallel 3
+          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test adaptive-gc-test pad-map-test audio-downmix-test --parallel 3
           out/ratchet-clean/adaptive-gc-test.exe
           out/ratchet-clean/pad-map-test.exe
+          out/ratchet-clean/audio-downmix-test.exe
           out/ratchet-clean/graphics-settings-test.exe
           out/ratchet-clean/verified-patches-test.exe
           out/ratchet-clean/services-test.exe

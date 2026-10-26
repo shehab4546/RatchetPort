@@ -17,11 +17,11 @@ Adaptive collection is enabled by default. The earlier experimental `RATCHET_GC0
 
 Controls exposes all eight stick directions alongside the existing button assignments. Select a field and press the desired key or mouse button; resetting keyboard and mouse restores both the assignments and mouse settings.
 
-Mouse movement defaults to the **right stick**, with **Always** activation. The launcher and in-game Controls menu offer **Left stick / Right stick / Off / Custom directions**, **Always / Hold L2**, relative or absolute movement, sensitivity, and vertical inversion. WASD still maps to the left stick and arrows to the right unless reassigned. When mouse movement actively drives a stick, it takes priority over that stick's keyboard/controller value; idle relative movement releases it. Overlay capture and focus loss clear the mouse state.
+Mouse movement defaults to the **right stick**. In the same keyboard mapping table, click a stick direction and move the mouse left, right, up or down to bind it. Movement capture ignores the first 12 pixels of click jitter and selects the dominant direction. Keyboard keys and mouse buttons can still be assigned in these fields. Saved explicit key assignments survive; resetting keyboard controls restores mouse movement on the right stick.
 
-`ratchet.ini` stores `mouse_stick` (0 off, 1 left, 2 right, 3 custom), `mouse_activation` (0 always, 1 L2), `mouse_invert_y` (0 normal, 1 inverted), `mouse_aim_style` and `mouse_aim_sensitivity`. Keyboard stick assignments are saved in `settings.json` and sent through `RATCHET_STICK_KEYS`; button assignments retain their existing format.
+`settings.json` stores these bindings with the other keyboard inputs, and `RATCHET_STICK_KEYS` passes `Mouse Move Left/Right/Up/Down` to the runtime. There are no relative/absolute, stick-target, activation or per-direction setup panels. Earlier mouse-mode INI fields are retained for file compatibility but do not control this path. The game captures the pointer automatically; menus, pause and lost focus release it.
 
-Each mouse direction can target any signed stick axis or Off in Custom directions mode. `mouse_left`, `mouse_right`, `mouse_up`, and `mouse_down` use 0 for Off, then 1–8 for LX−/+, LY−/+, RX−/+, RY−/+. The shooter-defaults button restores right-stick, always-active relative movement. Existing saved preferences are retained. Mouse input remains analog-stick emulation and retains the game's camera speed limits.
+Motion speed produces a bounded stick signal with compensation for the game's dead zone. A 40 ms report hold bridges closely spaced pad reads, then releases to physical controller/keyboard input. There is no accumulated center offset. Overlay capture and focus loss discard pending movement. This is still stick emulation, with the game's maximum camera-turn speed; it is not a native camera-angle patch or guaranteed one-to-one mouse aiming.
 
 ## Graphics presets
 
@@ -37,6 +37,6 @@ The experimental text-resource override allows independent voice selection on th
 
 ## Validation
 
-The native policy test covers hysteresis, large budgets, bounded progress, age boundaries, cursor deletion/touch/reuse and deletion from a callback. Graphics settings tests cover mouse-setting save/reload. Pad mapping tests cover remapping, opposite-key neutralization, left/right/off mouse routing, activation, inversion and focus reset. Launcher tests cover language persistence, UI-language independence and stick-key serialization. Windows CI runs the native input tests and real Tk save/rebuild regression tests.
+The native policy test covers hysteresis, large budgets, bounded progress, age boundaries, cursor deletion/touch/reuse and deletion from a callback. Graphics settings tests cover mouse-setting save/reload. Pad mapping tests cover remapping, opposite-key neutralization, mouse-direction bindings, small continuous movements, report gaps, release and focus reset. Launcher tests cover language persistence, UI-language independence and stick-key serialization. Windows CI runs the native input tests and real Tk save/rebuild regression tests.
 
 Gameplay validation should compare the same scene and settings on the same device. Use `Adaptive texture GC` logs alongside frame-time measurements; counts from runs of different lengths do not establish an FPS gain. Check text and voice after a full restart, test both mouse stick targets, and verify that physical controller movement resumes when the mouse is idle or disabled.

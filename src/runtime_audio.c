@@ -40,7 +40,7 @@ typedef struct {
     FILE *dump;                     /* RATCHET_AUDIO_DUMP: raw converted PCM per port */
     int stats;
     uint64_t stat_start_ns, stat_last_ns, stat_max_gap_ns; /* RATCHET_AUDIO_STATS */
-    unsigned stat_starved, stat_buffers; int stat_min_queued;
+    unsigned stat_starved, stat_buffers, stat_resets; int stat_min_queued, stat_max_queued;
 } Port;
 typedef struct { uint16_t output; uint8_t channel, reserved; int16_t volume; uint16_t reroute; uint64_t flag, reserved64[2]; } PortState;
 _Static_assert(sizeof(PortState)==32,"AudioOut port state layout");
@@ -144,7 +144,8 @@ static ABI int32_t audio_open(int32_t user, int32_t type, int32_t index, uint32_
         if (p->stream) SDL_ResumeAudioStreamDevice(p->stream);
         else fprintf(stderr,"Runtime: SDL audio stream failed (%s); port %d uses the timer sink\n",SDL_GetError(),id);
     }
-    p->stats=getenv("RATCHET_AUDIO_STATS")!=NULL;
+    const char *stats=getenv("RATCHET_AUDIO_STATS");
+    p->stats=!stats || strcmp(stats,"0");
     const char *dump=getenv("RATCHET_AUDIO_DUMP");
     if (dump) {
         char path[4096];
@@ -173,6 +174,11 @@ static ABI int32_t audio_close(int32_t handle) {
     return p ? 0 : error;
 }
 /* `pace`: wait for this port's next period. sceAudioOutOutputs waits once for all its ports. */
+/* Input format is fixed per port; queued bytes therefore have a known duration. */
+static int audio_backlog_excessive(int queued, size_t bytes, uint64_t period) {
+    return queued>0 && bytes>0 && ((uint64_t)queued*period/bytes)>250000000u;
+}
+
 static int32_t output_port(int32_t handle, const void *data, int pace) {
     int32_t error=0;
     pthread_mutex_lock(&table_lock);
@@ -202,19 +208,21 @@ static int32_t output_port(int32_t handle, const void *data, int pace) {
             p->stat_last_ns=now; ++p->stat_buffers;
             if (p->stream) {
                 int queued=SDL_GetAudioStreamQueued(p->stream);
-                if (queued<p->stat_min_queued) p->stat_min_queued=queued;
+                if (queued>=0 && queued<p->stat_min_queued) p->stat_min_queued=queued;
+                if (queued>p->stat_max_queued) p->stat_max_queued=queued;
                 if (queued==0) ++p->stat_starved;
             }
             if (now-p->stat_start_ns>=5000000000u) {
-                printf("Audio stats port %d: %u buffers/5s (expected %u), max gap %.2f ms, min queued %d bytes, starved %u\n",
+                printf("Audio stats port %d: %u buffers/5s (expected %u), max gap %.2f ms, min queued %d bytes, starved %u, max queued %.2f ms, backlog resets %u\n",
                        (int)(p-ports),p->stat_buffers,(unsigned)(5u*48000u/(unsigned)p->frames),p->stat_max_gap_ns/1e6,
-                       p->stat_min_queued,p->stat_starved);
-                p->stat_start_ns=now; p->stat_max_gap_ns=0; p->stat_starved=0; p->stat_buffers=0; p->stat_min_queued=1<<30;
+                       p->stat_min_queued,p->stat_starved,
+                       (double)p->stat_max_queued/(double)bytes*(double)period/1e6,p->stat_resets);
+                p->stat_start_ns=now; p->stat_max_gap_ns=0; p->stat_max_queued=0; p->stat_resets=0; p->stat_starved=0; p->stat_buffers=0; p->stat_min_queued=1<<30;
             }
         }
         if (pace) {
             uint64_t now=now_ns();
-            if (!p->next_deadline_ns || now>p->next_deadline_ns+8*period) p->next_deadline_ns=now; /* start or stall: restart cadence */
+            if (!p->next_deadline_ns || now>p->next_deadline_ns+period) p->next_deadline_ns=now; /* start or stall: restart cadence */
             else sleep_until(p->next_deadline_ns);
             p->next_deadline_ns+=period;
         }
@@ -222,7 +230,16 @@ static int32_t output_port(int32_t handle, const void *data, int pace) {
             /* The device drains the queue in quanta (21 ms on PipeWire), so the level
                is a sawtooth: its minimum over ~32 buffers is what gets controlled. */
             int low=2*(int)bytes, queued=SDL_GetAudioStreamQueued(p->stream);
-            if (queued<(int)bytes) {
+            /* Do not replay a long backlog after a device/scheduling stall. This
+             * bounds the SDL input queue, not total hardware or cinematic latency. */
+            if (audio_backlog_excessive(queued, bytes, period) && SDL_ClearAudioStream(p->stream)) {
+                fprintf(stderr,"Audio backlog reset port %d: %.2f ms queued; dropping stale PCM\n",
+                        (int)(p-ports),(double)queued/(double)bytes*(double)period/1e6);
+                ++p->stat_resets;
+                queued=0; p->adjust_ns=0; p->window_count=0;
+                p->next_deadline_ns=now_ns()+period;
+            }
+            if (queued>=0 && queued<(int)bytes) {
                 static const unsigned char silence[2048*8*4];
                 SDL_PutAudioStreamData(p->stream,silence,low-queued<(int)bytes ? low-queued : (int)bytes);
                 queued=low;

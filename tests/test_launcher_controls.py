@@ -68,6 +68,19 @@ class DiskModsTest(unittest.TestCase):
 
 class ControlMapTest(unittest.TestCase):
 
+    def test_mouse_directions_use_the_control_map(self):
+        env = launcher.game_environment(dict(launcher.APP_DEFAULTS))
+        mapping = dict(pair.split('=', 1) for pair in env['RATCHET_STICK_KEYS'].split(','))
+        self.assertEqual(mapping['rx_neg'], 'Mouse Move Left')
+        self.assertEqual(mapping['ry_pos'], 'Mouse Move Down')
+        for dx, dy, expected in ((-20, 1, 'Mouse Move Left'), (20, 1, 'Mouse Move Right'),
+                                 (1, -20, 'Mouse Move Up'), (1, 20, 'Mouse Move Down'), (3, 4, None)):
+            self.assertEqual(launcher.mouse_movement_name(dx, dy), expected)
+        values = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
+        values['lx_neg'] = 'Mouse Move Up'
+        settings = {**launcher.APP_DEFAULTS, 'controls': {'key': launcher.control_changes(values, 'key')}}
+        self.assertIn('lx_neg=Mouse Move Up', launcher.game_environment(settings)['RATCHET_STICK_KEYS'])
+
     def test_stick_keys_round_trip_and_launch(self):
         values = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
         values.update(lx_neg='J', ly_neg='None', rx_pos='Mouse Right')
