@@ -2271,6 +2271,32 @@ for language in ('pt', 'es'):
 def table(language):
     return EXTRA.get(language, {})
 
+# In-game prompt style selector.
+EXTRA['ar'].update({
+    'In-game button icons': 'أيقونات الأزرار داخل اللعبة',
+    'Original / PlayStation': 'الأصلية / PlayStation',
+    'Auto (at launch)': 'تلقائي عند التشغيل',
+    'Keyboard & mouse': 'الكيبورد والماوس',
+    'Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.':
+        'تتبع أيقونات الكيبورد تعييناتك المحفوظة. يفحص الوضع التلقائي يد التحكم عند التشغيل. احفظ وأعد تشغيل اللعبة للتطبيق.'
+})
+EXTRA['pt'].update({
+    'In-game button icons': 'Ícones dos botões no jogo',
+    'Original / PlayStation': 'Original / PlayStation',
+    'Auto (at launch)': 'Automático ao iniciar',
+    'Keyboard & mouse': 'Teclado e mouse',
+    'Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.':
+        'Os ícones seguem o mapeamento salvo. O modo automático verifica o controle conectado ao iniciar. Salve e reinicie o jogo para aplicar.'
+})
+EXTRA['es'].update({
+    'In-game button icons': 'Iconos de botones en el juego',
+    'Original / PlayStation': 'Original / PlayStation',
+    'Auto (at launch)': 'Automático al iniciar',
+    'Keyboard & mouse': 'Teclado y ratón',
+    'Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.':
+        'Los iconos siguen la asignación guardada. El modo automático comprueba el mando conectado al iniciar. Guarda y reinicia el juego para aplicar.'
+})
+
 # Adaptive controls and game-language selection.
 EXTRA['ar'].update({
     'Game language': 'لغة اللعبة', 'Mouse controls': 'الماوس يتحكم بـ',

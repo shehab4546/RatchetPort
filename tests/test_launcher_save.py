@@ -59,6 +59,18 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
 
 
 class SaveButtonTest(LauncherOverTemporaryFiles):
+    def test_in_game_icon_choice_survives_save_and_rebuild(self):
+        self.app.var('glyph_style', 'app').set('keyboard')
+        self.app.control_vars['key']['cross'].set('F24')
+        self.app.save()
+        self.app.rebuild('en')
+        self.root.update()
+        settings = self.app.gather()['app']
+        self.assertEqual(settings['glyph_style'], 'keyboard')
+        env = launcher.game_environment(settings)
+        self.assertEqual(env['RATCHET_GLYPH_STYLE'], 'keyboard')
+        self.assertIn('cross=F24', env['RATCHET_KEY_MAP'])
+
     def test_language_and_mouse_options_survive_save_and_rebuild(self):
         self.assertEqual(self.app.vars['language'].get(), '1')
         self.app.var('language', 'app').set('20')

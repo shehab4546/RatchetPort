@@ -12,6 +12,11 @@ See each dependency's source and license for its complete author list and terms.
 
 The project's GPL-2.0 license is in `LICENSE`. Existing per-file SPDX statements, copyright notices and upstream license files continue to apply. For any public binary release, publish its corresponding source commit and the referenced submodule revisions and patches together with the release.
 
+In-game prompt lettering uses **Prompt Sans**, a flattened ASCII subset derived
+from DejaVu Sans. Copyright (c) 2003 Bitstream, Inc.; DejaVu changes are public
+domain. The complete Bitstream Vera license and attribution accompany the outline
+data in `scripts/glyph_font.py`. No proprietary game font is bundled.
+
 V1 uses an isolated LGPL-2.1-or-later build of FFmpeg, rather than the GPLv3-enabled
 MSYS2 build. Exact source attachments and reproduction details are documented in
 [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md). Python, Pillow, iced-x86, PyInstaller

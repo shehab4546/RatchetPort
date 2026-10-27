@@ -262,6 +262,21 @@ def main():
         env.setdefault('RATCHET_OUTPUT_RES', '1280x720')
         env['RATCHET_DERIVED'] = ','.join(derived)
         mount_args = []
+        import game_glyphs
+        glyph_style = env.get('RATCHET_GLYPH_STYLE', 'off')
+        if glyph_style == 'auto':
+            try:
+                detected = subprocess.run([str(probe), '--gamepad'], stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=15,
+                    creationflags=no_console())
+                glyph_style = game_glyphs.auto_style(detected.stdout) if detected.returncode == 0 else 'off'
+            except (OSError, subprocess.SubprocessError):
+                glyph_style = 'off'
+        try:
+            mount_args, glyph_report = game_glyphs.prepare(game, out / 'glyphs', glyph_style, env)
+        except (OSError, ValueError, KeyError) as error:
+            fail(f'Button icons could not be prepared: {error}. Select Original to use installed artwork.')
+        print(f"Button icons: {glyph_report['style']} — {glyph_report['status']}; input mapping unchanged", flush=True)
         # Windows commits the direct pool and flexible span in full at startup.
         import guest_memory
         pool_mb = effects.get('RATCHET_RESOLUTION_DMEM_MB', env.get('RATCHET_DMEM_MB'))

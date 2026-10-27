@@ -494,8 +494,8 @@ def connected_gamepad():
 
 # Configurable mouse-to-stick movement: ratchet.ini mouse_aim_style.
 AIM_STYLES = [('0', ('Relative',)), ('1', ('Absolute',))]
-GLYPH_STYLES = [('off', ('Original (default)',)), ('auto', ('Match my controller',)), ('xbox', ('Xbox',)),
-                ('nintendo', ('Nintendo',)), ('keyboard', ('Keyboard',))]
+GLYPH_STYLES = [('off', ('Original / PlayStation',)), ('auto', ('Auto (at launch)',)),
+                ('xbox', ('Xbox',)), ('keyboard', ('Keyboard & mouse',))]
 
 
 # Keyboard capture on the Controls page: the Tk keysym of a pressed key and the SDL scancode
@@ -1136,6 +1136,8 @@ def game_environment(s):
     env = dict(os.environ)
     for removed in ('RATCHET_GLYPH_STYLE', 'RATCHET_STICK_PROMPTS'):
         env.pop(removed, None)
+    if s.get('glyph_style') in ('auto', 'xbox', 'keyboard'):
+        env['RATCHET_GLYPH_STYLE'] = s['glyph_style']
     env['RATCHET_GAME_DIR'] = s['game_dir']
     env.pop('RATCHET_PATCH_DIR', None)
     # Temporal upscaling is parked (build_graphics): a switch saved on by 2.1.8 has no control left to
@@ -2091,6 +2093,8 @@ class Launcher:
 
         # The in-game icons first, then the device: its section is shown, the other hidden (show_device).
         page = f
+        self.row(page, _('In-game button icons'), self.choice(page, 'glyph_style', 'app', GLYPH_STYLES),
+                 _('Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.'))
         saved_device = self.app.get('controls_device')
         self.device = tk.StringVar(value=saved_device if saved_device in dict(CONTROL_DEVICES) else 'keyboard')
         self.device_chosen = saved_device in dict(CONTROL_DEVICES)

@@ -249,6 +249,15 @@ class ControlMapTest(unittest.TestCase):
         self.assertEqual(launcher.APP_DEFAULTS['glyph_style'], 'off')
         self.assertNotIn('RATCHET_GLYPH_STYLE', launcher.game_environment({**launcher.APP_DEFAULTS}))
 
+    def test_generated_icons_do_not_change_input_maps(self):
+        settings = {**launcher.APP_DEFAULTS, 'controls': {'key': {'cross': 'F24'}}}
+        baseline = launcher.game_environment(settings)
+        for style in ('auto', 'xbox', 'keyboard'):
+            env = launcher.game_environment({**settings, 'glyph_style': style})
+            self.assertEqual(env['RATCHET_GLYPH_STYLE'], style)
+            for key in ('RATCHET_KEY_MAP', 'RATCHET_PAD_MAP', 'RATCHET_STICK_KEYS'):
+                self.assertEqual(env.get(key), baseline.get(key))
+
 
     def test_unknown_glyph_style_is_off(self):
         for style in ('playstation', 'XBOX', 7, None, ''):
