@@ -29,12 +29,27 @@ they do not identify the failing render pass. **1440p and 4K are not gameplay
 verified or established as working.** The same acceptance gate applies to the
 other explicit modes. No resolution option has been removed.
 
-The V1.7 diagnostic changes below repair missing observability, not the reported
-rendering defect. Root cause, any native history-buffer change, and the final
-rendering fix remain pending comparative runtime captures. No cache-budget
-increase, forced MSAA disable, VideoOut override or speculative executable write
-is included. The verified selector, source/ELF guards and Original behavior are
-unchanged.
+The latest four-flip captures identify zero native color-target bases and formats
+with color mode and write masks enabled. Isolated execution reproduces that
+packet state when the native resource allocator returns zero. The allocator's
+failure logger is a no-op in the retail binary; available host VRAM does not
+establish free space in the game's separate 1165 MiB XMemGpu heap.
+
+The experimental correction couples the verified resolution transaction with a
+larger XMemGpu reservation and a failure-only printf redirect. 1440p uses a
+1549 MiB heap and a 5440 MiB direct pool floor; 4K uses 1933 MiB and 5824 MiB.
+These are bounded trial capacities, not measured minima. Windows commit grows
+by 384/768 MiB. The native alignment/reservation path stays intact; Original and
+720p/900p/1080p keep the retail heap policy. A rejected high-resolution transaction
+cannot prepare its memory floor. Manual larger direct-pool overrides remain in
+force, including after restart to Original.
+
+This is an experimental rendering correction, **not a gameplay-verified fix**.
+The selector, heap lookup and logging writes share the exact source/ELF,
+original-byte, unique-signature and relocation guards. No MSAA, display-output
+or host color-binding override is introduced. See
+[evidence/issue19-paired-captures.md](evidence/issue19-paired-captures.md) for
+addresses, captures, native probe coverage and remaining uncertainty.
 
 ### Captured evidence
 
@@ -94,9 +109,9 @@ Keep the save, camera, output size, blur, shadows and frame-rate setting identic
 Restart for each of Original, forced 1080p, 1440p and 4K; preserve each run's log,
 `ratchet.ini`, screenshot and capture under a different name. Then repeat 1440p
 and 4K with guest multisampling off/on. Disabling it is an isolation test, not a fix.
-The next review must follow matching shader/address relationships through scene,
-resolve, post-processing and sampled previous-frame resources before changing
-allocation or history lifecycle code. Smaller images may be legitimate derived
+The next review must verify the logged heap reservation and allocation failures,
+then compare matching shader/address relationships through scene, resolve and
+post-processing to establish whether the native capacity correction restores color targets. Smaller images may be legitimate derived
 or display-size targets; dimensions alone do not justify resizing them.
 
 ### Implementation files
@@ -126,8 +141,11 @@ or display-size targets; dimensions alone do not justify resizing them.
 - The Python suite ran 552 tests: 445 passed, 103 skipped, with the same four
   previously recorded Linux-only/environment baseline failures (WindowsPath mocks,
   Windows drive-path packaging, and a stub missing `prepare.load_sfo`).
-- Full Windows compilation/package validation of this change is pending CI.
-  New runtime records and actual 720p/900p/1080p/1440p/4K gameplay remain pending.
+- The earlier diagnostic build `b0cdfe7` passed Windows run 40394941135.
+  Windows validation of the new heap-capacity change is pending CI. The new native
+  probe passes six heap-init cases, allocation-failure logging and 30 texture/view/packet
+  cases; the C memory-floor test passes 12 process-start cases.
+  Successful high-resolution gameplay remains unverified.
 
 ## Implementation evidence
 
