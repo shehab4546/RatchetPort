@@ -2,6 +2,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import zlib
 from pathlib import Path
 from paths import ROOT
@@ -141,6 +142,29 @@ class ArchiveTest(unittest.TestCase):
             with self.assertRaises((ValueError,zlib.error)):Toc(raw)
         changed,_=Toc(fixture_toc()).overlay({123:b'new'})
         with self.assertRaises(ValueError):Toc(changed).overlay({123:b'again'})
+
+    def test_identity_failure_names_asset_and_never_mounts_old_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);game=root/'game';folder=game/'asset_archive'
+            folder.mkdir(parents=True)
+            toc=fixture_toc();source=b'12345original'
+            (folder/'toc').write_bytes(toc);(folder/'g00s000').write_bytes(source)
+            cache=root/'cache';cache.mkdir();stale=cache/'old-overlay';stale.write_bytes(b'stale')
+            name='ui/textures/buttons/ps4/key_11.texture'
+            wrong=digest(b'previously modified')
+            with mock.patch.object(game_glyphs,'ASSETS',{name:(123,wrong)}), \
+                    mock.patch.object(game_glyphs,'mounts') as mounts:
+                with self.assertRaises(ValueError) as caught:
+                    game_glyphs.prepare(game,cache,'keyboard',{})
+            message=str(caught.exception)
+            for detail in (name,'g00s000 at 5','asset=000000000000007b',
+                           'expected_sha256='+wrong,'actual_sha256='+digest(b'original')):
+                self.assertIn(detail,message)
+            mounts.assert_not_called()
+            self.assertEqual(list(cache.iterdir()),[stale])
+            self.assertEqual((folder/'toc').read_bytes(),toc)
+            self.assertEqual((folder/'g00s000').read_bytes(),source)
+            self.assertEqual(game_glyphs.prepare(game,cache,'off',{})[0],[])
 
     def test_lz4_exact_lengths(self):
         for count in (1,14,15,16,270,4180):

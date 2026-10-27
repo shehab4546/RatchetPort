@@ -41,6 +41,14 @@ invalid bounds and incomplete coverage stop prompt preparation with a diagnostic
 Selecting Original permits the installed artwork to load. This option cannot
 undo unrelated modifications made to a dump before installation.
 
+The texture reference was corrected against the restored PlayStation assets
+collected on 2026-10-27. The initial reference mistakenly included 12 textures
+from an earlier Xbox icon modification, causing restored installations to fail
+identity checks. The 46 GFX files, iconmap and TOC matched between collections.
+Unknown content is still rejected; mismatch diagnostics now identify the asset
+path and expected/actual SHA-256. Corrected source hashes select a new cache entry
+automatically. No manual cache removal or game archive modification is required.
+
 ## Validation
 
 Automated checks cover mapping aliases, invalid entries, unbound sources,

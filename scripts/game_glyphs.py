@@ -39,7 +39,12 @@ def prepare(game,cache,style,env):
     toc_path=folder/'toc'
     if not 8<=toc_path.stat().st_size<=LIMIT:raise ValueError('Invalid prompt TOC size')
     original_toc=toc_path.read_bytes();toc=Toc(original_toc)
-    originals={name:toc.read(folder,aid,sha) for name,(aid,sha) in ASSETS.items()}
+    originals={}
+    for name,(aid,sha) in ASSETS.items():
+        try:
+            originals[name]=toc.read(folder,aid,sha)
+        except (OSError,ValueError) as error:
+            raise ValueError(f'{name}: {error}') from error
     fingerprint={'version':VERSION,'toc':digest(original_toc),'style':style,
                  'keys':resolver.keys,'sticks':resolver.sticks,'pad':resolver.pad,
                  'assets':{name:digest(raw) for name,raw in originals.items()}}

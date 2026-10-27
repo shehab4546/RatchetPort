@@ -87,7 +87,9 @@ class Toc:
         if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
             raise ValueError(f'{name} changed during prompt preparation')
         if len(data) != size or digest(data) != expected_hash:
-            raise ValueError(f'Prompt identity mismatch in {name} at {offset}')
+            raise ValueError(f'Prompt identity mismatch in {name} at {offset} '
+                             f'(asset={asset_id:016x}, size={size}, '
+                             f'expected_sha256={expected_hash}, actual_sha256={digest(data)})')
         return data
 
     def overlay(self, replacements):
