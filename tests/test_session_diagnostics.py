@@ -51,7 +51,7 @@ class DiagnosticsTest(unittest.TestCase):
     def test_unicode_log_limit_preserves_header_and_tail(self):
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp)/'run.log'
-            log.write_text('Hardware: first\n'+''.join('GPU '+str(i)+' ش'*900+'\n' for i in range(500))+'GPU last\n')
+            log.write_text('Hardware: first\n'+''.join('GPU '+str(i)+' ش'*900+'\n' for i in range(500))+'GPU last\n', encoding='utf-8')
             payload = diagnostics.report(log, 0, '1.7')
             self.assertTrue(diagnostics.valid_report(payload))
             self.assertIn('Hardware: first', payload['log'])
