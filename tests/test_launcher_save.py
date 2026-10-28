@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -44,18 +45,26 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
         self.root.update()
 
     def close_window(self):
+        # A capture timer belongs to its button. Cancelling it through root
+        # deletes the Tcl command but leaves the button's command list stale.
+        # Finish capture first so the owning widget cancels its own timer.
+        capture = getattr(getattr(self, 'app', None), 'capturing_key', None)
+        if capture is not None and capture.winfo_exists():
+            capture.event_generate('<FocusOut>')
         for pending in self.root.tk.call('after', 'info'):  # drain_output and watch_changes
             self.root.after_cancel(pending)
         self.root.destroy()
 
     def tearDown(self):
-        self.close_window()
-        launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG, config = self.saved
-        if config is None:
-            os.environ.pop('RATCHET_CONFIG', None)
-        else:
-            os.environ['RATCHET_CONFIG'] = config
-        shutil.rmtree(self.tmp, ignore_errors=True)
+        try:
+            self.close_window()
+        finally:
+            launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG, config = self.saved
+            if config is None:
+                os.environ.pop('RATCHET_CONFIG', None)
+            else:
+                os.environ['RATCHET_CONFIG'] = config
+            shutil.rmtree(self.tmp, ignore_errors=True)
 
     def save_state(self):
         self.app.refresh_save_button()
@@ -111,18 +120,35 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
         self.app.show('controls')
         box = self.app.key_rows['cross'][0]
         self.root.update()
-        box.invoke()
+        with mock.patch.object(box, 'bind', wraps=box.bind) as bindings:
+            box.invoke()
         self.root.update()
         self.assertIs(self.app.capturing_key, box)
+        # Exercise the actual registered key handler without depending on the
+        # Windows runner granting foreground keyboard focus to a test window.
+        pressed = next(call.args[1] for call in bindings.call_args_list
+                       if call.args[0] == '<KeyPress>')
         def conflict(*args):
             self.assertIsNone(self.app.capturing_key)
             self.assertIsNone(self.root.grab_current())
         with mock.patch.object(self.app.messagebox, 'showerror', side_effect=conflict) as error:
-            box.event_generate('<KeyPress>', keysym='q')
+            self.assertEqual(pressed(types.SimpleNamespace(keysym='q')), 'break')
             self.root.update()
         error.assert_called_once()
         self.assertEqual(self.app.control_vars['key']['cross'].get(), 'Space')
         self.assertEqual(str(box['text']), 'Space')
+
+    def test_closing_window_during_capture_allows_a_fresh_launcher(self):
+        self.app.show('controls')
+        self.app.key_rows['cross'][0].invoke()
+        self.root.update()
+        self.assertIsNotNone(self.app.capturing_key)
+        self.close_window()
+        self.assertIsNone(tk._default_root)
+        self.root = tk.Tk()
+        self.app = launcher.Launcher(self.root, tk, ttk, filedialog, messagebox)
+        self.root.update()
+        self.assertEqual(self.app.control_vars['key']['cross'].get(), 'Space')
 
     def test_in_game_icon_choice_survives_save_and_rebuild(self):
         self.app.var('glyph_style', 'app').set('keyboard')
