@@ -1,5 +1,17 @@
 # Test records
 
+## V2.0 preparation — 28 October 2026
+
+I verified that the black 3D world is fixed at 1440p and 4K. This confirms the
+symptom in issue #19; this confirmation does not specify a new hardware matrix,
+frame-time benchmark or long-session duration.
+
+The preceding candidate passed [Windows build 37](https://github.com/shehab4546/RatchetPort/actions/runs/40662791750),
+including native build, Python tests, packaging and the separate package smoke
+test. V2.0 changes the release identity and documentation and requires its own
+version-matched package build. Silent non-English gameplay voice in issue #31,
+RX 570 startup behavior and other open graphics reports are not certified fixed.
+
 ## RP-01 baseline — 22 October 2026
 
 The independent source build, automated checks, and a short unattended UHD 730

@@ -70,7 +70,7 @@ file permissions where supported. It is never packaged or included in reports.
 
 Security Rules allow authenticated anonymous clients to create immutable,
 validated reports with their own UID and a server timestamp. Clients cannot
-read, update or delete reports. The maintainer can inspect and delete reports
+read, update or delete reports. I can inspect and delete reports
 through the Firebase console. Client-side daily limits are not a server-enforced
 quota or protection against hostile clients. Anonymous users can consume Spark
 quotas; do not treat this endpoint as abuse-proof. Check Firestore usage and
@@ -90,7 +90,14 @@ Configuration and activation:
    `diagnostics`, field `log`, and disable its indexes. Alternatively, from
    `services/diagnostics`, deploy only the checked-in Firestore configuration:
    `firebase deploy --only firestore --project ratchetport-diagnostics`.
-6. Enable Send diagnostic reports automatically in the launcher only when ready.
+6. Review the Web API key in Google Cloud > APIs & Services > Credentials.
+   Restrict it to the Firebase APIs used by this project; never allow unrelated
+   services such as Generative Language API. The desktop transport passes this
+   key to Identity Toolkit API (`identitytoolkit.googleapis.com`) and Token
+   Service API (`securetoken.googleapis.com`); Firestore requests use the issued
+   ID token. Keep any additional Firebase APIs required by other clients sharing
+   the key. Website-referrer restrictions do not fit this desktop REST client.
+7. Enable Send diagnostic reports automatically in the launcher only when ready.
 
 `diagnostics.public.json` contains the project's public ID and Firebase Web API
 key supplied for this distribution. The packager validates and copies these to
@@ -98,6 +105,13 @@ key supplied for this distribution. The packager validates and copies these to
 configuration. This is Firebase client configuration, not an administrator key.
 No service-account credentials are included. Cloud rules, Anonymous Auth and
 project readiness are not inferred from the presence of this configuration.
+API restrictions are also configured in Google Cloud, not by this file. A secret
+scanning alert about the Web API key requires reviewing those restrictions; the
+key's public client role alone does not establish that its configuration is safe.
+Do not close an alert as revoked unless the key was actually revoked. If a key
+also grants access to a non-Firebase service, separate that service's credentials
+and assess whether its exposed key needs replacement. Removing or obscuring the
+configuration does not make a key distributed in the client secret.
 
 ## Verification scope
 
@@ -120,4 +134,5 @@ References: [SDL keyboard state](https://wiki.libsdl.org/SDL3/SDL_GetKeyboardSta
 [SDL trigger axes](https://wiki.libsdl.org/SDL3/SDL_GamepadAxis),
 [GitHub releases API](https://docs.github.com/en/rest/releases/releases),
 [Firestore REST API](https://firebase.google.com/docs/firestore/use-rest-api),
-[Firebase Security Rules](https://firebase.google.com/docs/firestore/security/rules-conditions).
+[Firebase Security Rules](https://firebase.google.com/docs/firestore/security/rules-conditions),
+[Firebase API key restrictions](https://firebase.google.com/docs/projects/api-keys).

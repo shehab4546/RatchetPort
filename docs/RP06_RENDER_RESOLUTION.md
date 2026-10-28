@@ -17,7 +17,7 @@ internal modes are experimental and require a game restart.
 These are native allocation **requests verified in isolation**, not captured GPU
 frames. 4K contains four times as many scene pixels as 1080p; this does not predict
 frame rate or total memory use. No minimum VRAM capacity or 4K stability result has
-been established. Original removes the override rather than forcing 1080p.
+been established across hardware. Original removes the override rather than forcing 1080p.
 
 
 ## V1.7 investigation: black world at explicit resolutions
@@ -25,9 +25,10 @@ been established. Original removes the override rather than forcing 1080p.
 [Issue #19](https://github.com/shehab4546/RatchetPort/issues/19) reports a black
 3D scene at 1440p/4K while HUD/menus remain visible, with confirmations on RTX
 5080 and RX 7900 XTX. The supplied 4K logs confirm the override was applied;
-they do not identify the failing render pass. **1440p and 4K are not gameplay
-verified or established as working.** The same acceptance gate applies to the
-other explicit modes. No resolution option has been removed.
+they did not identify the failing render pass. **Update, 28 October 2026: I
+verified that the black 3D world is corrected in gameplay at both 1440p and 4K.**
+This closes the reported symptom in #19; it does not establish every scene, GPU
+or long-session configuration. No resolution option has been removed.
 
 The latest four-flip captures identify zero native color-target bases and formats
 with color mode and write masks enabled. Isolated execution reproduces that
@@ -44,7 +45,8 @@ by 384/768 MiB. The native alignment/reservation path stays intact; Original and
 cannot prepare its memory floor. Manual larger direct-pool overrides remain in
 force, including after restart to Original.
 
-This is an experimental rendering correction, **not a gameplay-verified fix**.
+The black-world correction is now gameplay-verified at 1440p and 4K; the
+capacities remain experimental for broader hardware and scene coverage.
 The selector, heap lookup and logging writes share the exact source/ELF,
 original-byte, unique-signature and relocation guards. No MSAA, display-output
 or host color-binding override is introduced. See
