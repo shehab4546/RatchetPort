@@ -36,6 +36,13 @@ int main(void) {
     assert(downmix_stereo((unsigned char *)s,2,0)==2*2*2);
     assert(s[0]==16383 && s[1]==0);
     assert(s[2]==32767 && s[3]==32767);
-    puts("audio downmix ok");
+    assert(!audio_backlog_excessive(-1,4096,10666666));
+    assert(!audio_backlog_excessive(0,4096,10666666));
+    assert(!audio_backlog_excessive(4096*4,4096,10666666));
+    assert(!audio_backlog_excessive(4096*23,4096,10666666));
+    assert(audio_backlog_excessive(4096*24,4096,10666666));
+    assert(audio_backlog_excessive(16384*24,16384,10666666));
+    assert(!audio_backlog_excessive(96000,0,10666666));
+    puts("audio downmix and backlog policy ok");
     return 0;
 }

@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
     }
     assert(EmulatorSettings.IsReadbackLinearImagesEnabled());
     assert(!RatchetSettings::Get().deferred_readback);
-    assert(RatchetSettings::Get().mouse_stick==1 && RatchetSettings::Get().mouse_activation==0);
+    assert(RatchetSettings::Get().mouse_stick==2 && RatchetSettings::Get().mouse_activation==0);
     assert(RatchetSettings::EngineFpsNow() == 30);
     assert(!RatchetSettings::Get().motion_blur_off && RatchetSettings::Get().shadow_resolution == 0);
     assert(RatchetSettings::CycleEngineFps() == 0);
@@ -137,12 +137,14 @@ int main(int argc, char** argv) {
         assert(saved.find(line) != std::string::npos);
     }
 
-    v.mouse_stick=2; v.mouse_activation=1; v.mouse_invert_y=1;
+    assert(RatchetGraphics::ParseAnisotropy(1)==1);
+    v.mouse_stick=3; v.mouse_directions[0]=1; v.mouse_directions[3]=0; v.mouse_activation=1; v.mouse_invert_y=1;
     RatchetSettings::Save();
     v.mouse_stick=0; v.mouse_activation=0; v.mouse_invert_y=0;
     RatchetSettings::Load();
-    assert(v.mouse_stick==2 && v.mouse_activation==1 && v.mouse_invert_y==1);
-    assert(Read(path).find("mouse_stick=2\n")!=std::string::npos);
+    assert(v.mouse_directions[0]==1 && v.mouse_directions[3]==0);
+    assert(v.mouse_stick==3 && v.mouse_activation==1 && v.mouse_invert_y==1);
+    assert(Read(path).find("mouse_stick=3\n")!=std::string::npos);
 
     {
         std::ofstream out(path);

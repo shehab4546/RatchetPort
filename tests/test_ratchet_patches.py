@@ -129,7 +129,7 @@ class CompileTests(unittest.TestCase):
         writes, prepared, skipped = self.result(['other-game/60FPS'])
         self.assertFalse(writes or prepared)
         self.assertIn('no reviewed', skipped['other-game/60FPS'])
-        self.assertEqual(set(rp.PROFILE['groups']), {rp.FPS60_GROUP, rp.BLUR_OFF_GROUP, *rp.SHADOW_GROUPS, *rp.RESOLUTION_GROUPS})
+        self.assertEqual(set(rp.PROFILE['groups']), {rp.FPS60_GROUP, rp.BLUR_OFF_GROUP, *rp.SHADOW_GROUPS, *rp.RESOLUTION_GROUPS, *rp.LANGUAGE_GROUPS})
 
     def test_length_change_and_noop_rejected(self):
         for replacement in ('90', '04 05'):

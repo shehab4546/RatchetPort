@@ -1,0 +1,10 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "diagnostics",
+      "fieldPath": "log",
+      "indexes": []
+    }
+  ]
+}

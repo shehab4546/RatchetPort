@@ -364,6 +364,9 @@ extern "C" void ratchetgpu_movie_picture(void) {
     Vulkan::MovieBars::Cutscenes().NotePicture(Vulkan::MovieBars::NowMs());
 }
 
+extern "C" int ratchetgpu_mouse_direction(int direction) {
+    return direction >= 0 && direction < 4 ? RatchetSettings::Get().mouse_directions[direction].load(std::memory_order_relaxed) : 0;
+}
 extern "C" int ratchetgpu_mouse_stick(void) {
     return RatchetSettings::Get().mouse_stick.load(std::memory_order_relaxed);
 }

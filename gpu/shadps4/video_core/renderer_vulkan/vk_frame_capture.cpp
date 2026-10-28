@@ -19,6 +19,7 @@ struct Target {
     VAddr address{};
     vk::Format format{};
     u32 width{}, height{};
+    u32 layers{}, levels{}, samples{}, pitch{}, bytes{}, tile{};
     bool operator==(const Target&) const = default;
 };
 
@@ -45,12 +46,15 @@ void AddBuffers(Entry& entry) {
     // of each geometry pass.
     if (entry.draws <= 4) {
         for (auto& b : pending_buffers) {
-            entry.buffers.push_back(std::move(b));
+            if (entry.buffers.size() < 64) entry.buffers.push_back(std::move(b));
         }
     }
     pending_buffers.clear();
 }
 bool pass_open = false;
+u64 recording_flip = 0;
+std::atomic<bool> requested_buffers{true}, capture_buffers{true};
+constexpr u64 CaptureFlips = 4;
 std::mutex display_mutex;
 std::vector<VAddr> display_buffers;
 // ratchetport: read on every draw; the game registers a handful of display buffers once.
@@ -58,14 +62,19 @@ std::array<std::atomic<VAddr>, 16> display_list{};
 std::atomic<u32> display_count{0};
 
 Target ToTarget(const VideoCore::ImageInfo& info) {
-    return {info.guest_address, info.pixel_format, info.size.width, info.size.height};
+    return {info.guest_address, info.pixel_format, info.size.width, info.size.height,
+            info.resources.layers, info.resources.levels, info.guest_samples,
+            info.pitch, info.guest_size, u32(info.tile_mode)};
 }
 
 std::string Describe(const Target& t) {
     if (!t.address) {
         return "-";
     }
-    return std::format("{:#x} {} {}x{}", t.address, vk::to_string(t.format), t.width, t.height);
+    return std::format("{:#x} {} {}x{} layers={} mips={} guest_samples={} pitch={} "
+                       "guest_bytes={} tile={} role/history=unclassified",
+                       t.address, vk::to_string(t.format), t.width, t.height,
+                       t.layers, t.levels, t.samples, t.pitch, t.bytes, t.tile);
 }
 
 void AddSampled(Entry& entry) {
@@ -102,7 +111,7 @@ std::filesystem::path CaptureDir() {
     return std::filesystem::path(user && user[0] ? user : "user") / "captures";
 }
 
-void Write(VAddr presented) {
+void Write(VAddr presented, bool truncated, u64 observed_flips) {
     const auto dir = CaptureDir();
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
@@ -118,6 +127,10 @@ void Write(VAddr presented) {
         return;
     }
     std::fprintf(f, "presented buffer %#llx\n", static_cast<unsigned long long>(presented));
+    std::fprintf(f, "capture_truncated=%u; resource roles/history are not inferred from dimensions\n",
+                 unsigned(truncated));
+    std::fprintf(f, "capture_scope=multi-flip-window flips_observed=%llu; not an exact game-frame boundary\n",
+        static_cast<unsigned long long>(observed_flips));
     u32 index = 0;
     for (const auto& e : entries) {
         if (e.compute) {
@@ -168,15 +181,18 @@ void FrameCapture::OnFlip(VAddr presented_address) {
         std::error_code ec;
         std::filesystem::remove(trigger, ec);
         arm = true;
+        requested_buffers.store(true, std::memory_order_release);
     }
     if (arm) {
+        capture_buffers.store(requested_buffers.load(std::memory_order_acquire), std::memory_order_release);
         state.store(Armed, std::memory_order_release);
         std::printf("Frame capture: armed\n");
     }
 }
 
-void FrameCapture::Request() {
-    SetResult("Capturing the next frame...");
+void FrameCapture::Request(bool include_buffers) {
+    SetResult("Capturing a four-flip graphics window...");
+    requested_buffers.store(include_buffers, std::memory_order_release);
     requested.store(true, std::memory_order_release);
 }
 
@@ -185,7 +201,30 @@ std::string FrameCapture::LastResult() {
     return result;
 }
 
-void FrameCapture::Poll() {}
+void FrameCapture::Poll() {
+    if (state.load(std::memory_order_acquire) == Armed) {
+        entries.clear();
+        pending_sampled.clear();
+        pending_buffers.clear();
+        pass_open = false;
+        recording_flip = flips.load(std::memory_order_acquire);
+        state.store(Recording, std::memory_order_release);
+    }
+    // Display buffers can be written several times within one game frame (UI,
+    // composition, clears). They are not command-stream frame boundaries.
+    // Record a bounded window across presentation flips; never stop on a UI pass.
+    if (state.load(std::memory_order_relaxed) == Recording &&
+        (entries.size() >= 512 ||
+         flips.load(std::memory_order_acquire) - recording_flip >= CaptureFlips)) {
+        Write(last_presented.load(std::memory_order_relaxed), entries.size() >= 512,
+              flips.load(std::memory_order_acquire) - recording_flip);
+        entries.clear();
+        pending_sampled.clear();
+        pending_buffers.clear();
+        pass_open = false;
+        state.store(Idle, std::memory_order_release);
+    }
+}
 
 bool FrameCapture::IsDisplayBuffer(VAddr address) {
     const u32 count = display_count.load(std::memory_order_acquire);
@@ -215,44 +254,19 @@ void FrameCapture::AddDisplayBuffer(VAddr address) {
 
 void FrameCapture::BeginPass(const VideoCore::ImageInfo* const* colors, u32 num_colors,
                              const VideoCore::ImageInfo* depth, std::string census) {
-    std::vector<Target> targets;
-    bool display = false;
-    {
-        std::scoped_lock lk{display_mutex};
-        for (u32 i = 0; i < num_colors; ++i) {
-            targets.push_back(colors[i] ? ToTarget(*colors[i]) : Target{});
-            display |= colors[i] && std::ranges::find(display_buffers, colors[i]->guest_address) !=
-                                        display_buffers.end();
-        }
-    }
-    // Frame boundaries in the command stream: the pass that writes a display buffer as its only
-    // target. ratchetport: RatchetPort also draws scene passes (two targets) into display buffers.
-    display = display && targets.size() == 1;
-    const bool new_pass = !(pass_open && !entries.empty() && !entries.back().compute &&
-                            entries.back().colors == targets);
-    if (display && new_pass) {
-        if (state.load(std::memory_order_relaxed) == Recording) {
-            Write(last_presented.load(std::memory_order_relaxed));
-            entries.clear();
-            pending_sampled.clear();
-            pending_buffers.clear();
-            state.store(Idle, std::memory_order_release);
-            return;
-        }
-        entries.clear();
-        pending_sampled.clear();
-        pending_buffers.clear();
-        pass_open = false;
-        state.store(Recording, std::memory_order_release);
-    }
     if (state.load(std::memory_order_relaxed) != Recording) {
         pending_sampled.clear();
         pending_buffers.clear();
         return;
     }
+    std::vector<Target> targets;
+    for (u32 i = 0; i < num_colors; ++i) {
+        targets.push_back(colors[i] ? ToTarget(*colors[i]) : Target{});
+    }
     const Target d = depth ? ToTarget(*depth) : Target{};
     if (pass_open && !entries.empty() && !entries.back().compute &&
-        entries.back().colors == targets && entries.back().depth == d) {
+        entries.back().colors == targets && entries.back().depth == d &&
+        entries.back().state == census) {
         return;
     }
     entries.push_back(
@@ -293,7 +307,7 @@ void FrameCapture::Dispatch(u64 cs_hash, u32 x, u32 y, u32 z) {
 }
 
 void FrameCapture::Buffer(u64 stage_hash, u32 slot, VAddr address, const void* data, u64 size) {
-    if (!data) {
+    if (!data || !capture_buffers.load(std::memory_order_relaxed) || pending_buffers.size() >= 32) {
         return;
     }
     const u64 bytes = std::min<u64>(size, 1024) & ~u64(3);

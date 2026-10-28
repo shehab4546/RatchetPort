@@ -61,7 +61,7 @@ class ModTests(unittest.TestCase):
             raise PermissionError(5, 'Access is denied')
         with contextlib.ExitStack() as stack:
             stack.enter_context(mock.patch.object(Path, 'symlink_to', side_effect=PermissionError(5, 'Access is denied')))
-            stack.enter_context(mock.patch.object(os, 'name', 'nt'))
+            stack.enter_context(mock.patch.object(mods, 'os', types.SimpleNamespace(**{**vars(os), 'name': 'nt'})))
             stack.enter_context(mock.patch.dict(sys.modules, {'_winapi': types.SimpleNamespace(CreateJunction=create_junction)}))
             result = mods.build_overlay(self.game, self.root / 'out', [('A', a)])
         folder = result / 'dvdroot_ps4' / 'data'
@@ -313,16 +313,22 @@ class ModTests(unittest.TestCase):
         port = self.root / 'port'
         shutil.copytree(ROOT / 'scripts', port / 'scripts')
         shutil.copy(ROOT / 'run.py', port / 'run.py')
-        for name in ('prepare', 'link_libc', 'link_modules', 'content_profile'):
+        prepare = port / 'scripts/prepare.py'
+        prepare.write_text(prepare.read_text().replace("if __name__ == '__main__':", 'if False:'))
+        for name in ('link_libc', 'link_modules', 'content_profile'):
             (port / 'scripts' / f'{name}.py').write_text('')
+        # This fixture tests overlay lifecycle, not validation of a real SELF dump.
+        game_validation = port / 'scripts/ratchet_game.py'
+        game_validation.write_text(game_validation.read_text() + '\ndef validate_game(folder): return {}\n')
         probe = self.root / 'probe'
         probe.write_text(f'#!{sys.executable}\nimport json,sys,os\nfrom pathlib import Path\n'
+            'if \"--cpu-features\" in sys.argv: sys.exit(0)\n'
             'game=Path(sys.argv[sys.argv.index("--app0")+1])\n'
             'Path(os.environ["RATCHET_DATA_DIR"],"mounted.json").write_text(json.dumps({\n'
             '"path":str(game),"content":(game/"dvdroot_ps4/data/a.wad").read_text()}))\n'
             'sys.exit(7)\n')
         probe.chmod(0o755)
-        env = dict(os.environ, RATCHET_PROBE=str(probe),
+        env = dict(os.environ, RATCHET_PROBE=str(probe), RATCHET_ISA_REWRITE='0', RATCHET_DISCORD='0',
             RATCHET_DATA_DIR=str(self.root), RATCHET_GAME_DIR=str(self.game),
             RATCHET_MODS_DIR=str(self.moddir), RATCHET_MODS_ENABLED='1', RATCHET_MODS_CONFIG=str(self.root/'mods.json'))
         result = subprocess.run([sys.executable, 'run.py'], cwd=port, env=env, capture_output=True, timeout=30)

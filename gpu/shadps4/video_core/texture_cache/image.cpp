@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "ratchet_toggles.h"
+#include "ratchet_resolution_diagnostics.h"
 #include <ranges>
 #include "common/assert.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
@@ -116,6 +117,14 @@ void UniqueImage::Create(const vk::ImageCreateInfo& image_ci) {
     VmaAllocationInfo alloc_info{};
     VkResult result = vmaCreateImage(allocator, &image_ci_unsafe, &alloc_ci, &unsafe_image,
                                      &allocation, &alloc_info);
+    if (result != VK_SUCCESS) {
+        // Allocation failures need the attempted geometry, not just a Vulkan error code.
+        std::fprintf(stderr, "ResolutionDiag allocation failure: %ux%ux%u layers=%u mips=%u "
+                     "samples=%u format=%s result=%s\n", image_ci.extent.width,
+                     image_ci.extent.height, image_ci.extent.depth, image_ci.arrayLayers,
+                     image_ci.mipLevels, unsigned(image_ci.samples),
+                     vk::to_string(image_ci.format).c_str(), vk::to_string(vk::Result{result}).c_str());
+    }
     ASSERT_MSG(result == VK_SUCCESS, "Failed allocating image with error {}",
                vk::to_string(vk::Result{result}));
     image = vk::Image{unsafe_image};
@@ -209,6 +218,23 @@ Image::Image(const Vulkan::Instance& instance, Vulkan::Runtime& runtime_,
     backing->num_samples = info.num_samples;
     backing->image = UniqueImage{instance.GetDevice(), instance.GetAllocator()};
     backing->image.Create(image_ci);
+
+    namespace RD = RatchetResolutionDiagnostics;
+    if (RD::Relevant(info.size.width, info.size.height)) {
+        RD::Once(RD::Channel::Resource, RD::Key({image_uid, 0}), [&] {
+            const auto required = instance.GetDevice().getImageMemoryRequirements(GetImage());
+            return fmt::format("create uid={} addr={:#x} size={}x{}x{} layers={} mips={} "
+                "format={} host_format={} guest_samples={} host_samples={} pitch={} tile={} "
+                "guest_bytes={} host_required={} host_allocated={} host_alignment={} "
+                "host_allocation_fits={} history=unclassified",
+                image_uid, info.guest_address, info.size.width, info.size.height, info.size.depth,
+                info.resources.layers, info.resources.levels, vk::to_string(info.pixel_format),
+                vk::to_string(image_ci.format), info.guest_samples, unsigned(image_ci.samples),
+                info.pitch, unsigned(info.tile_mode), info.guest_size, required.size,
+                backing->image.size_bytes, required.alignment,
+                required.size <= backing->image.size_bytes);
+        });
+    }
 
     Vulkan::SetObjectName(instance.GetDevice(), GetImage(),
                           "Image {}x{}x{} {} {} {:#x}:{:#x} L:{} M:{} S:{}", info.size.width,

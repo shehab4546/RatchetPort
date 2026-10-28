@@ -47,6 +47,7 @@ void ratchetgpu_movie_picture(void);
 void ratchetgpu_mouse_pause_key(void);
 /* Mouse target: 0 off, 1 left, 2 right; activation: 0 always, 1 hold L2. */
 int ratchetgpu_mouse_stick(void);
+int ratchetgpu_mouse_direction(int direction);
 int ratchetgpu_mouse_activation(void);
 int ratchetgpu_mouse_invert_y(void);
 /* Style: 0 relative, 1 absolute. */

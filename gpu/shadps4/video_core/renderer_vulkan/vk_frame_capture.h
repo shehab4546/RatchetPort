@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-// ratchetport: frame analyzer. Creating the file named by RATCHET_CAPTURE_TRIGGER records the next full
-// frame: every render pass (targets, depth, draw count, shaders, sampled textures) and compute
-// dispatch, in order, plus the buffer that was presented. Input for placing a temporal
-// upscaler (scene color, depth, motion vectors, UI) in the game's frame.
+// Bounded graphics capture across four presentation flips (at most 512 entries).
+// Includes render targets, depth, draw counts, shaders, sampled textures and compute
+// dispatches. Presentation runs on another thread, so this is a diagnostic window,
+// not an exact command-stream game-frame boundary.
 
 #pragma once
 
@@ -24,8 +24,7 @@ public:
     /// VideoOut thread, per flip: frame boundary, presented buffer, trigger file check.
     static void OnFlip(VAddr presented_address);
 
-    /// VideoOut: a display buffer the game registered. A pass drawing into one starts a frame
-    /// in the GPU command stream (the flip itself runs a frame behind).
+    /// VideoOut: a display buffer the game registered; used for resource identification.
     static void AddDisplayBuffer(VAddr address);
     static bool IsDisplayBuffer(VAddr address);
 
@@ -37,7 +36,7 @@ public:
     static bool IsRecording() {
         return state.load(std::memory_order_relaxed) == Recording;
     }
-    /// GPU thread, at every draw/dispatch: starts or ends a recording at frame boundaries.
+    /// GPU thread, at every draw/dispatch: starts recording or completes the bounded capture window.
     static void Poll();
 
     /// `state`: the pass's census line (vk_pass_census.h), kept with the first pipeline that
@@ -51,8 +50,8 @@ public:
     static void Buffer(u64 stage_hash, u32 slot, VAddr address, const void* data, u64 size);
     static void Note(const char* text);
 
-    /// In-game menu: records the next full frame (as the trigger file does).
-    static void Request();
+    /// In-game menu: records a bounded graphics window (as the trigger file does).
+    static void Request(bool include_buffers = true);
     /// What the last request did, for the menu: empty, "Capturing...", the file or an error.
     static std::string LastResult();
 

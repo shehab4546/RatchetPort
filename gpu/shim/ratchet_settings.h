@@ -65,7 +65,8 @@ struct Values {
     /// Keep the mouse in the game window while the game has it (window.cpp). Live.
     std::atomic<bool> mouse_lock{true};
     /// Mouse target: 0 off, 1 left, 2 right. Activation: 0 always, 1 while L2 is held. Live.
-    std::atomic<int> mouse_stick{1};
+    std::atomic<int> mouse_stick{2};
+    std::atomic<int> mouse_directions[4]{{5}, {6}, {7}, {8}}; // left/right/up/down -> signed stick axis
     std::atomic<int> mouse_activation{0};
     std::atomic<int> mouse_invert_y{0};
     /// Mouse style: 0 relative, 1 absolute.
@@ -82,6 +83,8 @@ struct Values {
     int applied_internal_resolution = 0; // Prepared startup mode, not a measurement.
     // Last matching MRT/depth draw and its viewport; zero means not observed.
     std::atomic<std::uint64_t> observed_scene_size{0}, observed_scene_viewport{0};
+    std::atomic<unsigned> observed_scene_samples{0};
+    std::atomic<std::uint64_t> texture_cache_guest_bytes{0};
     bool applied_motion_blur_off = false;
     int applied_shadow_resolution = 0;
     // Synchronous readbacks are the Ratchet baseline: deferred reads stalled scene entry.

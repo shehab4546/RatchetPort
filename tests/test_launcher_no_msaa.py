@@ -80,7 +80,7 @@ class ChosenGpuTest(unittest.TestCase):
 
 
 class NoMsaaLauncherTest(unittest.TestCase):
-    def test_performance_page_offers_the_choice(self):
+    def test_graphics_page_offers_the_choice(self):
         try:
             import tkinter as tk
             from tkinter import ttk
@@ -104,6 +104,7 @@ class NoMsaaLauncherTest(unittest.TestCase):
                 app.ini, app.ini_lines = launcher.load_ini()
                 app.control_vars, app.mod_order, app.patch_vars = {}, [], {}
                 app.pad_style = tk.StringVar(root, value='playstation')
+                app.build_graphics()
                 app.build_performance()
             return app
 
@@ -117,8 +118,9 @@ class NoMsaaLauncherTest(unittest.TestCase):
             return [widget for widget in widgets(page)
                     if isinstance(widget, ttk.Combobox) and len(widget['values']) > 1 and widget['values'][1] == off_label]
 
-        boxes = multisampling_boxes(app.pages['performance'], 'Off (fixes black lines)')
+        boxes = multisampling_boxes(app.pages['graphics'], 'Off (fixes black lines)')
         self.assertEqual(len(boxes), 1)
+        self.assertEqual(multisampling_boxes(app.pages['performance'], 'Off (fixes black lines)'), [])
         self.assertEqual(tuple(boxes[0]['values']),
                          ('Automatic (NVIDIA GeForce RTX 4060 Laptop GPU: on)', 'Off (fixes black lines)', 'On'))
         self.assertEqual(app.vars['no_msaa'].get(), '')
@@ -126,7 +128,7 @@ class NoMsaaLauncherTest(unittest.TestCase):
         boxes[0].event_generate('<<ComboboxSelected>>')
         self.assertEqual(app.vars['no_msaa'].get(), '1')
         # The graphics card list still offers both cards, and Automatic follows that choice at once.
-        cards = [widget for widget in widgets(app.pages['performance'])
+        cards = [widget for widget in widgets(app.pages['graphics'])
                  if isinstance(widget, ttk.Combobox) and widget['values'][0] == 'Automatic']
         self.assertEqual(tuple(cards[0]['values'])[1:], tuple(name for _i, name, *_rest in ARC_LAPTOP))
         cards[0].current(1)
@@ -137,17 +139,17 @@ class NoMsaaLauncherTest(unittest.TestCase):
         self.assertEqual(app.vars['no_msaa'].get(), '1')
         # A saved Graphics card choice is what the label starts from.
         app = build(gpu_id='0')
-        boxes = multisampling_boxes(app.pages['performance'], 'Off (fixes black lines)')
+        boxes = multisampling_boxes(app.pages['graphics'], 'Off (fixes black lines)')
         self.assertEqual(boxes[0]['values'][0], 'Automatic (Intel(R) Arc(TM) Graphics: off)')
 
         # The Portuguese page shows the translated title, label and hint.
         table = ratchetport_lang.table('pt')
         app = build('pt')
-        texts = {widget.cget('text') for widget in widgets(app.pages['performance'])
+        texts = {widget.cget('text') for widget in widgets(app.pages['graphics'])
                  if isinstance(widget, ttk.Label)}
         self.assertIn(table[launcher.NO_MSAA_HINT], texts)
         self.assertTrue(any(text.startswith(table['Game multisampling']) for text in texts))
-        boxes = multisampling_boxes(app.pages['performance'], table['Off (fixes black lines)'])
+        boxes = multisampling_boxes(app.pages['graphics'], table['Off (fixes black lines)'])
         self.assertEqual(tuple(boxes[0]['values']),
                          ('Automático (NVIDIA GeForce RTX 4060 Laptop GPU: ligado)', table['Off (fixes black lines)'],
                           table['On']))

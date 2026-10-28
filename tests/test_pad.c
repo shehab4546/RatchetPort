@@ -17,6 +17,8 @@ int ratchetgpu_mouse_prompt_distance(void) { return 48; }
 void ratchetgpu_mouse_pause_key(void) {}
 int ratchetgpu_mouse_aim_style(void) { return 0; }
 static int mouse_stick=2, mouse_activation=1, mouse_invert_y=0;
+static int mouse_directions[4]={5,6,7,8};
+int ratchetgpu_mouse_direction(int direction) { return mouse_directions[direction]; }
 int ratchetgpu_mouse_stick(void) { return mouse_stick; }
 int ratchetgpu_mouse_activation(void) { return mouse_activation; }
 int ratchetgpu_mouse_invert_y(void) { return mouse_invert_y; }
@@ -156,6 +158,17 @@ int main(void) {
     inject(path,"");
     data=read_pad();
     assert(data.buttons==0);
+
+    inject(path,"r2");
+    capture=1; data=read_pad();
+    assert(data.r2==0 && !(data.buttons & BTN_R2));
+    capture=0; data=read_pad();
+    assert(data.r2==0 && !(data.buttons & BTN_R2));
+    inject(path,""); data=read_pad();
+    assert(data.r2==0 && !(data.buttons & BTN_R2));
+    inject(path,"r2"); data=read_pad();
+    assert(data.r2==255 && (data.buttons & BTN_R2));
+    inject(path,""); data=read_pad();
 
     SDL_VirtualJoystickTouchpadDesc touch={.nfingers=2};
     SDL_VirtualJoystickDesc desc;

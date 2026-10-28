@@ -95,7 +95,7 @@ inline int ParseEngineFps(int value) {
 
 /// Anisotropic filtering forced on the game's mipmapped textures; 0 = the game's own. Samplers
 /// are cached, so it applies on restart.
-inline constexpr std::array<int, 5> Anisotropies = {0, 2, 4, 8, 16};
+inline constexpr std::array<int, 6> Anisotropies = {0, 1, 2, 4, 8, 16};
 inline int ParseAnisotropy(int value) {
     return IndexOf(Anisotropies, value, -1) >= 0 ? value : 0;
 }

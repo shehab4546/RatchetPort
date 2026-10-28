@@ -23,14 +23,18 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
-/* sceKernelGetDirectMemorySize on retail PS4: 5056 MiB. RATCHET_DMEM_MB raises it (the resolution
- * patches above 1080p need about 4 GiB more; run.sh sets it). */
+/* Retail direct pool: 5056 MiB. Explicit overrides and the launcher's prepared
+ * high-resolution heap reserve may raise it. The derived floor is separate so
+ * Apply and restart can remove it without discarding a manual pool override. */
 static uint64_t pool_size_bytes(void) {
     static uint64_t size;
     if (!size) {
         const char *env = getenv("RATCHET_DMEM_MB");
         uint64_t mb = env ? strtoull(env, NULL, 10) : 0;
         if (mb < 5056 || mb > 16384) mb = 5056;
+        const char *resolution = getenv("RATCHET_RESOLUTION_DMEM_MB");
+        uint64_t floor = resolution ? strtoull(resolution, NULL, 10) : 0;
+        if (floor >= 5056 && floor <= 16384 && floor > mb) mb = floor;
         size = mb * 1024 * 1024;
     }
     return size;

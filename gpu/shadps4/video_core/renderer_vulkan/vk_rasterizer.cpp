@@ -5,6 +5,7 @@
 #include "video_core/renderer_vulkan/ui_composition.h"
 #include "ratchet_toggles.h"
 #include "ratchet_settings.h"
+#include "ratchet_resolution_diagnostics.h"
 #include "video_core/renderer_vulkan/vk_frame_capture.h"
 #include "video_core/renderer_vulkan/vk_lighting_test.h"
 #include "video_core/renderer_vulkan/vk_pass_census.h"
@@ -304,6 +305,35 @@ VideoCore::ImageId Rasterizer::FindTargetMemoized(VideoCore::TextureCache::Image
     return image_id;
 }
 
+void Rasterizer::DiagnoseImage(const VideoCore::Image& image, const char* role, u64 shader) {
+    namespace RD = RatchetResolutionDiagnostics;
+    const auto& info = image.info;
+    if (!RD::Enabled() || !RD::Relevant(info.size.width, info.size.height)) return;
+    const auto role_key = RD::Key({u64(role[0]), u64(role[1])});
+    RD::Once(RD::Channel::Binding, RD::Key({image.image_uid, role_key, shader}), [&] {
+        const auto mapped = MappedBytes(info.guest_address, info.guest_size);
+        const auto base = info.props.is_block ? 0 : RD::BaseBytes(info.pitch, info.size.height,
+            info.size.depth, info.resources.layers, info.guest_samples, info.num_bits);
+        if (mapped < info.guest_size) {
+            RD::Once(RD::Channel::Mapping, image.image_uid, [&] {
+                return fmt::format("partial GPU coverage uid={} addr={:#x} descriptor_bytes={} "
+                    "mapped_bytes={}; registry coverage is not a guest heap-allocation size",
+                    image.image_uid, info.guest_address, info.guest_size, mapped);
+            });
+        }
+        return fmt::format("role={} shader={:x} uid={} addr={:#x} size={}x{}x{} layers={} "
+            "mips={} format={} pitch={} guest_samples={} backing_samples={} "
+            "guest_bytes={} mapped_coverage={} fully_mapped={} base_lower_bound={} "
+            "base_check={} history=unclassified",
+            role, shader, image.image_uid, info.guest_address, info.size.width, info.size.height,
+            info.size.depth, info.resources.layers, info.resources.levels, vk::to_string(info.pixel_format),
+            info.pitch, info.guest_samples, image.backing ? image.backing->num_samples : 0,
+            info.guest_size, mapped, mapped == info.guest_size && info.guest_size != 0, base,
+            info.props.is_block ? "not-applicable-block-format" :
+                (!base ? "overflow-or-invalid" : base > info.guest_size ? "undersized" : "fits"));
+    });
+}
+
 void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
     // Prefetch render targets to handle overlaps with bound textures (e.g. mipgen)
     const auto& key = pipeline->GetGraphicsKey();
@@ -319,6 +349,22 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
         const auto& col_buf = regs.color_buffers[cb];
         const u32 target_mask = regs.color_target_mask.GetMask(cb);
         if (skip_cb_binding || !col_buf || !target_mask || (key.mrt_mask & (1 << cb)) == 0) {
+            namespace RD = RatchetResolutionDiagnostics;
+            if (RD::Enabled() && (key.mrt_mask & (1u << cb))) {
+                // An enabled shader export can legitimately have writes disabled.
+                // Record the actual register gates instead of inferring allocation failure.
+                RD::Once(RD::Channel::Failure,
+                    RD::Key({key.mrt_mask, unsigned(cb), col_buf.Address(),
+                        unsigned(col_buf.info.format), target_mask, unsigned(regs.color_control.mode)}),
+                    [&] {
+                        return fmt::format("color-binding-skipped slot={} mrt={:#x} addr={:#x} "
+                            "format={} target_mask={:#x} color_mode={} mode_disabled={} "
+                            "descriptor_valid={} writes_enabled={}; may be intentional",
+                            cb, key.mrt_mask, col_buf.Address(), unsigned(col_buf.info.format),
+                            target_mask, unsigned(regs.color_control.mode), skip_cb_binding,
+                            bool(col_buf), target_mask != 0);
+                    });
+            }
             image_id = {};
             continue;
         }
@@ -329,6 +375,7 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
             col_buf, hint));
         auto& image = texture_cache.GetImage(image_id);
         image.binding.is_target = 1u;
+        DiagnoseImage(image, "color-target");
     }
 
     if (GetEffectiveDepthStencilState(regs).needs_attachment) {
@@ -345,8 +392,20 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
             tag, regs.depth_buffer, regs.depth_view, regs.depth_control, htile_address, hint));
         auto& image = texture_cache.GetImage(image_id);
         image.binding.is_target = 1u;
+        DiagnoseImage(image, "depth-target");
     } else {
         db_desc.first = {};
+    }
+    // A diagnostic trigger need not assert a scene identity. Ratchet's recorded
+    // world passes export three colors, including the failing all-unbound case.
+    if (!resolution_capture_requested && RatchetResolutionDiagnostics::Enabled() &&
+        db_desc.first && std::popcount(key.mrt_mask) >= 3) {
+        const auto& depth = texture_cache.GetImage(db_desc.first);
+        if (depth.info.size.width >= 640 && depth.info.size.height >= 360 &&
+            RatchetResolutionDiagnostics::Relevant(depth.info.size.width, depth.info.size.height)) {
+            resolution_capture_requested = true;
+            FrameCapture::Request(false);
+        }
     }
     // Observe native attachments independently of upscaling. Requested mode and
     // presentation size are deliberately absent from candidate identification.
@@ -371,10 +430,13 @@ void Rasterizer::PrepareRenderState(const GraphicsPipeline* pipeline) {
             auto& settings = RatchetSettings::Get();
             settings.observed_scene_size = RatchetResolution::Pack(sample.width, sample.height);
             settings.observed_scene_viewport = RatchetResolution::Pack(sample.viewport_width, sample.viewport_height);
+            settings.observed_scene_samples = key.num_samples;
             if (resolution_samples.New(sample)) {
-                LOG_INFO(Render_Vulkan, "Resolution observation: scene candidate / depth {}x{}, viewport {}x{}; "
-                         "five matching color targets, temporal history unverified",
-                         sample.width, sample.height, sample.viewport_width, sample.viewport_height);
+                std::fprintf(stderr, "Resolution observation: requested=%s scene=%ux%u viewport=%ux%u "
+                    "raster_samples=%u; five matching color targets, temporal history unverified\n",
+                    RatchetResolution::Labels[RatchetResolution::Valid(settings.applied_internal_resolution)],
+                    sample.width, sample.height, sample.viewport_width, sample.viewport_height,
+                    unsigned(key.num_samples));
             }
         }
     }
@@ -2660,6 +2722,7 @@ void Rasterizer::BindTextures(const Shader::Info& stage, const PreparedStage* pr
             }
             image.usage.storage |= is_storage;
             image.usage.texture |= !is_storage;
+            DiagnoseImage(image, is_storage ? "storage" : "sampled", stage.pgm_hash);
             if (FrameCapture::Active()) {
                 FrameCapture::Sampled(image.info, is_storage);
             }
@@ -3352,14 +3415,62 @@ RenderState Rasterizer::BeginRenderingFull(const GraphicsPipeline* pipeline) {
             regs.ps_input_addr.persp_sample_ena || regs.ps_input_addr.linear_sample_ena;
         census.feedback_loop = attachment_feedback_loop;
         census.area = {state.width, state.height};
+        const auto& vp = regs.viewports[0];
+        const auto& sc = regs.screen_scissor;
+        const auto& win = regs.window_scissor;
+        const auto& gen = regs.generic_scissor;
+        const auto geometry = fmt::format(
+            " guest_viewport=({},{},{},{}) screen_scissor=({},{},{},{}) "
+            "window_scissor=({},{},{},{}) generic_scissor=({},{},{},{}) host_scale=({},{})",
+            vp.xoffset, vp.yoffset, vp.xscale * 2, vp.yscale * 2,
+            sc.top_left_x, sc.top_left_y, sc.bottom_right_x, sc.bottom_right_y,
+            unsigned(win.top_left_x), unsigned(win.top_left_y), unsigned(win.bottom_right_x), unsigned(win.bottom_right_y),
+            unsigned(gen.top_left_x), unsigned(gen.top_left_y), unsigned(gen.bottom_right_x), unsigned(gen.bottom_right_y),
+            target_scale[0], target_scale[1]);
+        std::string color_registers = fmt::format(" color_mode={} mrt={:#x}",
+            unsigned(regs.color_control.mode), key.mrt_mask);
+        for (u32 cb = 0; cb < state.num_color_attachments; ++cb) {
+            const auto& color = regs.color_buffers[cb];
+            color_registers += fmt::format(" C{}reg=[addr={:#x} format={} mask={:#x} bound={}]",
+                cb, color.Address(), unsigned(color.info.format),
+                regs.color_target_mask.GetMask(cb), bool(cb_descs[cb].first));
+        }
         FrameCapture::BeginPass(colors.data(), state.num_color_attachments, depth,
-                                PassCensus::Format(census));
+                                PassCensus::Format(census) + geometry + color_registers);
         diag_targets.clear();
         for (u32 cb = 0; cb < state.num_color_attachments; ++cb) {
             if (cb_descs[cb].first) {
                 diag_targets.push_back(cb_descs[cb].first);
             }
         }
+    }
+    namespace RD = RatchetResolutionDiagnostics;
+    if (RD::Enabled() && RD::Relevant(state.width, state.height)) {
+        const u64 vs = pipeline->GetStage(Shader::SwStage::Vertex).pgm_hash;
+        const u64 ps = key.mrt_mask ? pipeline->GetStage(Shader::SwStage::Fragment).pgm_hash : 0;
+        u64 signature = RD::Key({vs, ps, state.width, state.height, key.num_samples, key.mrt_mask});
+        for (u32 cb = 0; cb < state.num_color_attachments; ++cb) {
+            if (cb_descs[cb].first)
+                signature = RD::Key({signature, texture_cache.GetImage(cb_descs[cb].first).image_uid});
+        }
+        if (db_desc.first)
+            signature = RD::Key({signature, texture_cache.GetImage(db_desc.first).image_uid});
+        RD::Once(RD::Channel::Pass, signature, [&] {
+            std::string line = fmt::format("vs={:x} ps={:x} area={}x{} raster_samples={} mrt={:#x} "
+                "scale={},{}", vs, ps, state.width, state.height, unsigned(key.num_samples),
+                key.mrt_mask, target_scale[0], target_scale[1]);
+            const auto describe = [&](VideoCore::ImageId id, const char* role, unsigned slot) {
+                if (!id) return;
+                const auto& image = texture_cache.GetImage(id);
+                line += fmt::format(" {}{}=[uid={} addr={:#x} {}x{} guest_samples={} backing_samples={}]",
+                    role, slot, image.image_uid, image.info.guest_address, image.info.size.width,
+                    image.info.size.height, image.info.guest_samples,
+                    image.backing ? image.backing->num_samples : 0);
+            };
+            for (u32 cb = 0; cb < state.num_color_attachments; ++cb) describe(cb_descs[cb].first, "C", cb);
+            describe(db_desc.first, "D", 0);
+            return line;
+        });
     }
     // ratchetport: object motion vector attachment of G-buffer pipelines.
     if (key.motion_vectors) {
@@ -3517,6 +3628,15 @@ bool Rasterizer::ReadMemory(VAddr addr, u64 size, bool assume_locks) {
 void Rasterizer::ProcessDownloadImages() {
     DrainDrawPipe();
     texture_cache.ProcessDownloadImages();
+}
+
+u64 Rasterizer::MappedBytes(VAddr addr, u64 size) {
+    if (!RatchetResolutionDiagnostics::RangeValid(addr, size)) return 0;
+    u64 covered = 0;
+    ForEachMappedRangeInRange(addr, size, [&](const auto& interval) {
+        covered += boost::icl::length(interval);
+    });
+    return covered;
 }
 
 bool Rasterizer::IsMapped(VAddr addr, u64 size) {
@@ -3709,6 +3829,18 @@ void Rasterizer::UpdateViewportScissorState() const {
         scissors.push_back(empty_scissor);
     }
 
+    namespace RD = RatchetResolutionDiagnostics;
+    if (RD::Enabled()) {
+        const auto& vp = viewports.front();
+        const auto& sc = scissors.front();
+        RD::Once(RD::Channel::Viewport, RD::Key({std::bit_cast<u32>(vp.x), std::bit_cast<u32>(vp.y),
+            std::bit_cast<u32>(vp.width), std::bit_cast<u32>(vp.height), u64(sc.offset.x),
+            u64(sc.offset.y), sc.extent.width, sc.extent.height}), [&] {
+            return fmt::format("host viewport={},{},{}x{} scissor={},{},{}x{} scale={},{}",
+                vp.x, vp.y, vp.width, vp.height, sc.offset.x, sc.offset.y,
+                sc.extent.width, sc.extent.height, target_scale[0], target_scale[1]);
+        });
+    }
     auto& dynamic_state = scheduler.GetDynamicState();
     dynamic_state.SetViewports(viewports);
     dynamic_state.SetScissors(scissors);

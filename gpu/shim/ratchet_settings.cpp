@@ -125,7 +125,15 @@ void Set(Values& v, const std::string& key, const std::string& value) {
     } else if (key == "mouse_lock") {
         v.mouse_lock = value.empty() || i != 0;
     } else if (key == "mouse_stick") {
-        v.mouse_stick = std::clamp(i, 0, 2);
+        v.mouse_stick = std::clamp(i, 0, 3);
+    } else if (key == "mouse_left") {
+        v.mouse_directions[0] = std::clamp(i, 0, 8);
+    } else if (key == "mouse_right") {
+        v.mouse_directions[1] = std::clamp(i, 0, 8);
+    } else if (key == "mouse_up") {
+        v.mouse_directions[2] = std::clamp(i, 0, 8);
+    } else if (key == "mouse_down") {
+        v.mouse_directions[3] = std::clamp(i, 0, 8);
     } else if (key == "mouse_activation") {
         v.mouse_activation = std::clamp(i, 0, 1);
     } else if (key == "mouse_invert_y") {
@@ -339,6 +347,10 @@ void Save() {
                  v.anisotropy.load(), v.vibration.load(), int(v.mouse_lock.load()),
                  v.mouse_aim_style.load(), v.mouse_aim_sensitivity.load());
     std::fprintf(file, "mouse_stick=%d\n", v.mouse_stick.load());
+    std::fprintf(file, "mouse_left=%d\n", v.mouse_directions[0].load());
+    std::fprintf(file, "mouse_right=%d\n", v.mouse_directions[1].load());
+    std::fprintf(file, "mouse_up=%d\n", v.mouse_directions[2].load());
+    std::fprintf(file, "mouse_down=%d\n", v.mouse_directions[3].load());
     std::fprintf(file, "mouse_activation=%d\n", v.mouse_activation.load());
     std::fprintf(file, "mouse_invert_y=%d\n", v.mouse_invert_y.load());
     // Read by run.sh at start.

@@ -27,8 +27,9 @@ def audit(folder):
             raise ValueError(f'Forbidden package content: {p.relative_to(folder)}')
         if p.is_file() and p.suffix.lower() in {'.exe', '.dll', '.pyd', '.py', '.txt', '.md'}:
             content = p.read_bytes().lower()
-            roots = (str(ROOT).encode().lower(), ROOT.as_posix().encode().lower(),
-                     ('/' + ROOT.drive[0].lower() + ROOT.as_posix()[2:]).encode().lower())
+            roots = [str(ROOT).encode().lower(), ROOT.as_posix().encode().lower()]
+            if ROOT.drive:
+                roots.append(('/' + ROOT.drive[0].lower() + ROOT.as_posix()[2:]).encode().lower())
             if any(root in content or root.decode().encode('utf-16-le') in content for root in roots):
                 raise ValueError(f'Local build path embedded in package: {p.relative_to(folder)}')
 
@@ -87,7 +88,8 @@ def main():
         if not (build / name).is_file(): raise FileNotFoundError(f'Build first: {build / name}')
     work = ROOT / 'out' / ('package-' + datetime.now().strftime('%Y%m%d-%H%M%S'))
     work.mkdir(parents=True, exist_ok=False)
-    hidden = ['frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
+    hidden = ['release_updates', 'session_diagnostics', 'control_bindings', 'game_glyphs', 'glyph_archive', 'glyph_profile', 'glyph_mapping', 'glyph_keys', 'glyph_gfx', 'glyph_art', 'glyph_texture', 'glyph_font', 'PIL.ImageDraw', 'PIL.ImageChops',
+              'voice_archive', 'language_split', 'graphics_presets', 'frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
               'tempfile', 'threading', 'uuid', 'xml.etree.ElementTree', 'urllib.request', 'ctypes.wintypes',
               'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'release_info', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
               'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']
@@ -122,17 +124,23 @@ def main():
     (stage / 'scripts').mkdir()
     for p in (ROOT / 'scripts').glob('*.py'): shutil.copy2(p, stage / 'scripts' / p.name)
     copy_launcher_assets(stage)
-    for name in ('run.py', 'LICENSE', 'README.md', 'CREDITS.md'):
+    for name in ('run.py', 'LICENSE', 'README.md', 'CREDITS.md', 'diagnostics.example.json'):
         shutil.copy2(ROOT / name, stage / name)
+    from session_diagnostics import configuration
+    config = configuration(ROOT)
+    if (ROOT / 'diagnostics.json').exists() or (ROOT / 'diagnostics.public.json').exists():
+        if config is None:
+            raise ValueError('Invalid public diagnostics configuration')
+        (stage / 'diagnostics.json').write_text(json.dumps(config), encoding='utf-8')
     (stage / 'docs/releases').mkdir(parents=True)
     (stage / 'docs/evidence').mkdir()
-    for name in ('TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md', 'releases/V1.1-PlayGo.md',
+    for name in ('CONTROLS_AND_DIAGNOSTICS.md', 'TESTING.md', 'DISTRIBUTION.md', 'releases/V1.md', 'releases/V1.1-PlayGo.md',
                  'releases/V1.3-Verified-Preview.md', 'PATCHES.md', 'RP04_FRAME_TIMING.md',
                  'RP04_RESEARCH_REVIEW.md', 'evidence/ratchet-research-signature-checks.json',
                  'evidence/ratchet-cusa01047-0100-clock.json', 'releases/V1.4-Frame-Timing-Preview.md',
                  'RP05_VISUAL_CONTROLS.md', 'releases/V1.5-Visual-Controls-Preview.md',
-                 'RP06_RENDER_RESOLUTION.md', 'releases/V1.6-Resolution-Preview.md', 'releases/V1.7-Adaptive-Controls-Preview.md',
-                 'ADAPTIVE_RESOURCES.md', 'USA_LANGUAGES.md',
+                 'RP06_RENDER_RESOLUTION.md', 'releases/V1.6-Resolution-Preview.md', 'releases/V1.7-Adaptive-Controls-Preview.md', 'releases/V2.0-Stellar-Update.md',
+                 'ADAPTIVE_RESOURCES.md', 'USA_LANGUAGES.md', 'BUTTON_ICONS.md',
                  'evidence/ratchet-cusa01047-0100-languages.json',
                  'evidence/ratchet-cusa01047-0100-resolution.json',
                  'evidence/ratchet-cusa01047-0100-effects.json'):

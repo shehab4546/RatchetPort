@@ -45,6 +45,8 @@ FROZEN = getattr(sys, 'frozen', False)
 PORT_DIR = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PORT_DIR / 'scripts'))
 from release_info import VERSION, CODENAME, APP_TITLE  # noqa: E402
+import graphics_presets
+import voice_archive
 import graphics_options  # noqa: E402  (scripts/)
 
 import save_backup  # noqa: E402  (scripts/)
@@ -64,11 +66,11 @@ NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 # The game and everything it starts form one process group, ended together (GameJob).
 NEW_GROUP = {} if WINDOWS else {'start_new_session': True}
 UI_FONT, MONO_FONT, SERIF_FONT = 'Segoe UI', 'Consolas', 'Georgia'
-RELEASES_API = ''
+RELEASES_API = 'https://api.github.com/repos/shehab4546/RatchetPort/releases/latest'
 RELEASES_PAGE = 'https://github.com/shehab4546/RatchetPort/releases'
 UPDATE_DIR = Path(tempfile.gettempdir()) / 'ratchetport-update'
 # Never copied over an installation by an update (the package does not hold them either).
-USER_FILES = ('user', 'out', 'mods', 'ratchet.ini', 'settings.json', 'game_icon.ico', 'mods.json', 'mods_presets.json', 'patches.json', 'last_run.log')
+USER_FILES = ('user', 'out', 'mods', 'ratchet.ini', 'settings.json', 'game_icon.ico', 'mods.json', 'mods_presets.json', 'patches.json', 'last_run.log', 'diagnostics.json')
 # The title face (Cinzel Black), next to ratchetport.ico; main() registers it for this process only.
 FONT_FILE = PORT_DIR / 'launcher' / 'Cinzel-Black.ttf'
 FR_PRIVATE = 0x10
@@ -400,9 +402,9 @@ INI_DEFAULTS = {'upscaler': 'off', 'preset': '0',
                 'internal_resolution': 'original',
                 'frames_queued': '1',
                 'anisotropy': '0', 'vibration': '100', 'mouse_lock': '1',
-                'mouse_stick': '1', 'mouse_activation': '0', 'mouse_invert_y': '0', 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
+                'mouse_stick': '2', 'mouse_left': '5', 'mouse_right': '6', 'mouse_up': '7', 'mouse_down': '8', 'mouse_activation': '0', 'mouse_invert_y': '0', 'mouse_aim_style': '0', 'mouse_aim_sensitivity': '100'}
 DISPLAY_MODES = [('windowed', ('Windowed',)), ('borderless', ('Borderless',)), ('fullscreen', ('Fullscreen',))]
-ANISOTROPY = [('0', ('Game default',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
+ANISOTROPY = [('0', ('Game default',)), ('1', ('1x',)), ('2', ('2x',)), ('4', ('4x',)), ('8', ('8x',)), ('16', ('16x',))]
 FPS_LIMITS = [('30', ('30',))]
 GAME_FPS = [('30', ('30 FPS / Original',)), ('60', ('60 FPS (experimental)',))]
 INTERNAL_RESOLUTION = [('original', ('Original',)),
@@ -422,13 +424,13 @@ PAGE_REFRESH = {'home': ('refresh_status',), 'game': ('refresh_game_patches',), 
 UI_SCALES = [('auto', ('Auto',)), ('1', ('1x',)), ('2', ('2x',))]
 APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('RATCHET_GAME_DIR', str(PORT_DIR.parent / 'CUSA01047') if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
                 'video_backend': 'auto', 'gamemode': False, 'mangohud': False, 'desktop_integration': True, 'user_dir': '',
-                'mods_dir': '', 'mods_enabled': True, 'patches_dir': '', 'language': '1',
+                'mods_dir': '', 'mods_enabled': True, 'patches_dir': '', 'language': '1', 'voice_language': 'same',
                 'hdr': False, 'draw_pipe': '', 'readbacks': '', 'no_msaa': '', 'stream_memory': 'cached',
                 'gpu_id': '', 'partial_height_views': True, 'background_warmup': True, 'parallel_warmup': True, 'pipeline_binary_cache': True,
                 'perf_diag': False, 'frame_capture_key': False, 'frame_stats': False, 'gpu_profile': False,
                 'vk_validation': False, 'close_on_play': False, 'discord_rpc': False,
-                'check_updates': False, 'game_patches': {}, 'controls': {}, 'pad_style': 'playstation',
-                'controls_layout': 2,
+                'check_updates': False, 'diagnostics_upload': False, 'game_patches': {}, 'controls': {}, 'pad_style': 'playstation',
+                'controls_layout': 3,
                 'glyph_style': 'off'}
 
 # PS4 button, default key, default gamepad button (SDL names; src/runtime_pad.c). L2/R2 come
@@ -492,8 +494,8 @@ def connected_gamepad():
 
 # Configurable mouse-to-stick movement: ratchet.ini mouse_aim_style.
 AIM_STYLES = [('0', ('Relative',)), ('1', ('Absolute',))]
-GLYPH_STYLES = [('off', ('Original (default)',)), ('auto', ('Match my controller',)), ('xbox', ('Xbox',)),
-                ('nintendo', ('Nintendo',)), ('keyboard', ('Keyboard',))]
+GLYPH_STYLES = [('off', ('Original / PlayStation',)), ('auto', ('Auto (at launch)',)),
+                ('xbox', ('Xbox',)), ('keyboard', ('Keyboard & mouse',))]
 
 
 # Keyboard capture on the Controls page: the Tk keysym of a pressed key and the SDL scancode
@@ -547,32 +549,14 @@ def sdl_key_name(keysym):
     return None
 
 
-def bind_key(bindings, button, name):
-    """Gives `name` to `button` in {button: key name}; a button that had it takes the old key of
-    `button`, so no key presses two buttons. Returns the button that swapped, or None."""
-    old = bindings.get(button, '')
-    other = next((b for b, k in bindings.items() if b != button and k.strip().lower() == name.lower()), None)
-    bindings[button] = name
-    if other:
-        bindings[other] = old
-    return other
-
-
-# The keyboard & mouse table: keys and mouse inputs for the PS4 buttons plus actions of their own.
-# Its defaults put the attacks and magic on the mouse, the shoulder buttons next to WASD and the
-# weapons on 1-4 (clockwise from up, the order they are acquired); CONTROLS keeps the game's own
-# keys (src/runtime_pad.c), so only what differs from them is sent.
-KEY_DEFAULTS = {'cross': 'Space', 'circle': 'Left Shift', 'square': 'Mouse Left', 'triangle': 'Mouse Right',
-                'l1': 'Q', 'r1': 'E', 'l2': 'R', 'r2': 'Mouse Forward', 'l3': 'Z', 'r3': 'X',
-                'options': 'Tab', 'touchpad_left': 'P', 'touchpad_right': 'Escape',
-                'up': '1', 'right': '2', 'down': '3', 'left': '4'}
-CONTROLS_LAYOUT = 2  # settings layout: 2 = one keyboard & mouse table (migrate_controls)
+from control_bindings import KEY_DEFAULTS, LEGACY_KEYS, STICK_PRESETS, stick_preset, validate_sources, validate_environment, binding_conflicts
+CONTROLS_LAYOUT = 3
 
 
 STICK_CONTROLS = [('lx_neg', 'A', None), ('lx_pos', 'D', None),
                   ('ly_neg', 'W', None), ('ly_pos', 'S', None),
-                  ('rx_neg', 'Left', None), ('rx_pos', 'Right', None),
-                  ('ry_neg', 'Up', None), ('ry_pos', 'Down', None)]
+                  ('rx_neg', 'Mouse Move Left', None), ('rx_pos', 'Mouse Move Right', None),
+                  ('ry_neg', 'Mouse Move Up', None), ('ry_pos', 'Mouse Move Down', None)]
 PS_BUTTON_NAMES.update(dict(zip((r[0] for r in STICK_CONTROLS),
     ('Left stick left', 'Left stick right', 'Left stick up', 'Left stick down',
      'Right stick left', 'Right stick right', 'Right stick up', 'Right stick down'))))
@@ -580,7 +564,17 @@ PS_BUTTON_NAMES.update(dict(zip((r[0] for r in STICK_CONTROLS),
 
 def table_rows(kind):
     return CONTROLS + STICK_CONTROLS if kind == 'key' else CONTROLS
-MOUSE_NAMES = {name.casefold() for name in (*TK_TO_MOUSE.values(), 'Wheel Up', 'Wheel Down')}
+MOUSE_MOVEMENTS = ('Mouse Move Left', 'Mouse Move Right', 'Mouse Move Up', 'Mouse Move Down')
+MOUSE_NAMES = {name.casefold() for name in (*TK_TO_MOUSE.values(), 'Wheel Up', 'Wheel Down', *MOUSE_MOVEMENTS)}
+
+
+def mouse_movement_name(dx, dy):
+    """Ignore click jitter; capture the dominant direction of an intentional movement."""
+    if max(abs(dx), abs(dy)) < 12:
+        return None
+    if abs(dx) >= abs(dy):
+        return 'Mouse Move Left' if dx < 0 else 'Mouse Move Right'
+    return 'Mouse Move Up' if dy < 0 else 'Mouse Move Down'
 
 
 def is_mouse_name(name):
@@ -590,6 +584,8 @@ def is_mouse_name(name):
 def default_input(row, kind):
     """Default input of a table row for 'key' or 'pad' ('' or None when it has none)."""
     button, key, pad = row
+    if kind == 'key_alt':
+        return 'None'
     if kind == 'pad':
         return pad
     return KEY_DEFAULTS.get(button, key) if key else key
@@ -634,7 +630,25 @@ def control_map(controls, kind):
 
 
 def migrate_controls(saved):
-    return saved if isinstance(saved, dict) else {}
+    if not isinstance(saved, dict):
+        return {}
+    saved = dict(saved)
+    if ('controls' in saved or 'controls_layout' in saved) and saved.get('controls_layout', 0) < 3:
+        controls = saved.get('controls', {})
+        controls = dict(controls) if isinstance(controls, dict) else {}
+        effective = {**LEGACY_KEYS, **control_values(controls, 'key')}
+        controls['key'] = control_changes(effective, 'key')
+        saved['controls'] = controls
+        saved['controls_layout'] = 3
+    return saved
+
+
+def validate_controls(controls):
+    primary = {row[0]: default_input(row, 'key') for row in CONTROLS}
+    chosen = control_values(controls, 'key')
+    primary.update({k: v for k, v in chosen.items() if k in primary})
+    sticks = {row[0]: chosen.get(row[0], row[1]) for row in STICK_CONTROLS}
+    validate_sources(primary, control_values(controls, 'key_alt'), sticks)
 
 UPSCALERS = [('fsr3', ('FSR 3.1 (every GPU)', 'FSR 3.1 (любая видеокарта)')),
              ('taa', ('TAA (native resolution anti-aliasing)', 'TAA (нативное сглаживание)')),
@@ -1124,6 +1138,8 @@ def game_environment(s):
     env = dict(os.environ)
     for removed in ('RATCHET_GLYPH_STYLE', 'RATCHET_STICK_PROMPTS'):
         env.pop(removed, None)
+    if s.get('glyph_style') in ('auto', 'xbox', 'keyboard'):
+        env['RATCHET_GLYPH_STYLE'] = s['glyph_style']
     env['RATCHET_GAME_DIR'] = s['game_dir']
     env.pop('RATCHET_PATCH_DIR', None)
     # Temporal upscaling is parked (build_graphics): a switch saved on by 2.1.8 has no control left to
@@ -1152,7 +1168,12 @@ def game_environment(s):
     env['RATCHET_MODS_ENABLED'] = '1' if s['mods_enabled'] else '0'
     env['RATCHET_PATCHES_DIR'] = s['patches_dir'] or str(DATA_DIR / 'patches')
     env['RATCHET_PATCHES_CONFIG'] = str(DATA_DIR / 'patches.json')
-    env['RATCHET_LANGUAGE'] = game_language_id(s.get('language', '1'))
+    text_language = game_language_id(s.get('language', '1'))
+    voice_language = s.get('voice_language', 'same')
+    voice_language = text_language if voice_language == 'same' else game_language_id(voice_language)
+    env['RATCHET_TEXT_LANGUAGE'] = text_language
+    env['RATCHET_VOICE_LANGUAGE'] = voice_language
+    env['RATCHET_LANGUAGE'] = voice_language
     env['RATCHET_DISCORD'] = '1' if s.get('discord_rpc') else '0'
     if s['hdr']:
         env['RATCHET_HDR'] = '1'
@@ -1176,14 +1197,18 @@ def game_environment(s):
         if s[key]:
             env[name] = '1'
     controls = s.get('controls', {})
+    validate_controls(controls)
     chosen = control_values(controls, 'key')
     env['RATCHET_STICK_KEYS'] = ','.join(f'{name}={chosen.get(name, default)}'
         for name, default, _pad in STICK_CONTROLS
         if not set(chosen.get(name, default)) & set(',='))
-    if value := keyboard_map(controls):
-        env['RATCHET_KEY_MAP'] = value
+    for name in ('RATCHET_KEY_MAP', 'RATCHET_KEY_MAP_ALT', 'RATCHET_PAD_MAP'):
+        env.pop(name, None)
+    env['RATCHET_KEY_MAP'] = keyboard_map(controls)
+    env['RATCHET_KEY_MAP_ALT'] = control_map(controls, 'key_alt')
     if value := control_map(controls, 'pad'):
         env['RATCHET_PAD_MAP'] = value
+    validate_environment(env)
     env['PYTHONUNBUFFERED'] = '1'
     env['PYTHONIOENCODING'] = 'utf-8'
     return env
@@ -1661,11 +1686,15 @@ class Launcher:
         bar.pack(fill='x', side='bottom')
         bar.pack_propagate(False)
         self.status = tk.Label(bar, text='', bg=BG, fg=MUTED, font=self.font(UI_FONT, 10), anchor='w', justify='left')
-        self.status.pack(side='left', padx=self.px(24))
+        self.status.grid(row=0, column=0, sticky='ew', padx=self.px(16))
+        bar.columnconfigure(0, weight=1)
+        bar.rowconfigure(0, weight=1)
+        bar.grid_propagate(False)
+        self.status.bind('<Configure>', lambda e: self.status.configure(wraplength=max(1, e.width)))
         self.play_button = ttk.Button(bar, text=_('PLAY', 'ИГРАТЬ'), style='Play.TButton', command=self.play)
-        self.play_button.pack(side='right', padx=(self.px(10), self.px(24)), pady=self.px(11))
+        self.play_button.grid(row=0, column=2, padx=(self.px(10), self.px(24)), pady=self.px(11))
         self.save_button = ttk.Button(bar, text=_('Save', 'Сохранить'), command=self.save, state='disabled')
-        self.save_button.pack(side='right', pady=self.px(11))
+        self.save_button.grid(row=0, column=1, pady=self.px(11))
         self.content = tk.Frame(right, bg=PANEL)
         self.content.pack(fill='both', expand=True)
 
@@ -1709,12 +1738,7 @@ class Launcher:
         self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
         self.folder(f, 'game_dir', 'Game folder', 'Select the folder containing eboot.bin',
                     'Requires sce_sys/param.sfo and sce_module.', on_change=self.game_changed)
-        self.row(f, 'Output resolution', self.choice(f, 'output_res', 'ini', OUTPUTS))
-        self.row(f, 'Display mode', self.choice(f, 'display_mode', 'ini', DISPLAY_MODES))
-        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS),
-                 '60 FPS requires the verified CUSA01047 v1.00 build. Rejected patches use Original.', restart=True)
-        self.check(f, 'vsync', 'ini', 'VSync')
-        self.build_game_effects(f)
+        self.row(f, 'Graphics', self.ttk.Button(f, text='Open graphics settings', command=lambda: self.show('graphics')))
         self.banner = self.tk.Canvas(f, height=self.px(160), bg=BG, highlightthickness=0)
         self.banner.grid(row=self.next_row(f), column=0, columnspan=2, sticky='we')
         self.banner_button = self.ttk.Button(self.banner, text='Choose game folder', command=lambda: self.show('game'))
@@ -1781,34 +1805,30 @@ class Launcher:
             return self.banner_image.subsample(factor) if factor > 1 else self.banner_image
 
     def build_graphics(self):
-        """Window and overlay controls; temporal upscaling stays commented out."""
+        """Quality presets, rendering and presentation in one scrollable page."""
         f = self.scrolled_page('graphics', _('Graphics', 'Графика'), _('How the game appears on your screen.'))
-        self.build_display(f)
+        self.quality = self.tk.StringVar(value='Custom')
+        box = self.ttk.Combobox(f, textvariable=self.quality, state='readonly',
+                                values=['Custom', *graphics_presets.PRESETS])
+        self.row(f, 'Graphics preset', box,
+                 'Sets render/output resolution, shadows, filtering and motion blur. Save and restart.')
+        keys = tuple(graphics_presets.PRESETS['Low'])
+        def refresh(*_):
+            self.quality.set(graphics_presets.detect({key: self.var(key, 'ini').get() for key in keys}))
+        def apply(_event):
+            settings = graphics_presets.PRESETS.get(self.quality.get(), {})
+            for key, value in settings.items():
+                self.var(key, 'ini').set(value)
+            refresh()
+        box.bind('<<ComboboxSelected>>', apply)
+        for key in keys:
+            self.var(key, 'ini').trace_add('write', refresh)
+        refresh()
+        self.build_gpu_selection(f)
         self.build_game_effects(f)
-        # Temporal upscaling is parked until its image quality is validated.
-        # self.section(f, _('Experimental'))
-        # self.check(f, 'experimental_upscaler', 'app', _('Enable the upscaler (experimental)'),
-        #            _('Off (default): the game runs without temporal upscaling; FSR 3.1 and TAA need this switch on. '
-        #              'FSR 3.1 is not calibrated for this game yet: expect ghosting or flicker. The remaining options require this switch; '
-        #              'leave it off for normal gameplay.',
-        #              'Выкл. (по умолчанию): игра без временного апскейлинга; FSR 3.1 и TAA нужен этот переключатель. '
-        #              'FSR 3.1 ещё не откалиброван для этой игры: возможны гостинг и мерцание.'), restart=True)
-        # self.section(f, _('Upscaling', 'Апскейлинг'))
-        # self.row(f, _('Upscaler', 'Апскейлер'), self.choice(f, 'upscaler', 'ini', UPSCALERS))
-        # self.row(f, _('Quality preset', 'Пресет'), self.choice(f, 'preset', 'ini', PRESETS),
-        #          _('Render scale per axis: Quality renders at 1/1.5 of the output size.',
-        #            'Масштаб рендера по каждой оси: Quality рисует в 1/1.5 размера вывода.'))
-        # self.row(f, _('Output resolution', 'Разрешение вывода'), self.choice(f, 'output_res', 'ini', OUTPUTS),
-        #          _('What the upscaler produces; the HUD is drawn at this size too.',
-        #            'Что выдаёт апскейлер; интерфейс рисуется в этом же размере.'))
-        # self.row(f, _('Live resolution changes', 'Смена разрешения на лету'), self.choice(f, 'live_resolution', 'ini', LIVE),
-        #          _('Off: outputs other than 1080p are set by a patch at start (fastest; changing them in the '
-        #            'game restarts it). On: change output and preset in the game without a restart, at a cost.',
-        #            'Выкл.: разрешения кроме 1080p задаются патчем при запуске (быстрее). Вкл.: менять в игре '
-        #            'без перезапуска, но медленнее.'))
-        # self.check(f, 'object_motion', 'ini', _('Object motion vectors', 'Векторы движения объектов'),
-        #            _('Less ghosting on characters, cloth and weapons; costs about 10% FPS.',
-        #              'Меньше гостинга на персонажах и одежде; стоит около 10% FPS.'))
+        self.build_display(f)
+        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS), restart=True)
+        self.row(f, 'Frames queued', self.choice(f, 'frames_queued', 'ini', FRAMES_QUEUED))
 
     def build_game_effects(self, f):
         self.section(f, 'Game rendering')
@@ -1848,9 +1868,6 @@ class Launcher:
 
     def build_performance(self):
         f = self.scrolled_page('performance', 'Performance', 'Conservative defaults; higher frame rates are unverified.')
-        self.row(f, 'Game frame rate', self.choice(f, 'game_fps', 'ini', GAME_FPS),
-                 '60 FPS requires the verified CUSA01047 v1.00 build. Rejected patches use Original.', restart=True)
-        self.row(f, 'Frames queued', self.choice(f, 'frames_queued', 'ini', FRAMES_QUEUED))
         self.check(f, 'async_shaders', 'ini', 'Compile shaders in the background')
         self.check(f, 'background_warmup', 'app', 'Load shader cache in the background')
         self.check(f, 'parallel_warmup', 'app', 'Parallel shader cache loading')
@@ -1858,9 +1875,11 @@ class Launcher:
         self.check(f, 'deferred_readback', 'ini', 'Deferred GPU readbacks',
                    'Experimental: can stall Ratchet after difficulty selection. Keep off for the baseline.')
         self.check(f, 'stale_readback', 'ini', 'Allow stale GPU readbacks')
+        self.row(f, 'Stream buffer memory', self.choice(f, 'stream_memory', 'app', STREAM_MEMORY))
+
+    def build_gpu_selection(self, f):
         gpus = list_gpus()
         self.row(f, 'Graphics card', self.choice(f, 'gpu_id', 'app', [('', ('Automatic',))] + [(r[0], (r[1],)) for r in gpus]))
-        self.row(f, 'Stream buffer memory', self.choice(f, 'stream_memory', 'app', STREAM_MEMORY))
 
         card = self.var('gpu_id', 'app')
         box = self.choice(f, 'no_msaa', 'app', no_msaa_options(gpus, card.get()), width=46)
@@ -1878,10 +1897,41 @@ class Launcher:
                     'eboot.bin, sce_sys/param.sfo and sce_module', on_change=self.game_changed)
         self.folder(f, 'user_dir', 'Saves folder', 'Choose the saves folder',
                     'Empty uses the portable user folder.', on_change=self.refresh_status)
-        self.row(f, _('Game language'), self.choice(f, 'language', 'app',
+        self.row(f, 'Text and subtitles language', self.choice(f, 'language', 'app',
                  lambda: game_language_options(self.var('language', 'app').get())),
                  hint=_('Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'))
-        self.note(f, _('Text and voice currently follow the game language. Independent voice selection is not yet verified for this edition.'))
+        self.row(f, 'Voice language', self.choice(f, 'voice_language', 'app',
+                 [('same', ('Same as text',))] + LANGUAGES),
+                 'Experimental separation for USA v1.00. Save and restart. Unsupported patches fall back to matching text and voice.', restart=True)
+        archive_status = self.tk.StringVar(value='Choose a game folder to check voice data.')
+        label = self.tk.Label(f, textvariable=archive_status, bg=PANEL, fg=MUTED,
+                              justify='left', anchor='w', wraplength=self.px(480))
+        self.row(f, 'Voice archive', label)
+        generation = [0]
+        def check_archive(*_):
+            generation[0] += 1
+            ticket = generation[0]
+            folder = self.var('game_dir', 'app').get()
+            language = self.var('voice_language', 'app').get()
+            if language == 'same':
+                language = self.var('language', 'app').get()
+            archive_status.set('Checking voice archive…')
+            result = []
+            def worker():
+                result.append(voice_archive.inspect(folder, language))
+            threading.Thread(target=worker, daemon=True).start()
+            def poll():
+                if ticket != generation[0] or not label.winfo_exists():
+                    return
+                if not result:
+                    self.root.after(50, poll)
+                    return
+                report = result[0]
+                archive_status.set(report['archive'] + '\n' + report['integrity'] + ': ' + voice_archive.warning(report))
+            self.root.after(50, poll)
+        for key in ('game_dir', 'language', 'voice_language'):
+            self.var(key, 'app').trace_add('write', check_archive)
+        check_archive()
         self.build_save_backups(f)
         self.game_patch_title, self.game_patch_vars = None, {}
 
@@ -2008,10 +2058,10 @@ class Launcher:
         tk, ttk = self.tk, self.ttk
         f = self.scrolled_page('controls', _('Controls', 'Управление'),
                                _('Keyboard and mouse, button icons and gamepad mapping.'))
-        saved = {kind: control_values(self.app.get('controls'), kind) for kind in ('key', 'pad')}
+        saved = {kind: control_values(self.app.get('controls'), kind) for kind in ('key', 'key_alt', 'pad')}
         style = self.app.get('pad_style') if self.app.get('pad_style') in PAD_STYLES else 'playstation'
         self.pad_style = tk.StringVar(value=style)
-        self.control_vars, self.pad_boxes, self.pad_icons = {'key': {}, 'pad': {}}, {}, {}
+        self.control_vars, self.pad_boxes, self.pad_icons = {'key': {}, 'key_alt': {}, 'pad': {}}, {}, {}
         self.key_rows = {}  # keyboard button: (input box, reset arrow)
         self.capturing_key = self.capture_wheel = None  # the key box waiting for an input
         size = self.px(28)
@@ -2049,6 +2099,8 @@ class Launcher:
 
         # The in-game icons first, then the device: its section is shown, the other hidden (show_device).
         page = f
+        self.row(page, _('In-game button icons'), self.choice(page, 'glyph_style', 'app', GLYPH_STYLES),
+                 _('Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.'))
         saved_device = self.app.get('controls_device')
         self.device = tk.StringVar(value=saved_device if saved_device in dict(CONTROL_DEVICES) else 'keyboard')
         self.device_chosen = saved_device in dict(CONTROL_DEVICES)
@@ -2066,40 +2118,44 @@ class Launcher:
         f = self.key_section = ttk.Frame(page)
         f.grid(row=self.next_row(page), column=0, columnspan=2, sticky='we')
         f.columnconfigure(1, weight=1)
-        self.section(f, _('Keyboard & Mouse Mapping'), top=12)
+        self.section(f, _('Stick mapping'), top=12)
+        for name, default, _pad in STICK_CONTROLS:
+            self.control_vars['key'][name] = tk.StringVar(value=saved['key'].get(name) or default)
+        self.stick_vars = {}
+        for side, title in (('l', 'Left stick · Movement'), ('r', 'Right stick · Camera')):
+            values = {k: v.get() for k, v in self.control_vars['key'].items()}
+            selected = stick_preset(values, side)
+            var = tk.StringVar(value=selected)
+            self.stick_vars[side] = var
+            options = list(STICK_PRESETS) + (['Custom (saved)'] if selected == 'Custom (saved)' else [])
+            box = ttk.Combobox(f, state='readonly', textvariable=var, values=options, width=25)
+            original = tuple(values[side+s] for s in ('x_neg', 'x_pos', 'y_neg', 'y_pos'))
+            def select(_event=None, side=side, var=var, original=original):
+                sources = STICK_PRESETS.get(var.get(), original)
+                self.assign_stick(side, sources)
+            box.bind('<<ComboboxSelected>>', select)
+            self.row(f, _(title), box)
+        self.section(f, _('Keyboard & Mouse Mapping'), top=16)
         self.note(f, _('Which key or mouse input presses each button of the game.'), top=4)
         table = mapping_table()
-        r = 0
-        for row in table_rows('key'):
+        for col, title in ((1, 'Game button'), (2, 'Primary'), (4, 'Secondary')):
+            ttk.Label(table, text=_(title), style='Muted.TLabel').grid(row=0, column=col, sticky='w')
+        for r, row in enumerate(CONTROLS, 1):
             button = row[0]
-            r += 1
-            default = default_input(row, 'key')
             game_button(table, r, button)
-            var = tk.StringVar(value=saved['key'].get(button) or default)
-            self.control_vars['key'][button] = var
-            box = self.key_binder(table, 'key', button, var)
-            box.grid(row=r, column=2, sticky='w')
-            arrow = ttk.Button(table, text='\u21a9', width=3, takefocus=False,
-                               command=lambda b=button, d=default: self.assign_key('key', b, d))
-            arrow.grid(row=r, column=3, sticky='w', padx=self.px((6, 0)))
-            self.key_rows[button] = (box, arrow)
-        self.note(f, 'Select a box and press a key or mouse button. Mouse movement defaults to the left stick. Choose either stick below. Insert opens the port menu.')
+            for kind, col in (('key', 2), ('key_alt', 4)):
+                var = tk.StringVar(value=saved[kind].get(button) or default_input(row, kind))
+                self.control_vars[kind][button] = var
+                box = self.key_binder(table, kind, button, var)
+                box.grid(row=r, column=col, sticky='w', padx=self.px((0, 4)))
+                clear = ttk.Button(table, text='×', width=2, takefocus=False,
+                                   command=lambda k=kind, b=button: self.assign_key(k, b, 'None'))
+                clear.grid(row=r, column=col+1, sticky='w', padx=self.px((0, 10)))
+                if kind == 'key':
+                    self.key_rows[button] = (box, clear)
+        self.note(f, _('Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.'))
         ttk.Button(f, text=_('Reset keyboard & mouse to defaults'), command=lambda: self.reset_controls('key')).grid(
             row=self.next_row(f), column=0, sticky='w', pady=self.px((14, 0)))
-        self.row(f, _('Mouse controls'), self.choice(f, 'mouse_stick', 'ini',
-                 [('1', ('Left stick',)), ('2', ('Right stick',)), ('0', ('Off',))]))
-        self.row(f, _('Mouse activation'), self.choice(f, 'mouse_activation', 'ini',
-                 [('0', ('Always',)), ('1', ('Hold L2',))]))
-        self.row(f, _('Mouse vertical direction'), self.choice(f, 'mouse_invert_y', 'ini',
-                 [('0', ('Normal',)), ('1', ('Inverted',))]))
-        self.row(f, _('Mouse stick style'), self.choice(f, 'mouse_aim_style', 'ini', AIM_STYLES),
-                 hint=_('Relative follows mouse movement and returns to neutral. Absolute holds an offset from the activation position.'))
-        self.row(f, _('Mouse stick sensitivity'), slider('mouse_aim_sensitivity', 10, 200, '%'),
-                 _('Lower values need more mouse movement for the same stick movement.'))
-        self.check(f, 'mouse_lock', 'ini', _('Keep the mouse in the game window'),
-                   _('While you play, the mouse stays in the game window, so a click cannot land on another monitor '
-                     'or app. The in-game menu and switching windows get it back. Also in the in-game menu.'))
-
         # Gamepad: the controller type names its buttons, then the vibration and the table.
         f = self.pad_section = ttk.Frame(page)
         f.grid(row=self.next_row(page), column=0, columnspan=2, sticky='we')
@@ -2153,8 +2209,9 @@ class Launcher:
         """An input box of the keyboard & mouse table: click it, then press a key, click a mouse
         button or turn the wheel."""
         box = self.ttk.Button(parent, width=16, takefocus=False)
-        mouse = kind == 'key'
+        mouse = kind in ('key', 'key_alt')
         countdown = None
+        origin = [0, 0]
 
         def show(*_a):
             box.configure(text=_('(none)') if var.get() in ('', 'None') else var.get())
@@ -2163,7 +2220,7 @@ class Launcher:
 
         def finish(_e=None):
             nonlocal countdown
-            for sequence in ('<KeyPress>', '<FocusOut>', '<ButtonPress>'):
+            for sequence in ('<KeyPress>', '<FocusOut>', '<ButtonPress>', '<Motion>'):
                 box.unbind(sequence)
             box.grab_release()
             if countdown:
@@ -2175,8 +2232,10 @@ class Launcher:
             return 'break'
 
         def bind(name):
+            # Release capture before a conflict dialog can take focus or grab.
+            finish()
             self.assign_key(kind, button, name)
-            return finish()
+            return 'break'
 
         def pressed(event):
             name = sdl_key_name(event.keysym)
@@ -2193,6 +2252,11 @@ class Launcher:
         def wheeled(event):
             return bind(mouse_name(wheel_delta=event.delta or {4: 1, 5: -1}.get(event.num, 0))) if mouse else finish()
 
+        def moved(event):
+            dx, dy = event.x_root - origin[0], event.y_root - origin[1]
+            name = mouse_movement_name(dx, dy)
+            return bind(name) if name else 'break'
+
         def capture():
             if self.capturing_key not in (None, box):
                 self.capturing_key.event_generate('<FocusOut>')
@@ -2207,6 +2271,9 @@ class Launcher:
                 box.configure(text=f'{prompt} ({left})')
                 countdown = box.after(1000, tick, left - 1)
             tick(CAPTURE_SECONDS)
+            origin[:] = [box.winfo_pointerx(), box.winfo_pointery()]
+            if mouse and button in {row[0] for row in STICK_CONTROLS}:
+                box.bind('<Motion>', moved)
             box.bind('<KeyPress>', pressed)
             box.bind('<ButtonPress>', clicked)
             box.bind('<FocusOut>', finish)
@@ -2216,13 +2283,34 @@ class Launcher:
         return box
 
     def assign_key(self, kind, button, name):
-        """Binds `name` to `button` in a table; a button that had it takes the old one (bind_key)."""
-        table = self.control_vars[kind]
-        bindings = {b: v.get() for b, v in table.items()}
-        other = bind_key(bindings, button, name)
-        if other:
-            table[other].set(bindings[other])
-        table[button].set(name)
+        """Reject a used input before changing either binding."""
+        return self.assign_inputs(kind, {button: name})
+
+    def assign_stick(self, side, sources):
+        # Restore the dropdown before validation, including on rejection.
+        current = {b: v.get() for b, v in self.control_vars['key'].items()}
+        self.stick_vars[side].set(stick_preset(current, side))
+        changes = dict(zip((side+s for s in ('x_neg', 'x_pos', 'y_neg', 'y_pos')), sources))
+        if not self.assign_inputs('key', changes):
+            return False
+        self.stick_vars[side].set(stick_preset(changes, side))
+        return True
+
+    def assign_inputs(self, kind, changes):
+        mappings = {table: {b: v.get() for b, v in self.control_vars[table].items()}
+                    for table in ('key', 'key_alt')}
+        conflicts = binding_conflicts(mappings, kind, changes)
+        if conflicts:
+            lines = []
+            for source, table, button in conflicts:
+                slot = _('Secondary') if table == 'key_alt' else _('Primary')
+                lines.append(_('{input} is already assigned to {control} ({slot}). Clear that binding first.').format(
+                    input=source, control=_(PS_BUTTON_NAMES.get(button, button)), slot=slot))
+            self.messagebox.showerror(_('Input already assigned'), '\n'.join(lines))
+            return False
+        for button, source in changes.items():
+            self.control_vars[kind][button].set(source)
+        return True
 
     def draw_pad_icon(self, button):
         """The gamepad column's icon of a game button, in the chosen style (L2/R2: the triggers)."""
@@ -2252,12 +2340,14 @@ class Launcher:
 
     def reset_controls(self, kind=None):
         """Puts one table ('key' or 'pad') or both (None) back on the defaults."""
-        for table in ('key', 'pad'):
+        for table in ('key', 'key_alt', 'pad'):
             for row in table_rows(table):
-                if kind in (None, table) and row[0] in self.control_vars.get(table, {}):
+                if (kind in (None, table) or (kind == 'key' and table == 'key_alt')) and row[0] in self.control_vars.get(table, {}):
                     self.control_vars[table][row[0]].set(default_input(row, table) or '')
         if kind in (None, 'key'):
-            for key in ('mouse_stick', 'mouse_activation', 'mouse_invert_y', 'mouse_aim_style', 'mouse_aim_sensitivity'):
+            for side, var in getattr(self, 'stick_vars', {}).items():
+                var.set('WASD' if side == 'l' else 'Mouse movement')
+            for key in ('mouse_stick', 'mouse_left', 'mouse_right', 'mouse_up', 'mouse_down', 'mouse_activation', 'mouse_invert_y', 'mouse_aim_style', 'mouse_aim_sensitivity'):
                 self.var(key, 'ini').set(INI_DEFAULTS[key])
         self.relabel_pad_controls()
 
@@ -2305,6 +2395,11 @@ class Launcher:
         ttk.Button(holder, text=_('Desktop shortcut', 'Ярлык на рабочем столе'), command=self.shortcut).pack(side='left', padx=self.px(6))
         ttk.Button(holder, text=_('Add to Steam'), command=self.add_to_steam).pack(side='left')
         ttk.Label(holder, text=f'v{VERSION}', style='Muted.TLabel').pack(side='left', padx=self.px(10))
+        from session_diagnostics import configuration
+        enabled = configuration(PORT_DIR) is not None
+        self.check(f, 'diagnostics_upload', 'app', _('Send diagnostic reports automatically'),
+                   _('Sends hardware information and filtered technical logs after the game closes. Saves and game files are excluded. Reports retry after a later session.') if enabled else
+                   _('Diagnostic upload is not configured in this distribution. No reports will be sent.'))
         if not WINDOWS:
             self.build_linux_options(f)
         self.section(f, _('Files'))
@@ -2635,6 +2730,7 @@ class Launcher:
                 app[key] = value
         app['controls'] = {kind: control_changes({b: v.get() for b, v in vars_.items()}, kind)
                            for kind, vars_ in self.control_vars.items()}
+        app['controls_layout'] = CONTROLS_LAYOUT
         app['pad_style'] = self.pad_style.get()
         if getattr(self, 'device_chosen', False):  # an untouched first choice stays automatic
             app['controls_device'] = self.device.get()
@@ -2647,6 +2743,11 @@ class Launcher:
     def collect(self):
         """Writes settings.json, ratchet.ini, mods.json and patches.json."""
         state = self.gather()
+        try:
+            validate_controls(state['app']['controls'])
+        except ValueError as error:
+            self.messagebox.showerror(_('Control conflicts'), str(error))
+            return False
         _disk, lines = load_ini()
         persisted = {line.split('=', 1)[0].strip() for line in lines
                      if '=' in line and not line.lstrip().startswith('#')}
@@ -2840,7 +2941,11 @@ class Launcher:
         finally:
             if run_log:
                 _close_quietly(run_log)
-            self.output.put((process.wait(),))
+            code = process.wait()
+            settings = getattr(self, 'app', {})
+            from session_diagnostics import finish
+            finish(settings, PORT_DIR, run_log_path(settings), code, VERSION)
+            self.output.put((code,))
 
     def drain_output(self):
         while not self.ui_calls.empty():
@@ -2909,10 +3014,20 @@ class Launcher:
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # ---- updates -------------------------------------------------------------------------------
-    def check_update(self):
-        return
+    def check_update(self, manual=False):
+        try:
+            result = latest_release()
+        except (OSError, ValueError) as error:
+            if manual:
+                self.ui_calls.put(lambda e=str(error): self.messagebox.showerror(APP_NAME, _('Could not check for updates: {}').format(e)))
+            return
+        if result:
+            self.ui_calls.put(lambda: self.offer_update(*result))
+        elif manual:
+            self.ui_calls.put(lambda: self.messagebox.showinfo(APP_NAME, _('No newer stable release is available.')))
 
-    def offer_update(self, version, url, page):
+
+    def offer_update(self, version, url, page, digest=''):
         if self.update_box:
             return
         tk, ttk = self.tk, self.ttk
@@ -2924,21 +3039,21 @@ class Launcher:
         buttons = tk.Frame(box, bg=CARD)
         buttons.pack(fill='x', padx=self.px(10), pady=self.px((0, 10)))
         self.update_button = ttk.Button(buttons, text=_('Update', 'Обновить'),
-                                        command=lambda: self.install_update(version, url, page))
+                                        command=lambda: self.install_update(version, url, page, digest))
         self.update_button.pack(fill='x')
         ttk.Button(buttons, text=_("What's new", 'Что нового'), command=lambda: open_url(page)).pack(
             fill='x', pady=self.px((4, 0)))
         box.pack(fill='x', padx=self.px((22, 18)), pady=self.px((0, 14)), before=self.side_note)
         self.update_box = box
-        self.pending_update = (version, url, page)
+        self.pending_update = (version, url, page, digest)
         if not self.process:
             self.status.configure(text=text, fg=TEXT)
 
-    def install_update(self, version, url, page):
+    def install_update(self, version, url, page, digest=''):
         if self.process:
             self.messagebox.showinfo(APP_NAME, _('Close the game before updating.', 'Закройте игру перед обновлением.'))
             return
-        if not FROZEN or not url:  # a source tree updates with git
+        if not FROZEN or not url or not digest:  # a source tree updates with git
             open_url(page)
             return
         if not self.messagebox.askyesno(APP_NAME, _(
@@ -2957,18 +3072,26 @@ class Launcher:
                 shutil.rmtree(UPDATE_DIR, ignore_errors=True)
                 UPDATE_DIR.mkdir(parents=True, exist_ok=True)
                 archive = UPDATE_DIR / 'update.zip'
+                import hashlib
+                from release_updates import safe_members
+                checksum = hashlib.sha256()
                 request = urllib.request.Request(url, headers={'User-Agent': 'ratchetport-launcher'})
                 with urllib.request.urlopen(request, timeout=60) as response, open(archive, 'wb') as out:
                     total, done, shown = int(response.headers.get('Content-Length') or 0), 0, -1
                     while chunk := response.read(1 << 20):
-                        out.write(chunk)
                         done += len(chunk)
+                        if done > 4 << 30:
+                            raise ValueError('Update download exceeds the size limit')
+                        checksum.update(chunk)
+                        out.write(chunk)
                         percent = done * 100 // total if total else 0
                         if percent != shown:
                             shown = percent
                             self.ui_calls.put(lambda p=percent: progress(p))
+                if checksum.hexdigest() != digest:
+                    raise ValueError('Update SHA256 verification failed')
                 with zipfile.ZipFile(archive) as package:
-                    package.extractall(UPDATE_DIR / 'new')
+                    package.extractall(UPDATE_DIR / 'new', members=safe_members(package))
                 archive.unlink()
                 new = next((p.parent for p in (UPDATE_DIR / 'new').rglob('RatchetPort.exe')), None)
                 if not new:
@@ -2977,7 +3100,7 @@ class Launcher:
                 subprocess.Popen([str(new / 'RatchetPort.exe'), '--install-update', str(PORT_DIR), str(os.getpid())],
                                  cwd=str(new), stdin=subprocess.DEVNULL, creationflags=NO_WINDOW)
                 self.ui_calls.put(self.root.destroy)
-            except (OSError, zipfile.BadZipFile) as failure:
+            except (OSError, ValueError, zipfile.BadZipFile) as failure:
                 def failed(error=failure):
                     self.update_button.configure(state='normal')
                     self.update_label.configure(text=_('Version {} is available.', 'Доступна версия {}.').format(version))
@@ -3166,8 +3289,13 @@ def play_without_window(settings):
     """--play: the game with the saved settings (shortcuts, Steam). Output goes to the console
     when there is one and to <saves folder>/last_run.log."""
     attach_stdio()
+    try:
+        environment = game_environment(settings)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 1
     with open_run_log(settings) as log:
-        process = subprocess.Popen(run_command(), cwd=PORT_DIR, env=game_environment(settings),
+        process = subprocess.Popen(run_command(), cwd=PORT_DIR, env=environment,
                                    stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, creationflags=NO_WINDOW)
         for raw in iter(process.stdout.readline, b''):
@@ -3177,7 +3305,10 @@ def play_without_window(settings):
                 sys.stdout.write(text)
             except (OSError, ValueError):
                 pass
-        return process.wait()
+        code = process.wait()
+    from session_diagnostics import finish
+    finish(settings, PORT_DIR, run_log_path(settings), code, VERSION)
+    return code
 
 
 def version_tuple(text):
@@ -3185,7 +3316,8 @@ def version_tuple(text):
 
 
 def latest_release():
-    return None
+    from release_updates import latest
+    return latest(VERSION)
 
 
 def install_update(target, wait_pid):
@@ -3196,8 +3328,10 @@ def install_update(target, wait_pid):
     kernel = ctypes.windll.kernel32
     handle = kernel.OpenProcess(0x00100000, False, int(wait_pid))  # SYNCHRONIZE
     if handle:
-        kernel.WaitForSingleObject(handle, 60000)
+        waited = kernel.WaitForSingleObject(handle, 60000)
         kernel.CloseHandle(handle)
+        if waited != 0:  # Never overwrite a launcher that is still running.
+            return 1
     ignore = shutil.ignore_patterns(*USER_FILES)
     for attempt in range(30):
         try:

@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -24,6 +25,10 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
     INI = None  # ratchet.ini the launcher opens over, when a test needs one
 
     def setUp(self):
+        # CI has no person to dismiss a modal dialog. Expected dialogs are mocked
+        # in their individual tests; an unexpected one must fail immediately.
+        self.enterContext(mock.patch.object(messagebox, '_show', side_effect=
+            AssertionError('Unexpected modal dialog during launcher test')))
         self.tmp = Path(tempfile.mkdtemp())
         self.saved = (launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG,
                       os.environ.get('RATCHET_CONFIG'))
@@ -40,18 +45,26 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
         self.root.update()
 
     def close_window(self):
+        # A capture timer belongs to its button. Cancelling it through root
+        # deletes the Tcl command but leaves the button's command list stale.
+        # Finish capture first so the owning widget cancels its own timer.
+        capture = getattr(getattr(self, 'app', None), 'capturing_key', None)
+        if capture is not None and capture.winfo_exists():
+            capture.event_generate('<FocusOut>')
         for pending in self.root.tk.call('after', 'info'):  # drain_output and watch_changes
             self.root.after_cancel(pending)
         self.root.destroy()
 
     def tearDown(self):
-        self.close_window()
-        launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG, config = self.saved
-        if config is None:
-            os.environ.pop('RATCHET_CONFIG', None)
-        else:
-            os.environ['RATCHET_CONFIG'] = config
-        shutil.rmtree(self.tmp, ignore_errors=True)
+        try:
+            self.close_window()
+        finally:
+            launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG, config = self.saved
+            if config is None:
+                os.environ.pop('RATCHET_CONFIG', None)
+            else:
+                os.environ['RATCHET_CONFIG'] = config
+            shutil.rmtree(self.tmp, ignore_errors=True)
 
     def save_state(self):
         self.app.refresh_save_button()
@@ -59,6 +72,112 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
 
 
 class SaveButtonTest(LauncherOverTemporaryFiles):
+    def test_binding_conflicts_are_rejected_before_save(self):
+        before = {k: {b: v.get() for b, v in rows.items()}
+                  for k, rows in self.app.control_vars.items()}
+        for kind, source, owner in (('key', 'Q', 'Triangle'),
+                                     ('key_alt', 'Mouse Left', 'R2'),
+                                     ('key', 'W', 'Left stick up'),
+                                     ('key_alt', 'Space', 'Cross')):
+            with self.subTest(kind=kind, source=source), mock.patch.object(self.app.messagebox, 'showerror') as error:
+                self.assertFalse(self.app.assign_key(kind, 'cross', source))
+                error.assert_called_once()
+                self.assertIn(owner, error.call_args.args[1])
+        self.assertEqual(before, {k: {b: v.get() for b, v in rows.items()}
+                                 for k, rows in self.app.control_vars.items()})
+
+    def test_clear_then_move_input_and_check_secondary_owner(self):
+        self.assertTrue(self.app.assign_key('key_alt', 'square', 'F24'))
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.assign_key('key', 'cross', 'F24'))
+        self.assertIn('Square (Secondary)', error.call_args.args[1])
+        self.assertTrue(self.app.assign_key('key_alt', 'square', 'None'))
+        self.assertTrue(self.app.assign_key('key', 'cross', 'F24'))
+        self.assertTrue(self.app.assign_key('key', 'cross', 'F24'))
+        self.app.save()
+        self.assertEqual(self.save_state(), 'disabled')
+
+    def test_stick_preset_conflict_is_atomic_and_restores_selection(self):
+        before = {b: v.get() for b, v in self.app.control_vars['key'].items()}
+        self.app.stick_vars['r'].set('WASD')
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.assign_stick('r', launcher.STICK_PRESETS['WASD']))
+        error.assert_called_once()
+        self.assertEqual(self.app.stick_vars['r'].get(), 'Mouse movement')
+        self.assertEqual(before, {b: v.get() for b, v in self.app.control_vars['key'].items()})
+        self.assertTrue(self.app.assign_stick('l', launcher.STICK_PRESETS['None']))
+        self.assertTrue(self.app.assign_stick('r', launcher.STICK_PRESETS['WASD']))
+        self.assertEqual(self.app.stick_vars['r'].get(), 'WASD')
+
+    def test_stick_preset_checks_secondary_button_bindings(self):
+        self.assertTrue(self.app.assign_key('key_alt', 'cross', 'Up'))
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.assign_stick('l', launcher.STICK_PRESETS['Arrow keys']))
+        self.assertIn('Cross (Secondary)', error.call_args.args[1])
+        self.assertEqual(self.app.stick_vars['l'].get(), 'WASD')
+
+    def test_capture_releases_grab_before_conflict_dialog(self):
+        self.app.show('controls')
+        box = self.app.key_rows['cross'][0]
+        self.root.update()
+        with mock.patch.object(box, 'bind', wraps=box.bind) as bindings:
+            box.invoke()
+        self.root.update()
+        self.assertIs(self.app.capturing_key, box)
+        # Exercise the actual registered key handler without depending on the
+        # Windows runner granting foreground keyboard focus to a test window.
+        pressed = next(call.args[1] for call in bindings.call_args_list
+                       if call.args[0] == '<KeyPress>')
+        def conflict(*args):
+            self.assertIsNone(self.app.capturing_key)
+            self.assertIsNone(self.root.grab_current())
+        with mock.patch.object(self.app.messagebox, 'showerror', side_effect=conflict) as error:
+            self.assertEqual(pressed(types.SimpleNamespace(keysym='q')), 'break')
+            self.root.update()
+        error.assert_called_once()
+        self.assertEqual(self.app.control_vars['key']['cross'].get(), 'Space')
+        self.assertEqual(str(box['text']), 'Space')
+
+    def test_closing_window_during_capture_allows_a_fresh_launcher(self):
+        self.app.show('controls')
+        self.app.key_rows['cross'][0].invoke()
+        self.root.update()
+        self.assertIsNotNone(self.app.capturing_key)
+        self.close_window()
+        self.assertIsNone(tk._default_root)
+        self.root = tk.Tk()
+        self.app = launcher.Launcher(self.root, tk, ttk, filedialog, messagebox)
+        self.root.update()
+        self.assertEqual(self.app.control_vars['key']['cross'].get(), 'Space')
+
+    def test_in_game_icon_choice_survives_save_and_rebuild(self):
+        self.app.var('glyph_style', 'app').set('keyboard')
+        self.app.control_vars['key']['cross'].set('F24')
+        self.app.save()
+        self.app.rebuild('en')
+        self.root.update()
+        settings = self.app.gather()['app']
+        self.assertEqual(settings['glyph_style'], 'keyboard')
+        env = launcher.game_environment(settings)
+        self.assertEqual(env['RATCHET_GLYPH_STYLE'], 'keyboard')
+        self.assertIn('cross=F24', env['RATCHET_KEY_MAP'])
+
+    def test_duplicate_binding_reports_conflict_without_writing_settings(self):
+        self.app.save()
+        ini = self.tmp / 'ratchet.ini'
+        before = launcher.CONFIG_FILE.read_bytes(), ini.read_bytes()
+        self.app.control_vars['key']['cross'].set('Q')
+        self.assertEqual(self.app.control_vars['key']['triangle'].get(), 'Q')
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.collect())
+        error.assert_called_once()
+        self.assertIn('cross (Primary) / triangle (Primary)', error.call_args.args[1])
+        self.assertEqual((launcher.CONFIG_FILE.read_bytes(), ini.read_bytes()), before)
+        self.assertEqual(self.save_state(), 'normal')
+        self.app.control_vars['key']['cross'].set('F24')
+        self.app.save()
+        self.assertEqual(self.save_state(), 'disabled')
+
     def test_language_and_mouse_options_survive_save_and_rebuild(self):
         self.assertEqual(self.app.vars['language'].get(), '1')
         self.app.var('language', 'app').set('20')
@@ -75,7 +194,7 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
         self.assertEqual(launcher.load_app_settings()['language'], '20')
         self.assertEqual(launcher.game_environment(self.app.gather()['app'])['RATCHET_LANGUAGE'], '20')
         self.app.reset_controls('key')
-        self.assertEqual(self.app.vars['mouse_stick'].get(), '1')
+        self.assertEqual(self.app.vars['mouse_stick'].get(), '2')
         self.assertEqual(self.app.control_vars['key']['lx_neg'].get(), 'A')
 
     def test_visual_dropdowns_share_values_and_save(self):
@@ -89,17 +208,45 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
             labels = tuple(text[0] for _value, text in choices)
             boxes = [w for w in widgets(self.root) if isinstance(w, ttk.Combobox)
                      and tuple(w['values']) == labels]
-            self.assertEqual(len(boxes), 2)  # Home and Graphics
+            self.assertEqual(len(boxes), 1)  # Graphics owns each quality setting
             index = [value for value, _text in choices].index(selected)
             boxes[0].current(index)
             boxes[0].event_generate('<<ComboboxSelected>>')
             self.root.update_idletasks()
-            self.assertEqual(boxes[1].current(), index)
             self.assertEqual(self.app.vars[key].get(), selected)
         self.app.save()
         values, _lines = launcher.load_ini()
         self.assertEqual((values['motion_blur'], values['shadow_resolution']), ('off', '512'))
         self.assertEqual(values['internal_resolution'], '4K')
+
+    def test_footer_survives_long_status(self):
+        self.root.geometry('900x650')
+        self.app.status.configure(text='Long archive warning ' * 100)
+        self.root.update()
+        for button in (self.app.save_button, self.app.play_button):
+            self.assertTrue(button.winfo_ismapped())
+            self.assertGreater(button.winfo_width(), 20)
+            self.assertLessEqual(button.winfo_rootx() + button.winfo_width(),
+                                 self.root.winfo_rootx() + self.root.winfo_width())
+        self.assertLessEqual(self.app.status.winfo_x() + self.app.status.winfo_width(),
+                             self.app.save_button.winfo_x())
+
+    def test_presets_apply_every_quality_setting(self):
+        self.app.quality.set('Ultra')
+        def widgets(parent):
+            for child in parent.winfo_children():
+                yield child
+                yield from widgets(child)
+        box = next(w for w in widgets(self.root) if isinstance(w, ttk.Combobox)
+                   and tuple(w['values']) == ('Custom', 'Low', 'Medium', 'High', 'Very High', 'Ultra'))
+        for name, values in launcher.graphics_presets.PRESETS.items():
+            box.set(name)
+            box.event_generate('<<ComboboxSelected>>')
+            for key, value in values.items():
+                self.assertEqual(self.app.var(key, 'ini').get(), value)
+            self.assertEqual(self.app.quality.get(), name)
+        self.app.var('shadow_resolution', 'ini').set('256')
+        self.assertEqual(self.app.quality.get(), 'Custom')
 
     def test_failed_save_does_not_close_the_launcher(self):
         with mock.patch.object(self.app, 'collect', return_value=False), \
@@ -283,7 +430,7 @@ class EverySettingSavesTest(LauncherOverTemporaryFiles):
         for key in list(app.vars):
             self.change_and_save(key, app.vars[key], self.other_value(key, app.vars[key]))
         self.change_and_save('pad_style', app.pad_style, 'xbox')
-        self.change_and_save('key cross', app.control_vars['key']['cross'], 'Q')
+        self.change_and_save('key cross', app.control_vars['key']['cross'], 'F24')
         self.change_and_save('pad cross', app.control_vars['pad']['cross'], 'b')
         expected = {key: var.get() for key, var in app.vars.items()}
         self.assertEqual(len(expected), len([k for k in launcher.INI_DEFAULTS if k in app.vars]) +
@@ -295,7 +442,7 @@ class EverySettingSavesTest(LauncherOverTemporaryFiles):
         for key, value in expected.items():
             self.assertEqual(reopened.vars[key].get(), value, key)
         self.assertEqual(reopened.pad_style.get(), 'xbox')
-        self.assertEqual(reopened.control_vars['key']['cross'].get(), 'Q')
+        self.assertEqual(reopened.control_vars['key']['cross'].get(), 'F24')
         self.assertEqual(reopened.control_vars['pad']['cross'].get(), 'b')
         self.assertEqual(str(reopened.save_button['state']), 'disabled')
 

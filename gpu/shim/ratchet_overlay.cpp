@@ -285,19 +285,7 @@ void ControlsTab() {
     if (BeginRows("##controller")) {
         SliderRow("Vibration", s.vibration, 0, 100, "%d%%",
                   "Strength of the controller's vibration. 0% turns it off.");
-        static const char* const aim_styles[] = {"Relative", "Absolute"};
-        static const char* const sticks[] = {"Off", "Left stick", "Right stick"};
-        static const char* const activation[] = {"Always", "Hold L2"};
-        static const char* const vertical[] = {"Normal", "Inverted"};
-        ChoiceRow("Mouse controls", s.mouse_stick, sticks, nullptr, 3, "Select the stick driven by mouse movement.");
-        ChoiceRow("Mouse activation", s.mouse_activation, activation, nullptr, 2, "Always active or only while L2 is held.");
-        ChoiceRow("Mouse vertical direction", s.mouse_invert_y, vertical, nullptr, 2, "Invert vertical mouse movement.");
-        ChoiceRow("Mouse stick style", s.mouse_aim_style, aim_styles, nullptr, 2,
-                  "Relative follows mouse movement; Absolute holds the offset from the activation position.");
-        SliderRow("Mouse stick sensitivity", s.mouse_aim_sensitivity, 10, 200, "%d%%",
-                  "Mouse-to-stick sensitivity.");
-        CheckRow("Keep mouse in window", s.mouse_lock,
-                 "While you play, the mouse stays in the game window; this menu and other windows get it back.");
+        ImGui::TextUnformatted("Mouse movement: assign directions in the launcher control map.");
         ImGui::EndTable();
     }
 }
@@ -352,7 +340,7 @@ void ImageTab() {
     }
     ImGui::SeparatorText("Textures (applied on restart)");
     if (BeginRows("##textures")) {
-        static const char* const anisotropy_labels[] = {"Game default", "2x", "4x", "8x", "16x"};
+        static const char* const anisotropy_labels[] = {"Game default", "1x", "2x", "4x", "8x", "16x"};
         ChoiceRow("Anisotropic filtering", s.anisotropy, anisotropy_labels, G::Anisotropies.data(),
                   int(G::Anisotropies.size()),
                   "Sharper floors and walls seen at an angle. Little cost on most GPUs.");
@@ -364,6 +352,8 @@ void ImageTab() {
         char text[96];
         std::snprintf(text, sizeof(text), "%d x %d", iw, ih);
         InfoRow("Presented game image", text);
+        InfoRow("Requested internal resolution",
+                RatchetResolution::Labels[RatchetResolution::Valid(s.internal_resolution.load())]);
         InfoRow("Internal resolution (startup)",
                 RatchetResolution::Labels[RatchetResolution::Valid(s.applied_internal_resolution)]);
         const auto observed = s.observed_scene_size.load();
@@ -382,6 +372,18 @@ void ImageTab() {
             std::snprintf(text, sizeof(text), "Not observed yet");
         }
         InfoRow("Scene candidate viewport", text);
+        const auto expected = RatchetResolution::Expected(s.applied_internal_resolution);
+        InfoRow("Startup / observed comparison", !expected ? "Game controlled" :
+            !observed ? "Not observed yet" : expected == observed ? "Dimensions match" :
+            "Dimensions differ (last matching draw)");
+        const auto samples = s.observed_scene_samples.load();
+        if (samples) std::snprintf(text, sizeof(text), "%u (last matching draw)", samples);
+        else std::snprintf(text, sizeof(text), "Not observed yet");
+        InfoRow("Scene raster samples", text);
+        InfoRow("Temporal/history", "Not identified; see frame capture");
+        std::snprintf(text, sizeof(text), "%.1f MiB (logical; not resident VRAM)",
+                      double(s.texture_cache_guest_bytes.load()) / (1024 * 1024));
+        InfoRow("Texture cache", text);
         std::snprintf(text, sizeof(text), "%d x %d", ww, wh);
         InfoRow("Window", text);
         InfoRow("Sharpening", s.rcas_applied ? "applied" : "not applied");
@@ -395,6 +397,9 @@ void ImageTab() {
         InfoRow("Change game effects", "Choose in the launcher, then restart the game");
         ImGui::EndTable();
     }
+    if (ImGui::Button("Capture graphics frame")) Vulkan::FrameCapture::Request();
+    const auto capture_result = Vulkan::FrameCapture::LastResult();
+    if (!capture_result.empty()) ImGui::TextWrapped("%s", capture_result.c_str());
 }
 
 void PerformanceTab() {

@@ -3,11 +3,11 @@
 
 This is the port version, not the supported PS4 APP_VER (01.00).
 """
-VERSION = '1.7'
-CODENAME = 'Adaptive Controls Preview'
+VERSION = '2.0'
+CODENAME = 'Stellar Update'
 RELEASE_LABEL = f'V{VERSION} — {CODENAME}'
 APP_TITLE = f'RatchetPort {RELEASE_LABEL}'
-ARCHIVE_STEM = f'RatchetPort-V{VERSION}-Adaptive-Controls-Preview'
+ARCHIVE_STEM = f'RatchetPort-V{VERSION}-Stellar-Update'
 WINDOWS_ARCHIVE = f'{ARCHIVE_STEM}-Windows.zip'
 SOURCE_ARCHIVE = f'{ARCHIVE_STEM}-Source.zip'
 _parts = tuple(map(int, VERSION.split('.')))

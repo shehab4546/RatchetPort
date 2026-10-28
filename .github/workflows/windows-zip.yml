@@ -59,9 +59,14 @@ jobs:
       - name: Build
         run: |
           bash build.sh
-          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test adaptive-gc-test pad-map-test --parallel 3
+          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test adaptive-gc-test pad-map-test audio-downmix-test resolution-diagnostics-test frame-capture-test record-data-lifetime-test --parallel 3
+          out/ratchet-clean/record-data-lifetime-test.exe
+          out/ratchet-clean/resolution-diagnostics-test.exe
+          RATCHET_RESOLUTION_DIAGNOSTICS=0 out/ratchet-clean/resolution-diagnostics-test.exe disabled
+          out/ratchet-clean/frame-capture-test.exe
           out/ratchet-clean/adaptive-gc-test.exe
           out/ratchet-clean/pad-map-test.exe
+          out/ratchet-clean/audio-downmix-test.exe
           out/ratchet-clean/graphics-settings-test.exe
           out/ratchet-clean/verified-patches-test.exe
           out/ratchet-clean/services-test.exe
@@ -79,6 +84,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Python tests and package
+        timeout-minutes: 25
         shell: pwsh
         run: |
           $env:PATH = $env:PATH + ";C:\msys64\clang64\bin"
@@ -86,7 +92,7 @@ jobs:
           $env:RATCHET_PLAYGO_TEST = (Resolve-Path out/ratchet-clean/playgo-resolver-test.exe).Path
           python -m venv out/ratchet-tools
           out/ratchet-tools/Scripts/python.exe -m pip install -r packaging/windows/requirements.txt
-          out/ratchet-tools/Scripts/python.exe -m unittest discover -s tests
+          out/ratchet-tools/Scripts/python.exe -u tests/run_ci_tests.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           out/ratchet-tools/Scripts/python.exe tests/test_liverpool_commands.py
           if ($LASTEXITCODE) { exit $LASTEXITCODE }

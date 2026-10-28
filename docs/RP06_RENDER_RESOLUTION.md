@@ -17,7 +17,137 @@ internal modes are experimental and require a game restart.
 These are native allocation **requests verified in isolation**, not captured GPU
 frames. 4K contains four times as many scene pixels as 1080p; this does not predict
 frame rate or total memory use. No minimum VRAM capacity or 4K stability result has
-been established. Original removes the override rather than forcing 1080p.
+been established across hardware. Original removes the override rather than forcing 1080p.
+
+
+## V1.7 investigation: black world at explicit resolutions
+
+[Issue #19](https://github.com/shehab4546/RatchetPort/issues/19) reports a black
+3D scene at 1440p/4K while HUD/menus remain visible, with confirmations on RTX
+5080 and RX 7900 XTX. The supplied 4K logs confirm the override was applied;
+they did not identify the failing render pass. **Update, 28 October 2026: I
+verified that the black 3D world is corrected in gameplay at both 1440p and 4K.**
+This closes the reported symptom in #19; it does not establish every scene, GPU
+or long-session configuration. No resolution option has been removed.
+
+The latest four-flip captures identify zero native color-target bases and formats
+with color mode and write masks enabled. Isolated execution reproduces that
+packet state when the native resource allocator returns zero. The allocator's
+failure logger is a no-op in the retail binary; available host VRAM does not
+establish free space in the game's separate 1165 MiB XMemGpu heap.
+
+The experimental correction couples the verified resolution transaction with a
+larger XMemGpu reservation and a failure-only printf redirect. 1440p uses a
+1549 MiB heap and a 5440 MiB direct pool floor; 4K uses 1933 MiB and 5824 MiB.
+These are bounded trial capacities, not measured minima. Windows commit grows
+by 384/768 MiB. The native alignment/reservation path stays intact; Original and
+720p/900p/1080p keep the retail heap policy. A rejected high-resolution transaction
+cannot prepare its memory floor. Manual larger direct-pool overrides remain in
+force, including after restart to Original.
+
+The black-world correction is now gameplay-verified at 1440p and 4K; the
+capacities remain experimental for broader hardware and scene coverage.
+The selector, heap lookup and logging writes share the exact source/ELF,
+original-byte, unique-signature and relocation guards. No MSAA, display-output
+or host color-binding override is introduced. See
+[evidence/issue19-paired-captures.md](evidence/issue19-paired-captures.md) for
+addresses, captures, native probe coverage and remaining uncertainty.
+
+### Captured evidence
+
+Diagnostics are on by default for this investigation, including Original, and
+can be disabled with `RATCHET_RESOLUTION_DIAGNOSTICS=0`. They do not depend on
+`RATCHET_GPU_LOG=info` (the default warning filter hid the old observations).
+`last_run.log` identifies the diagnostic version and records:
+
+- Relevant native-size image creation/unregistration with a unique image ID,
+  address, dimensions, layers, mip count, format, guest/host samples, pitch,
+  tile mode, descriptor byte size, host Vulkan memory requirement/alignment and
+  actual VMA allocation size. Unregistration does not imply immediate host destruction.
+- Cache lookup requests against reused/new images, including mip/slice views.
+  Repeated addresses with different IDs expose recreation; a difference between
+  a view and its backing image is not automatically an error.
+- Render/depth/sample/storage bindings and shader hashes, GPU mapped coverage,
+  overflow-checked uncompressed base-level byte lower bounds, and partial mapping.
+  GPU registry coverage is **not** the original guest heap allocation size. It
+  must not be used as proof of an allocation overflow or as a fatal assertion.
+- Render area, attachment identities and samples, viewport/scissor, copy/resolve
+  source/destination dimensions, and cache logical bytes separately from measured
+  driver heap usage/budget. Existing adaptive-GC reports cover bounded scan and
+  eviction counts; they are not a census of all evictable images.
+
+Each category deduplicates records and has a hard per-process budget: resource
+256, binding 256, pass 128, viewport 64, transfer 64, mapping 64, failure 32,
+lookup 128 and cache 32. A limit notice marks truncated coverage. Resource
+filtering includes full/half/quarter/eighth families and padded dimensions; it
+does not identify an image as TAA/history, GI, motion vectors or display output.
+Those roles remain **unclassified** until shader/control-flow evidence identifies them.
+
+The first screen-sized depth pass exporting at least three colors requests one automatic resource graph
+in `user/captures/` (or the configured capture directory), without dumping
+constant buffers. The Graphics panel also offers **Capture graphics frame** for
+the failing scene. Captures include ordered graphics/compute passes,
+sampled/storage addresses, geometry, sample counts and color-binding registers.
+They record across four presentation flips, with a hard limit of 512 entries.
+Reaching that entry limit marks `capture_truncated=1`. The file declares
+`capture_scope=multi-flip-window`: this is not an exact game-frame boundary.
+Repeated display-buffer writes do not stop recording; UI/composition can write
+those buffers multiple times before world rendering. A capture is metadata,
+not a screenshot or proof of correct pixels. If no candidate is detected, use
+the manual capture button. The trigger does not update observed scene dimensions.
+
+Skipped shader color exports log their address, format, write mask and color mode
+under the bounded failure channel. Disabled writes can be intentional; these
+records do not establish an allocation failure. See
+[the paired RTX 5070 capture analysis](evidence/issue19-paired-captures.md).
+
+The Graphics panel separates requested/prepared startup dimensions from the last
+observed scene/depth candidate and viewport, marks mismatches, reports raster
+samples and logical cache size, and leaves temporal/history explicitly unidentified.
+
+### Runtime comparison required
+
+Keep the save, camera, output size, blur, shadows and frame-rate setting identical.
+Restart for each of Original, forced 1080p, 1440p and 4K; preserve each run's log,
+`ratchet.ini`, screenshot and capture under a different name. Then repeat 1440p
+and 4K with guest multisampling off/on. Disabling it is an isolation test, not a fix.
+The next review must verify the logged heap reservation and allocation failures,
+then compare matching shader/address relationships through scene, resolve and
+post-processing to establish whether the native capacity correction restores color targets. Smaller images may be legitimate derived
+or display-size targets; dimensions alone do not justify resizing them.
+
+### Implementation files
+
+- `gpu/shim/ratchet_resolution_diagnostics.h`: bounded, thread-safe event deduplication,
+  screen-family filtering and checked diagnostic arithmetic.
+- `texture_cache/image.cpp` and `texture_cache/texture_cache.cpp` under
+  `gpu/shadps4/video_core/`: creation/allocation, cache identity/lifecycle and usage records.
+- `renderer_vulkan/vk_rasterizer.{h,cpp}` and `vk_runtime.cpp` in the same directory:
+  mapped coverage, pass/binding geometry and copy/resolve relationships.
+- `renderer_vulkan/vk_frame_capture.{h,cpp}`: richer resource metadata, bounded capture,
+  and automatic resource-only recording; `gpu/shim/ratchet_{overlay,resolution,settings}`
+  files expose requested/observed values and capture controls.
+- `tests/test_resolution_diagnostics.cpp`, `tests/test_frame_capture.cpp`,
+  `gpu/CMakeLists.txt` and `.github/workflows/windows-zip.yml`: regression coverage and CI.
+
+### Verification boundaries
+
+- Source SHA-256 and reconstructed ELF SHA-256 were rechecked against the profile.
+- On the current V1.7 code, the isolated selector/resize probe passed 50 selector
+  cases and 160 native allocation requests; 96 graphics combinations passed
+  fingerprint/original-byte/relocation and conflict checks (559,629 relocation slots).
+- Native diagnostic tests cover all five size families and derivatives, MSAA/layer
+  byte arithmetic, overflow/invalid ranges, requested-versus-observed dimensions,
+  concurrent deduplication and log limits. Frame-capture tests exercise bounded
+  recording without a display boundary. Graphics-settings tests passed.
+- The Python suite ran 552 tests: 445 passed, 103 skipped, with the same four
+  previously recorded Linux-only/environment baseline failures (WindowsPath mocks,
+  Windows drive-path packaging, and a stub missing `prepare.load_sfo`).
+- The earlier diagnostic build `b0cdfe7` passed Windows run 40394941135.
+  Windows validation of the new heap-capacity change is pending CI. The new native
+  probe passes six heap-init cases, allocation-failure logging and 30 texture/view/packet
+  cases; the C memory-floor test passes 12 process-start cases.
+  Successful high-resolution gameplay remains unverified.
 
 ## Implementation evidence
 

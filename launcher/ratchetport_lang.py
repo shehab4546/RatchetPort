@@ -2271,6 +2271,32 @@ for language in ('pt', 'es'):
 def table(language):
     return EXTRA.get(language, {})
 
+# In-game prompt style selector.
+EXTRA['ar'].update({
+    'In-game button icons': 'أيقونات الأزرار داخل اللعبة',
+    'Original / PlayStation': 'الأصلية / PlayStation',
+    'Auto (at launch)': 'تلقائي عند التشغيل',
+    'Keyboard & mouse': 'الكيبورد والماوس',
+    'Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.':
+        'تتبع أيقونات الكيبورد تعييناتك المحفوظة. يفحص الوضع التلقائي يد التحكم عند التشغيل. احفظ وأعد تشغيل اللعبة للتطبيق.'
+})
+EXTRA['pt'].update({
+    'In-game button icons': 'Ícones dos botões no jogo',
+    'Original / PlayStation': 'Original / PlayStation',
+    'Auto (at launch)': 'Automático ao iniciar',
+    'Keyboard & mouse': 'Teclado e mouse',
+    'Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.':
+        'Os ícones seguem o mapeamento salvo. O modo automático verifica o controle conectado ao iniciar. Salve e reinicie o jogo para aplicar.'
+})
+EXTRA['es'].update({
+    'In-game button icons': 'Iconos de botones en el juego',
+    'Original / PlayStation': 'Original / PlayStation',
+    'Auto (at launch)': 'Automático al iniciar',
+    'Keyboard & mouse': 'Teclado y ratón',
+    'Keyboard icons follow your saved mapping. Auto checks the connected controller at launch. Save and restart the game to apply.':
+        'Los iconos siguen la asignación guardada. El modo automático comprueba el mando conectado al iniciar. Guarda y reinicia el juego para aplicar.'
+})
+
 # Adaptive controls and game-language selection.
 EXTRA['ar'].update({
     'Game language': 'لغة اللعبة', 'Mouse controls': 'الماوس يتحكم بـ',
@@ -2335,3 +2361,247 @@ EXTRA['es'].update({
 EXTRA['ar']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'يُطبّق بعد إعادة التشغيل. النص والصوت في النسخة الأمريكية: الإنجليزية والفرنسية والبرتغالية البرتغالية والبرازيلية، والإسبانية اللاتينية بصوت مكسيكي.'
 EXTRA['pt']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'Aplicado ao reiniciar. Textos e vozes da edição USA: inglês, francês, português (Portugal/Brasil) e espanhol latino-americano com vozes mexicanas.'
 EXTRA['es']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'Se aplica al reiniciar. Textos y voces de USA: inglés, francés, portugués (Portugal/Brasil) y español latinoamericano con voces mexicanas.'
+
+# Control editor, update checks and optional diagnostics.
+EXTRA['ar'].update({'Stick mapping': 'تعيين العصوين',
+ 'Game button': 'زر اللعبة',
+ 'Primary': 'أساسي',
+ 'Secondary': 'ثانوي',
+ 'Left stick · Movement': 'العصا اليسرى · الحركة',
+ 'Right stick · Camera': 'العصا اليمنى · الكاميرا',
+ 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Conflicts are checked only when saving or starting. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'كلا '
+                                                                                                                                                                                                                          'التعيينين '
+                                                                                                                                                                                                                          'يضغطان '
+                                                                                                                                                                                                                          'زر '
+                                                                                                                                                                                                                          'اللعبة '
+                                                                                                                                                                                                                          'نفسه. '
+                                                                                                                                                                                                                          'تعرض '
+                                                                                                                                                                                                                          'الأيقونات '
+                                                                                                                                                                                                                          'التعيين '
+                                                                                                                                                                                                                          'الأساسي، '
+                                                                                                                                                                                                                          'أو '
+                                                                                                                                                                                                                          'الثانوي '
+                                                                                                                                                                                                                          'إن '
+                                                                                                                                                                                                                          'كان '
+                                                                                                                                                                                                                          'الأساسي '
+                                                                                                                                                                                                                          'فارغًا. '
+                                                                                                                                                                                                                          'يُفحص '
+                                                                                                                                                                                                                          'التعارض '
+                                                                                                                                                                                                                          'عند '
+                                                                                                                                                                                                                          'الحفظ '
+                                                                                                                                                                                                                          'والتشغيل '
+                                                                                                                                                                                                                          'فقط. '
+                                                                                                                                                                                                                          'عجلة '
+                                                                                                                                                                                                                          'الماوس '
+                                                                                                                                                                                                                          'ترسل '
+                                                                                                                                                                                                                          'ضغطات '
+                                                                                                                                                                                                                          'قصيرة. '
+                                                                                                                                                                                                                          'يفتح '
+                                                                                                                                                                                                                          'Insert '
+                                                                                                                                                                                                                          'قائمة '
+                                                                                                                                                                                                                          'المنفذ.',
+ 'Send diagnostic reports automatically': 'إرسال تقارير التشخيص تلقائيًا',
+ 'Sends hardware information and filtered technical logs after the game closes. Saves and game files are excluded. Reports retry after a later session.': 'يرسل '
+                                                                                                                                                          'مواصفات '
+                                                                                                                                                          'الجهاز '
+                                                                                                                                                          'وسجلات '
+                                                                                                                                                          'تقنية '
+                                                                                                                                                          'مصفّاة '
+                                                                                                                                                          'بعد '
+                                                                                                                                                          'إغلاق '
+                                                                                                                                                          'اللعبة. '
+                                                                                                                                                          'لا '
+                                                                                                                                                          'يشمل '
+                                                                                                                                                          'ملفات '
+                                                                                                                                                          'الحفظ '
+                                                                                                                                                          'أو '
+                                                                                                                                                          'ملفات '
+                                                                                                                                                          'اللعبة. '
+                                                                                                                                                          'يُعاد '
+                                                                                                                                                          'إرسال '
+                                                                                                                                                          'التقارير '
+                                                                                                                                                          'المتعثرة '
+                                                                                                                                                          'بعد '
+                                                                                                                                                          'جلسة '
+                                                                                                                                                          'لاحقة.',
+ 'Diagnostic upload is not configured in this distribution. No reports will be sent.': 'إرسال التشخيص '
+                                                                                       'غير مهيأ في هذه '
+                                                                                       'النسخة. لن '
+                                                                                       'تُرسل أي '
+                                                                                       'تقارير.',
+ 'Control conflicts': 'تعارض تعيينات التحكم',
+ 'No newer stable release is available.': 'لا يوجد إصدار مستقر أحدث.',
+ 'Could not check for updates: {}': 'تعذّر فحص التحديثات: {}'})
+
+EXTRA['es'].update({'Stick mapping': 'Asignación de sticks',
+ 'Game button': 'Botón del juego',
+ 'Primary': 'Principal',
+ 'Secondary': 'Secundario',
+ 'Left stick · Movement': 'Stick izquierdo · Movimiento',
+ 'Right stick · Camera': 'Stick derecho · Cámara',
+ 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Conflicts are checked only when saving or starting. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'Ambas '
+                                                                                                                                                                                                                          'asignaciones '
+                                                                                                                                                                                                                          'mantienen '
+                                                                                                                                                                                                                          'pulsado '
+                                                                                                                                                                                                                          'el '
+                                                                                                                                                                                                                          'mismo '
+                                                                                                                                                                                                                          'botón. '
+                                                                                                                                                                                                                          'Los '
+                                                                                                                                                                                                                          'iconos '
+                                                                                                                                                                                                                          'muestran '
+                                                                                                                                                                                                                          'la '
+                                                                                                                                                                                                                          'principal, '
+                                                                                                                                                                                                                          'o '
+                                                                                                                                                                                                                          'la '
+                                                                                                                                                                                                                          'secundaria '
+                                                                                                                                                                                                                          'si '
+                                                                                                                                                                                                                          'la '
+                                                                                                                                                                                                                          'principal '
+                                                                                                                                                                                                                          'está '
+                                                                                                                                                                                                                          'vacía. '
+                                                                                                                                                                                                                          'Los '
+                                                                                                                                                                                                                          'conflictos '
+                                                                                                                                                                                                                          'se '
+                                                                                                                                                                                                                          'comprueban '
+                                                                                                                                                                                                                          'al '
+                                                                                                                                                                                                                          'guardar '
+                                                                                                                                                                                                                          'o '
+                                                                                                                                                                                                                          'iniciar. '
+                                                                                                                                                                                                                          'La '
+                                                                                                                                                                                                                          'rueda '
+                                                                                                                                                                                                                          'genera '
+                                                                                                                                                                                                                          'pulsaciones '
+                                                                                                                                                                                                                          'breves. '
+                                                                                                                                                                                                                          'Insert '
+                                                                                                                                                                                                                          'abre '
+                                                                                                                                                                                                                          'el '
+                                                                                                                                                                                                                          'menú '
+                                                                                                                                                                                                                          'del '
+                                                                                                                                                                                                                          'port.',
+ 'Send diagnostic reports automatically': 'Enviar informes de diagnóstico automáticamente',
+ 'Sends hardware information and filtered technical logs after the game closes. Saves and game files are excluded. Reports retry after a later session.': 'Envía '
+                                                                                                                                                          'información '
+                                                                                                                                                          'del '
+                                                                                                                                                          'hardware '
+                                                                                                                                                          'y '
+                                                                                                                                                          'registros '
+                                                                                                                                                          'técnicos '
+                                                                                                                                                          'filtrados '
+                                                                                                                                                          'al '
+                                                                                                                                                          'cerrar '
+                                                                                                                                                          'el '
+                                                                                                                                                          'juego. '
+                                                                                                                                                          'Excluye '
+                                                                                                                                                          'partidas '
+                                                                                                                                                          'y '
+                                                                                                                                                          'archivos '
+                                                                                                                                                          'del '
+                                                                                                                                                          'juego. '
+                                                                                                                                                          'Los '
+                                                                                                                                                          'envíos '
+                                                                                                                                                          'fallidos '
+                                                                                                                                                          'se '
+                                                                                                                                                          'reintentan '
+                                                                                                                                                          'tras '
+                                                                                                                                                          'otra '
+                                                                                                                                                          'sesión.',
+ 'Diagnostic upload is not configured in this distribution. No reports will be sent.': 'El envío de '
+                                                                                       'diagnósticos no '
+                                                                                       'está '
+                                                                                       'configurado en '
+                                                                                       'esta '
+                                                                                       'distribución. '
+                                                                                       'No se enviarán '
+                                                                                       'informes.',
+ 'Control conflicts': 'Conflictos de controles',
+ 'No newer stable release is available.': 'No hay una versión estable más reciente.',
+ 'Could not check for updates: {}': 'No se pudieron comprobar las actualizaciones: {}'})
+
+EXTRA['pt'].update({'Stick mapping': 'Mapeamento dos analógicos',
+ 'Game button': 'Botão do jogo',
+ 'Primary': 'Principal',
+ 'Secondary': 'Secundário',
+ 'Left stick · Movement': 'Analógico esquerdo · Movimento',
+ 'Right stick · Camera': 'Analógico direito · Câmera',
+ 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Conflicts are checked only when saving or starting. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'As '
+                                                                                                                                                                                                                          'duas '
+                                                                                                                                                                                                                          'associações '
+                                                                                                                                                                                                                          'mantêm '
+                                                                                                                                                                                                                          'o '
+                                                                                                                                                                                                                          'mesmo '
+                                                                                                                                                                                                                          'botão '
+                                                                                                                                                                                                                          'pressionado. '
+                                                                                                                                                                                                                          'Os '
+                                                                                                                                                                                                                          'ícones '
+                                                                                                                                                                                                                          'mostram '
+                                                                                                                                                                                                                          'a '
+                                                                                                                                                                                                                          'principal '
+                                                                                                                                                                                                                          'ou, '
+                                                                                                                                                                                                                          'se '
+                                                                                                                                                                                                                          'vazia, '
+                                                                                                                                                                                                                          'a '
+                                                                                                                                                                                                                          'secundária. '
+                                                                                                                                                                                                                          'Os '
+                                                                                                                                                                                                                          'conflitos '
+                                                                                                                                                                                                                          'são '
+                                                                                                                                                                                                                          'verificados '
+                                                                                                                                                                                                                          'ao '
+                                                                                                                                                                                                                          'salvar '
+                                                                                                                                                                                                                          'ou '
+                                                                                                                                                                                                                          'iniciar. '
+                                                                                                                                                                                                                          'A '
+                                                                                                                                                                                                                          'roda '
+                                                                                                                                                                                                                          'gera '
+                                                                                                                                                                                                                          'toques '
+                                                                                                                                                                                                                          'curtos. '
+                                                                                                                                                                                                                          'Insert '
+                                                                                                                                                                                                                          'abre '
+                                                                                                                                                                                                                          'o '
+                                                                                                                                                                                                                          'menu '
+                                                                                                                                                                                                                          'do '
+                                                                                                                                                                                                                          'port.',
+ 'Send diagnostic reports automatically': 'Enviar relatórios de diagnóstico automaticamente',
+ 'Sends hardware information and filtered technical logs after the game closes. Saves and game files are excluded. Reports retry after a later session.': 'Envia '
+                                                                                                                                                          'informações '
+                                                                                                                                                          'do '
+                                                                                                                                                          'hardware '
+                                                                                                                                                          'e '
+                                                                                                                                                          'registros '
+                                                                                                                                                          'técnicos '
+                                                                                                                                                          'filtrados '
+                                                                                                                                                          'ao '
+                                                                                                                                                          'fechar '
+                                                                                                                                                          'o '
+                                                                                                                                                          'jogo. '
+                                                                                                                                                          'Exclui '
+                                                                                                                                                          'saves '
+                                                                                                                                                          'e '
+                                                                                                                                                          'arquivos '
+                                                                                                                                                          'do '
+                                                                                                                                                          'jogo. '
+                                                                                                                                                          'Envios '
+                                                                                                                                                          'pendentes '
+                                                                                                                                                          'são '
+                                                                                                                                                          'repetidos '
+                                                                                                                                                          'após '
+                                                                                                                                                          'outra '
+                                                                                                                                                          'sessão.',
+ 'Diagnostic upload is not configured in this distribution. No reports will be sent.': 'O envio de '
+                                                                                       'diagnósticos '
+                                                                                       'não está '
+                                                                                       'configurado '
+                                                                                       'nesta '
+                                                                                       'distribuição. '
+                                                                                       'Nenhum '
+                                                                                       'relatório será '
+                                                                                       'enviado.',
+ 'Control conflicts': 'Conflitos de controles',
+ 'No newer stable release is available.': 'Não há uma versão estável mais recente.',
+ 'Could not check for updates: {}': 'Não foi possível verificar atualizações: {}'})
+
+# Immediate input-conflict feedback.
+EXTRA.setdefault('ru', {})
+EXTRA['ar'].update({"Input already assigned": 'الإدخال مستخدم بالفعل', '{input} is already assigned to {control} ({slot}). Clear that binding first.': '{input} معيّن بالفعل إلى {control} ({slot}). امسح ذلك التعيين أولًا.', 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'كلا التعيينين يُبقي زر اللعبة مضغوطًا. تعرض الأيقونات الأساسي أو الثانوي إذا كان الأساسي فارغًا. يُرفض الإدخال المستخدم فورًا. امسح التعيين السابق لنقل الإدخال. عجلة الماوس تُرسل نقرات قصيرة. يفتح Insert قائمة المنفذ.'})
+EXTRA['es'].update({"Input already assigned": 'Entrada ya asignada', '{input} is already assigned to {control} ({slot}). Clear that binding first.': '{input} ya está asignada a {control} ({slot}). Borra primero esa asignación.', 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'Ambas asignaciones mantienen pulsado el mismo botón del juego. Los iconos muestran Principal, o Secundario si Principal está vacío. Las entradas ya asignadas se rechazan de inmediato. Borra la asignación anterior para mover una entrada. La rueda del ratón envía pulsaciones breves. Insert abre el menú del port.'})
+EXTRA['pt'].update({"Input already assigned": 'Entrada já atribuída', '{input} is already assigned to {control} ({slot}). Clear that binding first.': '{input} já está atribuída a {control} ({slot}). Remova essa atribuição primeiro.', 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'Ambas as atribuições mantêm o mesmo botão do jogo pressionado. Os ícones mostram Principal, ou Secundário quando Principal está vazio. Entradas já atribuídas são rejeitadas imediatamente. Remova a atribuição anterior para mover uma entrada. A roda do mouse envia toques breves. Insert abre o menu do port.'})
+EXTRA['ru'].update({"Input already assigned": 'Ввод уже назначен', '{input} is already assigned to {control} ({slot}). Clear that binding first.': '{input} уже назначен действию {control} ({slot}). Сначала удалите это назначение.', 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'Оба назначения удерживают одну кнопку игры. Значки показывают основное назначение или дополнительное, если основное пусто. Уже назначенный ввод отклоняется сразу. Для переноса сначала удалите прежнее назначение. Колесо мыши отправляет короткие нажатия. Insert открывает меню порта.'})

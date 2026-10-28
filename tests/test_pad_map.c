@@ -11,6 +11,8 @@ static int aim_style;
 int ratchetgpu_mouse_aim_style(void) { return aim_style; }
 static int aim_sensitivity=100;
 static int mouse_stick=2, mouse_activation=1, mouse_invert_y=0;
+static int mouse_directions[4]={5,6,7,8};
+int ratchetgpu_mouse_direction(int direction) { return mouse_directions[direction]; }
 int ratchetgpu_mouse_stick(void) { return mouse_stick; }
 int ratchetgpu_mouse_activation(void) { return mouse_activation; }
 int ratchetgpu_mouse_invert_y(void) { return mouse_invert_y; }
@@ -29,6 +31,31 @@ static uint32_t pressed_by(const ButtonMap *map, int source) {
 }
 
 int main(void) {
+    { /* Holds survive repeated samples and release only when both sources release. */
+        bool held[SDL_SCANCODE_COUNT]={0}, no_wheel[2]={0};
+        PadData frame={0};
+        ButtonMap saved_primary=key_map;
+        apply_button_map(&key_map,"r2=Mouse Left",true);
+        apply_button_map(&key_alt_map,"r2=F",true);
+        for (int i=0;i<120;++i) {
+            memset(&frame,0,sizeof(frame));
+            merge_keyboard_buttons(&frame,held,SDL_BUTTON_LMASK,no_wheel);
+            assert((frame.buttons & BTN_R2) && frame.r2==255);
+        }
+        held[SDL_SCANCODE_F]=true;
+        memset(&frame,0,sizeof(frame));
+        merge_keyboard_buttons(&frame,held,0,no_wheel);
+        assert((frame.buttons & BTN_R2) && frame.r2==255);
+        held[SDL_SCANCODE_F]=false;
+        memset(&frame,0,sizeof(frame));
+        merge_keyboard_buttons(&frame,held,0,no_wheel);
+        assert(!(frame.buttons & BTN_R2) && frame.r2==0);
+        frame.buttons=BTN_R2; frame.r2=87;
+        merge_keyboard_buttons(&frame,held,0,no_wheel);
+        assert(frame.r2==87); /* Keyboard idle: preserve physical analog pressure. */
+        key_map=saved_primary; memset(&key_alt_map,0,sizeof(key_alt_map));
+    }
+
     ButtonMap keys=key_map;
     assert(apply_button_map(&keys,NULL,true)==0 && apply_button_map(&keys,"",true)==0);
     assert(keys.count==key_map.count);
@@ -122,79 +149,47 @@ int main(void) {
     menu.buttons=CLICK_RIGHT; note_pause_key(&menu);
     assert(pause_keys==2);
 
-    /* L2 aim: the right stick follows the mouse's movement while L2 is held, then lets go. */
-    SDL_Event glide={0};
-    glide.type=SDL_EVENT_MOUSE_MOTION;
-    PadData item={0};
-    item.right_x=item.right_y=128; item.timestamp=50000000;
-    glide.motion.xrel=500.0f; mouse_watch(NULL,&glide);
-    apply_mouse_aim(&item);                                   /* no L2: untouched, motion dropped */
-    assert(item.right_x==128 && item.right_y==128);
-    item.buttons=BTN_L2; item.timestamp+=16000;
-    glide.motion.xrel=10.0f; glide.motion.yrel=-5.0f; mouse_watch(NULL,&glide);
-    apply_mouse_aim(&item);                                   /* right and up, partly tilted */
-    assert(item.right_x>128 && item.right_x<255 && item.right_y<128 && item.right_y>0);
+    /* All four diagonals keep both axes, with a circular rather than square range. */
+    for (int horizontal=-1;horizontal<=1;horizontal+=2) for (int vertical=-1;vertical<=1;vertical+=2) {
+        uint8_t x=128,y=128;
+        keyboard_stick(&x,&y,horizontal<0,horizontal>0,vertical<0,vertical>0);
+        assert(((int)x-128)*horizontal>0 && ((int)y-128)*vertical>0);
+        assert(abs(abs((int)x-128)-abs((int)y-128))<=1);
+        assert(hypotf((float)x-128,(float)y-128)<=128);
+    }
+    uint8_t kx=128,ky=128;
+    keyboard_stick(&kx,&ky,false,true,true,false);
+    keyboard_stick(&kx,&ky,true,true,true,false);
+    assert(kx==128 && ky==0); // horizontal opposites cancel; forward remains
+
+    /* Small continuous movements clear the game dead zone; no L2 or offset mode. */
+    SDL_Event glide={0}; glide.type=SDL_EVENT_MOUSE_MOTION;
+    PadData item={0}; item.timestamp=50000000;
+    for (int frame=0;frame<20;++frame) {
+        item.left_x=item.left_y=item.right_x=item.right_y=128;
+        item.timestamp+=16667; glide.motion.xrel=1; glide.motion.yrel=-1;
+        mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+        assert(item.right_x>128 && item.right_y<128 && item.left_x==128);
+    }
+    /* Shallow mouse angles are preserved instead of lifting both axes separately. */
+    item.timestamp+=16667; glide.motion.xrel=40; glide.motion.yrel=-10;
+    mouse_watch(NULL,&glide); apply_mouse_aim(&item);
+    assert(item.right_x>128 && item.right_y<128);
+    assert(abs(((int)item.right_x-128)-4*(128-(int)item.right_y))<=3);
+    assert(hypotf((float)item.right_x-128,(float)item.right_y-128)<=128);
     const uint8_t tilt=item.right_x;
-    item.right_x=item.right_y=128; item.timestamp+=16000;     /* a gap between mouse reports */
-    apply_mouse_aim(&item);
-    assert(item.right_x==tilt);
-    item.right_x=item.right_y=128; item.timestamp+=AIM_HOLD_US; /* stopped: the stick is let go */
-    apply_mouse_aim(&item);
-    assert(item.right_x==128 && item.right_y==128);
-    glide.motion.xrel=-400.0f; glide.motion.yrel=0; mouse_watch(NULL,&glide);
-    item.timestamp+=16000;
-    apply_mouse_aim(&item);                                   /* fast to the left: full tilt */
-    assert(item.right_x==0 && item.right_y==128);
-
-    /* Absolute: the offset from where the mouse was at the L2 press, kept while the mouse rests. */
-    aim_style=1;
-    item.buttons=0; item.timestamp+=16000;
-    apply_mouse_aim(&item);                                   /* L2 released: forget the centre */
-    item.buttons=BTN_L2; item.right_x=item.right_y=128;
-    glide.motion.xrel=100.0f; glide.motion.yrel=0; mouse_watch(NULL,&glide);
-    item.timestamp+=16000;
-    apply_mouse_aim(&item);                                   /* half way to full tilt */
-    assert(item.right_x==128+63 && item.right_y==128);
-    item.right_x=item.right_y=128; item.timestamp+=AIM_HOLD_US*4;
-    apply_mouse_aim(&item);                                   /* resting: still pointing there */
-    assert(item.right_x==128+63);
-    glide.motion.xrel=1000.0f; mouse_watch(NULL,&glide);
-    apply_mouse_aim(&item);                                   /* far past the edge: full tilt */
-    assert(item.right_x==255);
-    item.right_x=128;
-    glide.motion.xrel=-200.0f; mouse_watch(NULL,&glide);
-    apply_mouse_aim(&item);                                   /* back by the radius: centred, let go */
-    assert(item.right_x==128 && item.right_y==128);
-    aim_sensitivity=50;                                       /* half: twice the mouse for the same stick */
-    glide.motion.xrel=100.0f; mouse_watch(NULL,&glide);
-    apply_mouse_aim(&item);
-    assert(item.right_x==128+31);
-    aim_sensitivity=100;
-    aim_style=0;
-
-    mouse_stick=1; mouse_activation=0; item.buttons=0;
-    item.left_x=item.left_y=item.right_x=item.right_y=128;
-    item.timestamp+=16000; glide.motion.xrel=10; glide.motion.yrel=5;
+    item.right_x=item.right_y=128; item.timestamp+=1000; apply_mouse_aim(&item);
+    assert(item.right_x==tilt); // multiple reads between reports preserve movement
+    item.right_x=151; item.right_y=128; item.timestamp+=AIM_HOLD_US;
+    apply_mouse_aim(&item); assert(item.right_x==151 && item.right_y==128); // physical pad resumes
+    assert(apply_stick_keys("rx_neg=Mouse Move Right,rx_pos=Mouse Move Left,ry_neg=None,ry_pos=Down")==4);
+    item.right_x=item.right_y=128; item.timestamp+=16667;
+    glide.motion.xrel=10; glide.motion.yrel=-10;
     mouse_watch(NULL,&glide); apply_mouse_aim(&item);
-    assert(item.left_x>128 && item.left_y>128 && item.right_x==128);
-    mouse_stick=2; mouse_invert_y=1;
-    item.left_x=item.left_y=item.right_x=item.right_y=128;
-    item.timestamp+=16000; mouse_watch(NULL,&glide); apply_mouse_aim(&item);
-    assert(item.right_x>128 && item.right_y<128 && item.left_x==128);
-    mouse_stick=0;
-    item.right_x=150; item.timestamp+=16000;
-    mouse_watch(NULL,&glide); apply_mouse_aim(&item);
-    assert(item.right_x==150); // Disabled does not override the real controller.
-    mouse_stick=1; mouse_activation=1;
-    item.left_x=128; item.timestamp+=16000;
-    mouse_watch(NULL,&glide); apply_mouse_aim(&item);
-    assert(item.left_x==128); // Gated until L2 is pressed.
-    mouse_activation=0; aim_style=1;
-    item.timestamp+=16000; mouse_watch(NULL,&glide); apply_mouse_aim(&item);
-    assert(aim.held);
-    SDL_Event lost={0}; lost.type=SDL_EVENT_WINDOW_FOCUS_LOST; mouse_watch(NULL,&lost);
-    item.left_x=128; apply_mouse_aim(&item);
-    assert(!aim.held && item.left_x==128 && !SDL_GetAtomicInt(&mouse_motion[0]));
+    assert(item.right_x<128 && item.right_y==128); // map controls direction; None disables it
+    SDL_Event lost={0}; lost.type=SDL_EVENT_WINDOW_FOCUS_LOST;
+    mouse_watch(NULL,&lost); item.right_x=128; apply_mouse_aim(&item);
+    assert(!aim.moved && item.right_x==128 && !SDL_GetAtomicInt(&mouse_motion[0]));
     uint8_t opposite=17; key_axis(&opposite,true,true); assert(opposite==128);
     assert(apply_stick_keys("lx_neg=J,lx_pos=L,ly_neg=None,rx_pos=Mouse Right,bad=A,ry_pos=NotAKey")==4);
     assert(stick_keys[0]==SDL_SCANCODE_J && stick_keys[1]==SDL_SCANCODE_L);

@@ -9,35 +9,28 @@ long-session stability remain unverified.
 
 ![RatchetPort icon](launcher/ratchetport.png)
 
-**In development: V1.7 — Adaptive Controls Preview.** Adaptive texture-cache cleanup,
-configurable mouse and keyboard sticks, and language choices verified against the
-USA selector. See [feature notes](docs/releases/V1.7-Adaptive-Controls-Preview.md)
-and [USA text/voice support](docs/USA_LANGUAGES.md). V1.6 remains the published download
-until V1.7 finishes validation.
+**V2.0 — Stellar Update · Windows x64 · CUSA01047 USA v1.00**
 
+V2.0 brings the **1440p/4K black-world fix**, adaptive memory management,
+Primary/Secondary keyboard bindings, stick presets and mapping-aware in-game
+prompts. Independent text/voice selectors preserve the selected game language;
+five graphics presets coordinate image quality and shadow settings.
 
-**V1.6 — Resolution Preview · Windows x64 · CUSA01047 USA v1.00**
+The launcher checks the selected voice archive and reports missing or suspect
+data. An OK sample check does not guarantee every voice works; silent non-English
+gameplay dialogue remains tracked in [issue #31](https://github.com/shehab4546/RatchetPort/issues/31).
+The [black-world report #19](https://github.com/shehab4546/RatchetPort/issues/19)
+is confirmed corrected in gameplay at 1440p and 4K. Other graphics and driver
+reports remain separate.
 
-This preview adds **internal scene resolution: Original, 720p, 900p, 1080p,
-1440p and 4K (3840 × 2160)**. The new Home / Graphics selector is independent
-of output and window size. Save and restart the game to apply a choice.
-The in-game information panel separates startup settings from observed
-scene/depth candidates, viewport, presented image and window dimensions.
+See [V2.0 features and fixes](docs/releases/V2.0-Stellar-Update.md),
+[controls and diagnostics](docs/CONTROLS_AND_DIAGNOSTICS.md),
+[USA languages](docs/USA_LANGUAGES.md) and [test records](docs/TESTING.md).
 
-Motion blur, **1024 / 512 / 256 px** shadow-map caps and the experimental
-**60 FPS** option remain available. All new internal-resolution modes require
-in-game validation, including 4K memory use, image quality and scene transitions.
-See [V1.6 feature notes](docs/releases/V1.6-Resolution-Preview.md),
-[resolution evidence and comparison guide](docs/RP06_RENDER_RESOLUTION.md),
-[visual controls](docs/RP05_VISUAL_CONTROLS.md) and [tested hardware](docs/TESTING.md).
-Windows build, packaging and launcher checks passed. **V1.6 is the published
-Latest release.** In-game resolution quality, temporal effects and 4K stability
-remain experimental and need gameplay validation.
-
-[Download V1.6 Resolution Preview](https://github.com/shehab4546/RatchetPort/releases/tag/v1.6-resolution-preview)
-· [Latest non-prerelease build](https://github.com/shehab4546/RatchetPort/releases/latest)
+[Download V2.0](https://github.com/shehab4546/RatchetPort/releases/tag/v2.0)
+· [Latest release](https://github.com/shehab4546/RatchetPort/releases/latest)
 · [All releases](https://github.com/shehab4546/RatchetPort/releases)
-· [RatchetPort project website](https://shehab4546.github.io/RatchetPort/)
+· [Project website](https://shehab4546.github.io/RatchetPort/)
 · [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
 
 **PlayGo update:** the [Windows build and package checks passed](https://github.com/shehab4546/RatchetPort/actions/runs/39695590075).
@@ -54,7 +47,7 @@ This is experimental software. Intel UHD 730 has previously reproduced `VK_ERROR
 - Windows 10 1903+ or Windows 11, 64-bit; an x86-64 CPU with AVX.
 - A Vulkan 1.3-capable GPU and driver. Compatibility depends on the device's reported features; there is no validated minimum performance specification yet.
 - Enough RAM and page-file capacity for the guest memory pool and renderer. Out-of-memory errors remain possible.
-- **You must own the original PS4 game disc and make your own dump from that disc using your own PS4.** V1 targets CUSA01047 USA v1.00 only. Extract your dump into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, `sce_sys/playgo-chunk.dat`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
+- **You must own the original PS4 game disc and make your own dump from that disc using your own PS4.** RatchetPort targets CUSA01047 USA v1.00 only. Extract your dump into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, `sce_sys/playgo-chunk.dat`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
 
 **No game files, PS4 system modules, keys or game artwork are included.** RatchetPort does not download or decrypt a game. Keep the original dump unchanged.
 

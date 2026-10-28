@@ -123,6 +123,14 @@ def main():
     os.chdir(PORT)
     env = os.environ
     sys.path.insert(0, str(PORT / 'scripts'))
+    from session_diagnostics import header
+    from release_info import VERSION
+    print(header(VERSION), end='', flush=True)
+    from control_bindings import validate_environment
+    try:
+        validate_environment(env)
+    except ValueError as error:
+        fail(str(error))
     data = Path(env.get('RATCHET_DATA_DIR', PORT))
     out = data / 'out'
     env.setdefault('RATCHET_CONFIG', str(data / 'ratchet.ini'))
@@ -142,6 +150,8 @@ def main():
     import motion_blur
     import shadow_resolution
     import internal_resolution
+    import language_split
+    import voice_archive
     game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
     if out.resolve().is_relative_to(game.resolve()):
         fail('Data output must be outside the original game directory.')
@@ -206,13 +216,28 @@ def main():
         requested = motion_blur.requested_groups(graphics['motion_blur'], requested)
         requested = shadow_resolution.requested_groups(graphics['shadow_resolution'], requested)
         requested = internal_resolution.requested_groups(graphics['internal_resolution'], requested)
+        text_language = env.get('RATCHET_TEXT_LANGUAGE', env.get('RATCHET_LANGUAGE', '1'))
+        voice_language = env.get('RATCHET_VOICE_LANGUAGE', text_language)
+        requested = language_split.requested_groups(text_language, voice_language, requested)
         patch_report = ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
+        languages = language_split.launch_environment(text_language, voice_language, patch_report)
+        env.update(languages)
+        print(f"Languages: text={text_language}, requested voice={voice_language}, "
+              f"launch voice={languages['RATCHET_LANGUAGE']}, split={languages['RATCHET_LANGUAGE_SPLIT']}; "
+              "loader confirmation required", flush=True)
+        text_locale = voice_archive.LANGUAGES[language_split.normalize(text_language)][1]
+        voice_id = languages['RATCHET_LANGUAGE']
+        report = voice_archive.inspect(original_game, voice_id)
+        print(f"[Language]\nText language: {text_locale}\nVoice language: {report['locale']}", flush=True)
+        print(voice_archive.describe(report), flush=True)
+        if report['integrity'] in ('FAILED', 'WARNING'):
+            print('WARNING: ' + voice_archive.warning(report), flush=True)
         timing = frame_timing.launch_environment(patch_report, env.get('RATCHET_FPS_LIMIT'))
         env.update(timing)
         derived.extend(timing)
         effects = {**motion_blur.launch_environment(patch_report),
                    **shadow_resolution.launch_environment(patch_report),
-                   **internal_resolution.launch_environment(patch_report)}
+                   **internal_resolution.launch_environment(patch_report, env.get('RATCHET_DMEM_MB'))}
         env.update(effects)
         derived.extend(effects)
         print(f"Graphics effects: requested blur={graphics['motion_blur']}, "
@@ -222,6 +247,10 @@ def main():
         print(f"Internal resolution: requested {graphics['internal_resolution']}, "
               f"prepared {effects['RATCHET_INTERNAL_RESOLUTION']}; loader confirmation required; "
               "output/window unchanged", flush=True)
+        if heap_mb := internal_resolution.GPU_HEAP_MB.get(effects['RATCHET_INTERNAL_RESOLUTION']):
+            print(f"Internal resolution memory: prepared XMemGpu={heap_mb} MiB, "
+                  f"direct pool={effects['RATCHET_RESOLUTION_DMEM_MB']} MiB; loader confirmation required; "
+                  "experimental high-resolution headroom", flush=True)
         print(f"Frame timing: requested {graphics['game_fps']}, launch ceiling "
               f"{timing['RATCHET_ENGINE_FPS']} FPS; loader confirmation required", flush=True)
         icon_file = PORT / 'launcher' / 'ratchet-probe.png'
@@ -241,10 +270,25 @@ def main():
         env.setdefault('RATCHET_OUTPUT_RES', '1280x720')
         env['RATCHET_DERIVED'] = ','.join(derived)
         mount_args = []
-        # The guest memory pool is committed in full at start: a resolution patch above 1080p
-        # can need more than 16 GB of RAM, and the game then closes when the page file cannot grow.
+        import game_glyphs
+        glyph_style = env.get('RATCHET_GLYPH_STYLE', 'off')
+        if glyph_style == 'auto':
+            try:
+                detected = subprocess.run([str(probe), '--gamepad'], stdin=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=15,
+                    creationflags=no_console())
+                glyph_style = game_glyphs.auto_style(detected.stdout) if detected.returncode == 0 else 'off'
+            except (OSError, subprocess.SubprocessError):
+                glyph_style = 'off'
+        try:
+            mount_args, glyph_report = game_glyphs.prepare(game, out / 'glyphs', glyph_style, env)
+        except (OSError, ValueError, KeyError) as error:
+            fail(f'Button icons could not be prepared: {error}. Select Original to use installed artwork.')
+        print(f"Button icons: {glyph_report['style']} — {glyph_report['status']}; input mapping unchanged", flush=True)
+        # Windows commits the direct pool and flexible span in full at startup.
         import guest_memory
-        if warning := guest_memory.memory_warning(env.get('RATCHET_DMEM_MB'), guest_memory.physical_memory_mb(),
+        pool_mb = effects.get('RATCHET_RESOLUTION_DMEM_MB', env.get('RATCHET_DMEM_MB'))
+        if warning := guest_memory.memory_warning(pool_mb, guest_memory.physical_memory_mb(),
                                                   env.get('RATCHET_STREAM_MEMORY', 'cached')):
             print(warning, flush=True)
 

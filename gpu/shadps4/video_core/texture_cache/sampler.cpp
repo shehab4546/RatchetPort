@@ -17,13 +17,12 @@ Sampler::Sampler(const Vulkan::Instance& instance, const AmdGpu::Sampler& sample
     // ratchetport: the menu's anisotropic filtering, on filtered and mipmapped textures (not on
     // point-sampled lookups, unmipmapped render targets or depth compares).
     const int forced = RatchetSettings::Get().startup_anisotropy;
-    const bool force_anisotropy = forced > 1 && !is_depth &&
+    const bool force_anisotropy = forced > 0 && !is_depth &&
                                   sampler.xy_min_filter != AmdGpu::Filter::Point &&
                                   sampler.mip_filter != AmdGpu::MipFilter::None;
-    const bool anisotropy_enable =
-        instance.IsAnisotropicFilteringSupported() && (game_anisotropy || force_anisotropy);
-    const float requested = std::max(game_anisotropy ? sampler.MaxAniso() : 1.0f,
-                                     force_anisotropy ? float(forced) : 1.0f);
+    // Explicit presets must also lower filtering, rather than only raising the game value.
+    const float requested = force_anisotropy ? float(forced) : game_anisotropy ? sampler.MaxAniso() : 1.0f;
+    const bool anisotropy_enable = instance.IsAnisotropicFilteringSupported() && requested > 1.0f;
     const float max_anisotropy =
         anisotropy_enable ? std::clamp(requested, 1.0f, instance.MaxSamplerAnisotropy()) : 1.0f;
     auto border_color = LiverpoolToVK::BorderColor(sampler.border_color_type);

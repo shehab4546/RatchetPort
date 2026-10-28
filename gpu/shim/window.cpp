@@ -262,7 +262,7 @@ bool WindowSDL::PollEvents() {
     // another window or the game's pause menu (the pause key) get it back. Taken back, it starts
     // at the window's centre; let go by the pause key, the system cursor shows.
     const bool paused = mouse_paused.load(std::memory_order_relaxed);
-    const bool lock = RatchetSettings::Get().mouse_lock.load(std::memory_order_relaxed) && !text_active && !paused &&
+    const bool lock = !text_active && !paused &&
                       !RatchetOverlay::CapturesInput() && (SDL_GetWindowFlags(window) & SDL_WINDOW_INPUT_FOCUS);
     if (lock != mouse_locked) {
         if (lock) SDL_WarpMouseInWindow(window, width / 2.0f, height / 2.0f);
