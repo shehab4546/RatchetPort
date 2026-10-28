@@ -42,7 +42,6 @@ If you'd like to support continued development, testing, research, and maintenan
 
 Support is completely optional. RatchetPort, its releases, fixes, and source code are not sold through Ko-fi, and supporting the project does not provide access to copyrighted game files or exclusive builds.
 
-**PlayGo update:** the [Windows build and package checks passed](https://github.com/shehab4546/RatchetPort/actions/runs/39695590075).
 
 **PlayGo update:** the [Windows build and package checks passed](https://github.com/shehab4546/RatchetPort/actions/runs/39695590075).
 V1.1 requires valid `sce_sys/playgo-chunk.dat`; the launcher
