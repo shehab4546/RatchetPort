@@ -32,6 +32,17 @@ See [V2.0 features and fixes](docs/releases/V2.0-Stellar-Update.md),
 · [All releases](https://github.com/shehab4546/RatchetPort/releases)
 · [Project website](https://shehab4546.github.io/RatchetPort/)
 · [Report an issue](https://github.com/shehab4546/RatchetPort/issues)
+· [Support development](https://ko-fi.com/shehab4546)
+
+## Support RatchetPort
+
+RatchetPort is a free, community-driven project.
+
+If you'd like to support continued development, testing, research, and maintenance, you can support the project on [Ko-fi](https://ko-fi.com/shehab4546).
+
+Support is completely optional. RatchetPort, its releases, fixes, and source code are not sold through Ko-fi, and supporting the project does not provide access to copyrighted game files or exclusive builds.
+
+**PlayGo update:** the [Windows build and package checks passed](https://github.com/shehab4546/RatchetPort/actions/runs/39695590075).
 
 **PlayGo update:** the [Windows build and package checks passed](https://github.com/shehab4546/RatchetPort/actions/runs/39695590075).
 V1.1 requires valid `sce_sys/playgo-chunk.dat`; the launcher
