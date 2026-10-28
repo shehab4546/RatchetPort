@@ -20,6 +20,13 @@ Adapters cover HUD messages/objectives/progress, POI interaction and wrench
 prompts, QuickSelect shoulders and mapped D-pad labels, loading, lobby, overlay,
 pause shell, cards, weapons, Galactic Map, race screens, Trespasser, Batalia turret
 and both weapon vendors. Race-screen sticks receive separate definitions.
+The standalone POI `hold_x` Cross drawing follows the saved jump binding, including
+a Secondary binding when Primary is empty. Standalone POI left/right stick drawings follow the saved movement bindings,
+including mouse movement for the camera. The HUD map hint also replaces its
+separate touchpad drawing: Xbox shows the actual left-touchpad chord (LB + View
+by default), and keyboard mode shows the mapped left-touchpad key (Tab by default).
+Remapped shoulder and View sources are reflected in the Xbox chord. This changes
+the artwork only; it does not turn the two-button shortcut into one input.
 Baked stick-click text is suppressed; named POI TextField instances are retained
 with their old labels cleared. ActionScript bytecode is preserved.
 

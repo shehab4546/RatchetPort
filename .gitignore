@@ -56,3 +56,5 @@ patches.json
 /apply_res03.py
 /revert_res03.py
 /diagnostics/
+
+/diagnostics.json

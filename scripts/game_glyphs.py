@@ -11,7 +11,7 @@ from glyph_mapping import Resolver
 from glyph_gfx import patch as patch_gfx
 from glyph_texture import patch as patch_texture,TEXTURE_LOGICAL
 
-VERSION=4
+VERSION=6
 
 
 def auto_style(output):

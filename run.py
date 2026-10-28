@@ -123,6 +123,14 @@ def main():
     os.chdir(PORT)
     env = os.environ
     sys.path.insert(0, str(PORT / 'scripts'))
+    from session_diagnostics import header
+    from release_info import VERSION
+    print(header(VERSION), end='', flush=True)
+    from control_bindings import validate_environment
+    try:
+        validate_environment(env)
+    except ValueError as error:
+        fail(str(error))
     data = Path(env.get('RATCHET_DATA_DIR', PORT))
     out = data / 'out'
     env.setdefault('RATCHET_CONFIG', str(data / 'ratchet.ini'))

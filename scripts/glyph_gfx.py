@@ -9,7 +9,9 @@ LABELS=dict(button_a='cross',button_b='circle',button_x='square',button_y='trian
             stick_left='stick_left',stick_right='stick_right',
             button_left_stick='l3',button_right_stick='r3')
 DEDICATED={
-    'ui/export/hud/pois.gfx':{14:'triangle',4:'square',16:'l2',21:'r1',24:'l1',29:'r2'},
+    'ui/export/hud/pois.gfx':{8:'cross',14:'triangle',4:'square',16:'l2',21:'r1',24:'l1',29:'r2',
+                              19:'stick_left',27:'stick_right'},
+    'ui/export/hud/messages.gfx':{111:'touchpad_left'},
     'ui/export/hud/quickselect.gfx':{32:'l1',34:'l2',37:'r1',39:'r2'},
     'ui/export/popup/bataliaturretui.gfx':{11:'l2',13:'square',15:'l1'},
     'ui/export/hud/progressbar.gfx':{33:'l1',35:'l2'},

@@ -155,6 +155,7 @@ static ButtonMap key_map={{
     {SDL_SCANCODE_RETURN,BTN_OPTIONS}, {SDL_SCANCODE_TAB,CLICK_LEFT}, {SDL_SCANCODE_BACKSPACE,CLICK_RIGHT},
     {SDL_SCANCODE_I,BTN_UP}, {SDL_SCANCODE_K,BTN_DOWN}, {SDL_SCANCODE_J,BTN_LEFT}, {SDL_SCANCODE_L,BTN_RIGHT},
 },17};
+static ButtonMap key_alt_map={0};
 
 static char *trim(char *text) {
     while (*text==' ' || *text=='\t') ++text;
@@ -319,7 +320,8 @@ static void load_button_maps(void) {
     apply_stick_keys(getenv("RATCHET_STICK_KEYS"));
     const int pad=apply_button_map(&pad_map,getenv("RATCHET_PAD_MAP"),false);
     const int keys=apply_button_map(&key_map,getenv("RATCHET_KEY_MAP"),true);
-    if (pad || keys) printf("Runtime: pad map: %d gamepad and %d keyboard buttons remapped\n",pad,keys);
+    const int alternate=apply_button_map(&key_alt_map,getenv("RATCHET_KEY_MAP_ALT"),true);
+    if (pad || keys || alternate) printf("Runtime: input mapping: %d gamepad, %d primary, %d secondary buttons remapped\n",pad,keys,alternate);
 }
 
 static void key_axis(uint8_t *axis, bool negative, bool positive) {
@@ -338,6 +340,19 @@ static void keyboard_stick(uint8_t *x, uint8_t *y, bool left, bool right, bool u
     key_axis(x,left,right); key_axis(y,up,down);
     if (left || right || up || down) circular_stick(x,y);
 }
+/* Either digital source can hold a button; only both released produce a release. */
+static void merge_keyboard_buttons(PadData *d, const bool *k, SDL_MouseButtonFlags mouse, const bool wheel[2]) {
+    uint32_t digital=0;
+    const ButtonMap *maps[]={&key_map,&key_alt_map};
+    for (size_t m=0;m<2;++m)
+        for (size_t i=0;i<maps[m]->count;++i)
+            if (source_down(maps[m]->entries[i].source,k,mouse,wheel)) digital|=maps[m]->entries[i].ps;
+    d->buttons|=digital;
+    /* Preserve analog pressure unless a digital trigger source is held. */
+    if (digital & BTN_L2) d->l2=255;
+    if (digital & BTN_R2) d->r2=255;
+}
+
 static void sample_host(PadData *d) {
     memset(d,0,sizeof(*d));
     d->left_x=d->left_y=d->right_x=d->right_y=128;
@@ -377,10 +392,7 @@ static void sample_host(PadData *d) {
     if (!k) return;
     const SDL_MouseButtonFlags mouse=SDL_GetMouseState(NULL,NULL);
     const bool wheel[2]={wheel_held(0,d->timestamp),wheel_held(1,d->timestamp)};
-    for (size_t i=0;i<key_map.count;++i)
-        if (source_down(key_map.entries[i].source,k,mouse,wheel)) d->buttons|=key_map.entries[i].ps;
-    if (d->buttons & BTN_L2) d->l2=255;
-    if (d->buttons & BTN_R2) d->r2=255;
+    merge_keyboard_buttons(d,k,mouse,wheel);
     uint8_t *axes[]={&d->left_x,&d->left_y,&d->right_x,&d->right_y};
     for (int i=0;i<2;++i) keyboard_stick(axes[i*2],axes[i*2+1],
         source_down(stick_keys[i*4],k,mouse,wheel), source_down(stick_keys[i*4+1],k,mouse,wheel),
@@ -586,8 +598,8 @@ static void sample(PadData *d) {
     engine_fps_combo(d);
     play_click(d);
     if (hold_after_capture) {
-        if (d->buttons) d->buttons=0;
-        else hold_after_capture=0;
+        if (!d->buttons) hold_after_capture=0;
+        d->buttons=0; d->l2=d->r2=0;
     }
 }
 

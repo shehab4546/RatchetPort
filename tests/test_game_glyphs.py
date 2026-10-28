@@ -109,11 +109,26 @@ class MappingTest(unittest.TestCase):
         self.assertEqual(r.resolve('l1'),('pad','B'))
         self.assertEqual(r.resolve('l2'),('pad','LT'))
 
+    def test_secondary_only_prompt_follows_alternate(self):
+        r=Resolver('keyboard',{'RATCHET_KEY_MAP':'cross=None','RATCHET_KEY_MAP_ALT':'cross=F24'})
+        self.assertEqual(r.resolve('cross'),('key','F24'))
+        r=Resolver('keyboard',{'RATCHET_KEY_MAP_ALT':'cross=F24'})
+        self.assertEqual(r.resolve('cross'),('key','SPACE'))
+
     def test_auto_fallback(self):
         self.assertEqual(game_glyphs.auto_style('Gamepad: none\n'),'keyboard')
         self.assertEqual(game_glyphs.auto_style('Gamepad: type=xboxone south=a east=b west=x north=y name=Test'),'xbox')
         for value in ('','Gamepad: type=ps5 south=cross','Gamepad: type=switchpro south=b east=a west=y north=x '):
             self.assertEqual(game_glyphs.auto_style(value),'off')
+
+    def test_touchpad_hint_matches_actual_chord_and_keyboard_binding(self):
+        self.assertEqual(Resolver('xbox',{}).resolve('touchpad_left'),
+                         ('chord',(('pad','LB'),('pad','VIEW'))))
+        remap=Resolver('xbox',{'RATCHET_PAD_MAP':'l1=b,touchpad_right=start'})
+        self.assertEqual(remap.resolve('touchpad_left'),
+                         ('chord',(('pad','B'),('pad','MENU'))))
+        self.assertEqual(Resolver('keyboard',{'RATCHET_KEY_MAP':'touchpad_left=F2'}).
+                         resolve('touchpad_left'),('key','F2'))
 
 
 class ArchiveTest(unittest.TestCase):
@@ -183,6 +198,31 @@ class ArchiveTest(unittest.TestCase):
 
 
 class GfxTest(unittest.TestCase):
+    def test_standalone_poi_sticks_and_map_hint_follow_mapping(self):
+        # Minimal independent movies with the same dedicated character IDs.
+        for path,ids in [('ui/export/hud/pois.gfx',(4,8,14,16,19,21,24,27,29)),
+                         ('ui/export/hud/messages.gfx',(111,))]:
+            bounds=(-544,544,-462,637)
+            entries=[tag(32,shape(cid,bounds,art(('pad','R')))) for cid in ids]
+            if path.endswith('pois.gfx'):
+                for root,tid in ((18,17),(23,22),(26,25),(31,30)):
+                    entries.extend((tag(37,struct.pack('<H',tid)+b'opaque text'),
+                                    tag(39,struct.pack('<HH',root,1)+
+                                        translated_place(tid,1,0,0)+tag(1)+tag(0))))
+            entries.extend((tag(82,b'unchanged actions'),tag(1),tag(0)))
+            raw=bytearray(b'GFX\x15'+b'\0'*4+rect((0,2000,0,2000))+
+                          struct.pack('<HH',24<<8,1)+b''.join(entries))
+            struct.pack_into('<I',raw,4,len(raw))
+            for style,env in [('keyboard',{}),('keyboard',{'RATCHET_STICK_KEYS':
+                    'rx_neg=Left,rx_pos=Right,ry_neg=Up,ry_pos=Down',
+                    'RATCHET_KEY_MAP':'touchpad_left=F2'}),('xbox',{})]:
+                resolver=Resolver(style,env);changed,report=patch(bytes(raw),path,resolver)
+                _,actual,defs=movie(changed)
+                for cid,logical in ((8,'cross'),(19,'stick_left'),(27,'stick_right')) if len(ids)>1 else ((111,'touchpad_left'),):
+                    self.assertEqual(defs[cid],(32,shape(cid,bounds,art(resolver.resolve(logical)))))
+                    self.assertEqual(report['logical_shapes'][str(cid)],logical)
+                self.assertIn((82,b'unchanged actions'),actual)
+
     def test_overlapping_mouse_fills_preserve_painter_order(self):
         raw=shape(1,(0,2000,0,2000),art(('mouse','Mouse Left')))
         image=raster(decoded_geometry(raw),100,100)

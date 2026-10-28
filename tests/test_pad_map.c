@@ -31,6 +31,31 @@ static uint32_t pressed_by(const ButtonMap *map, int source) {
 }
 
 int main(void) {
+    { /* Holds survive repeated samples and release only when both sources release. */
+        bool held[SDL_SCANCODE_COUNT]={0}, no_wheel[2]={0};
+        PadData frame={0};
+        ButtonMap saved_primary=key_map;
+        apply_button_map(&key_map,"r2=Mouse Left",true);
+        apply_button_map(&key_alt_map,"r2=F",true);
+        for (int i=0;i<120;++i) {
+            memset(&frame,0,sizeof(frame));
+            merge_keyboard_buttons(&frame,held,SDL_BUTTON_LMASK,no_wheel);
+            assert((frame.buttons & BTN_R2) && frame.r2==255);
+        }
+        held[SDL_SCANCODE_F]=true;
+        memset(&frame,0,sizeof(frame));
+        merge_keyboard_buttons(&frame,held,0,no_wheel);
+        assert((frame.buttons & BTN_R2) && frame.r2==255);
+        held[SDL_SCANCODE_F]=false;
+        memset(&frame,0,sizeof(frame));
+        merge_keyboard_buttons(&frame,held,0,no_wheel);
+        assert(!(frame.buttons & BTN_R2) && frame.r2==0);
+        frame.buttons=BTN_R2; frame.r2=87;
+        merge_keyboard_buttons(&frame,held,0,no_wheel);
+        assert(frame.r2==87); /* Keyboard idle: preserve physical analog pressure. */
+        key_map=saved_primary; memset(&key_alt_map,0,sizeof(key_alt_map));
+    }
+
     ButtonMap keys=key_map;
     assert(apply_button_map(&keys,NULL,true)==0 && apply_button_map(&keys,"",true)==0);
     assert(keys.count==key_map.count);

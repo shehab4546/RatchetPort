@@ -66,6 +66,10 @@ class Resolver:
             raise ValueError('Unsupported generated prompt style')
         self.style = style
         self.keys = apply(KEY_DEFAULTS, env.get('RATCHET_KEY_MAP', ''))
+        secondary = apply(dict.fromkeys(KEY_DEFAULTS, 'None'), env.get('RATCHET_KEY_MAP_ALT', ''))
+        for button, value in self.keys.items():
+            if value.lower() == 'none':
+                self.keys[button] = secondary[button]
         self.sticks = apply(STICK_DEFAULTS, env.get('RATCHET_STICK_KEYS', ''))
         self.pad = apply(PAD_DEFAULTS, env.get('RATCHET_PAD_MAP', ''), False)
 

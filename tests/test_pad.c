@@ -159,6 +159,17 @@ int main(void) {
     data=read_pad();
     assert(data.buttons==0);
 
+    inject(path,"r2");
+    capture=1; data=read_pad();
+    assert(data.r2==0 && !(data.buttons & BTN_R2));
+    capture=0; data=read_pad();
+    assert(data.r2==0 && !(data.buttons & BTN_R2));
+    inject(path,""); data=read_pad();
+    assert(data.r2==0 && !(data.buttons & BTN_R2));
+    inject(path,"r2"); data=read_pad();
+    assert(data.r2==255 && (data.buttons & BTN_R2));
+    inject(path,""); data=read_pad();
+
     SDL_VirtualJoystickTouchpadDesc touch={.nfingers=2};
     SDL_VirtualJoystickDesc desc;
     SDL_INIT_INTERFACE(&desc);

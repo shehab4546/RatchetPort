@@ -59,6 +59,15 @@ def draw(canvas, button, style, size):
         return
     kind, text, color = found
     s, m = size, size / 2
+    if button == 'touchpad':
+        canvas.create_rectangle(s*.1, s*.25, s*.9, s*.75, fill=BODY, outline=DIM, width=max(1,s//14))
+        for x in (.35,.5,.65):
+            canvas.create_oval(s*x-1,s*.5-1,s*x+1,s*.5+1,fill=color,outline='')
+        return
+    if button == 'start':
+        for y in (.3,.5,.7):
+            canvas.create_line(s*.25,s*y,s*.75,s*y,fill=color,width=max(1,s//14))
+        return
     font = ('Segoe UI', max(6, int(s * 0.28)), 'bold')
     if kind in ('symbol', 'letter'):
         canvas.create_oval(1, 1, s - 1, s - 1, fill=BODY if kind == 'symbol' else color, outline='')

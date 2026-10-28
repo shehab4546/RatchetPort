@@ -78,20 +78,21 @@ class ControlMapTest(unittest.TestCase):
             self.assertEqual(launcher.mouse_movement_name(dx, dy), expected)
         values = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
         values['lx_neg'] = 'Mouse Move Up'
+        values['ry_neg'] = 'None'
         settings = {**launcher.APP_DEFAULTS, 'controls': {'key': launcher.control_changes(values, 'key')}}
         self.assertIn('lx_neg=Mouse Move Up', launcher.game_environment(settings)['RATCHET_STICK_KEYS'])
 
     def test_stick_keys_round_trip_and_launch(self):
         values = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
-        values.update(lx_neg='J', ly_neg='None', rx_pos='Mouse Right')
+        values.update(lx_neg='J', ly_neg='None', rx_pos='Mouse Middle')
         saved = {'key': launcher.control_changes(values, 'key')}
-        self.assertEqual(saved['key'], {'lx_neg': 'J', 'ly_neg': 'None', 'rx_pos': 'Mouse Right'})
+        self.assertEqual(saved['key'], {'lx_neg': 'J', 'ly_neg': 'None', 'rx_pos': 'Mouse Middle'})
         env = launcher.game_environment({**launcher.APP_DEFAULTS, 'controls': saved})
         mapping = dict(pair.split('=',1) for pair in env['RATCHET_STICK_KEYS'].split(','))
         self.assertEqual(mapping['lx_neg'], 'J')
         self.assertEqual(mapping['lx_pos'], 'D')
         self.assertEqual(mapping['ly_neg'], 'None')
-        self.assertEqual(mapping['rx_pos'], 'Mouse Right')
+        self.assertEqual(mapping['rx_pos'], 'Mouse Middle')
         self.assertNotIn('lx_neg', env['RATCHET_KEY_MAP'])
 
     def test_pipeline_binary_cache_switch(self):
@@ -114,7 +115,7 @@ class ControlMapTest(unittest.TestCase):
 
     def test_only_changes_from_the_defaults_are_kept(self):
         keys = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
-        keys.update(cross='q', circle='LEFT SHIFT', square='  ')
+        keys.update(cross='q', circle='f', square='  ')
         self.assertEqual(launcher.control_changes(keys, 'key'), {'cross': 'q'})
         pads = {b: p or '' for b, _k, p in launcher.CONTROLS}
         pads.update(cross='b', l2='a')
@@ -185,43 +186,49 @@ class ControlMapTest(unittest.TestCase):
         controls = {'key': {'square': 'Mouse Left', 'cross': 'Q'}}
         self.assertEqual(launcher.control_values(controls, 'key'), {'square': 'Mouse Left', 'cross': 'Q'})
 
-    def test_keyboard_defaults_put_the_attacks_on_the_mouse(self):
-        pairs = dict(entry.split('=', 1) for entry in launcher.keyboard_map({}, ).split(','))
-        self.assertEqual((pairs['square'], pairs['triangle'], pairs['r2']), ('Mouse Left', 'Mouse Right', 'Mouse Forward'))
-        for button, key, _pad in launcher.CONTROLS:  # written where the game's own key differs
-            default = launcher.KEY_DEFAULTS.get(button, key)
-            if default.casefold() != key.casefold():
-                self.assertEqual(pairs.pop(button), default)
-        self.assertEqual(pairs, {})
-        controls = {'key': {'square': 'Wheel Up', 'cross': 'Q', 'triangle': 'E'}}
-        self.assertIn('cross=Q,square=Wheel Up,triangle=E,', launcher.keyboard_map(controls))
-        values = {row[0]: launcher.default_input(row, 'key') for row in launcher.table_rows('key')}
-        self.assertEqual(launcher.control_changes(values, 'key'), {})
-        values['square'] = 'E'
-        self.assertEqual(launcher.control_changes(values, 'key'), {'square': 'E'})
+    def test_defaults_and_saved_layout_migration(self):
+        self.assertEqual(launcher.KEY_DEFAULTS['r2'], 'Mouse Left')
+        self.assertEqual(launcher.KEY_DEFAULTS['l2'], 'Mouse Right')
+        self.assertEqual(launcher.KEY_DEFAULTS['triangle'], 'Q')
+        self.assertEqual(launcher.control_changes(launcher.KEY_DEFAULTS, 'key'), {})
+        old = {'controls_layout': 2, 'controls': {'key': {'cross': 'F24'}}}
+        migrated = launcher.migrate_controls(old)
+        effective = {**launcher.KEY_DEFAULTS, **launcher.control_values(migrated['controls'], 'key')}
+        self.assertEqual(effective['cross'], 'F24')
+        self.assertEqual(effective['r2'], 'Mouse Forward')
+        self.assertEqual(effective['square'], 'Mouse Left')
+        self.assertEqual(launcher.migrate_controls(migrated), migrated)
+        self.assertEqual(old['controls_layout'], 2)
+        launcher.validate_controls(migrated['controls'])
 
+    def test_binding_does_not_swap_and_save_validation_detects_conflict(self):
+        bindings = {'cross': 'Space', 'square': 'E'}
+        self.assertIsNone(launcher.bind_key(bindings, 'cross', 'E'))
+        self.assertEqual(bindings, {'cross': 'E', 'square': 'E'})
+        with self.assertRaisesRegex(ValueError, 'cross.*square'):
+            launcher.validate_controls({'key': bindings})
 
+    def test_secondary_export_and_launch_conflict(self):
+        settings = {**launcher.APP_DEFAULTS, 'controls': {'key_alt': {'r2': 'Mouse Forward'}}}
+        env = launcher.game_environment(settings)
+        self.assertEqual(env['RATCHET_KEY_MAP_ALT'], 'r2=Mouse Forward')
+        settings['controls']['key_alt']['r2'] = 'Space'
+        with self.assertRaisesRegex(ValueError, 'cross.*r2'):
+            launcher.game_environment(settings)
 
-
-
-
-    def test_new_players_get_the_new_defaults(self):
-        self.assertEqual(launcher.migrate_controls({}), {})
-        fresh = launcher.migrate_controls({'game_dir': 'D:/games'})
-        self.assertEqual(fresh.get('controls', {}), {})
-        self.assertIn('square=Mouse Left', launcher.keyboard_map(fresh.get('controls', {})))
-
-    def test_binding_a_used_key_swaps_the_buttons(self):
-        bindings = {'cross': 'Space', 'circle': 'Left Shift', 'square': 'E'}
-        self.assertEqual(launcher.bind_key(bindings, 'cross', 'e'), 'square')
-        self.assertEqual(bindings, {'cross': 'e', 'circle': 'Left Shift', 'square': 'Space'})
-        self.assertIsNone(launcher.bind_key(bindings, 'circle', 'Q'))
-        self.assertEqual(bindings['circle'], 'Q')
+    def test_stick_presets_and_stale_environment(self):
+        self.assertEqual(launcher.stick_preset({}, 'l'), 'WASD')
+        self.assertEqual(launcher.stick_preset({}, 'r'), 'Mouse movement')
+        self.assertEqual(launcher.stick_preset({'lx_neg': 'F24'}, 'l'), 'Custom (saved)')
+        with mock.patch.dict(os.environ, {'RATCHET_KEY_MAP_ALT': 'cross=F24', 'RATCHET_PAD_MAP': 'cross=b'}):
+            env = launcher.game_environment(dict(launcher.APP_DEFAULTS))
+        self.assertEqual(env['RATCHET_KEY_MAP_ALT'], '')
+        self.assertNotIn('RATCHET_PAD_MAP', env)
 
     def test_environment(self):
-        settings = {**launcher.APP_DEFAULTS, 'controls': {'key': {'cross': 'Q'}}}
+        settings = {**launcher.APP_DEFAULTS, 'controls': {'key': {'cross': 'F24'}}}
         env = launcher.game_environment(settings)
-        self.assertTrue(env['RATCHET_KEY_MAP'].startswith('cross=Q,square=Mouse Left,'))
+        self.assertTrue(env['RATCHET_KEY_MAP'].startswith('cross=F24,circle=F,'))
         self.assertNotIn('RATCHET_PAD_MAP', env)
         self.assertEqual(env['RATCHET_PARALLEL_WARMUP'], '1')
         self.assertEqual(env['RATCHET_BACKGROUND_WARMUP'], '1')
@@ -555,7 +562,7 @@ class ReleaseVersionTest(unittest.TestCase):
         from release_info import VERSION, APP_TITLE
         self.assertEqual(launcher.VERSION, VERSION)
         self.assertEqual(launcher.APP_TITLE, APP_TITLE)
-        self.assertEqual(launcher.RELEASES_API, '')
+        self.assertEqual(launcher.RELEASES_API, 'https://api.github.com/repos/shehab4546/RatchetPort/releases/latest')
 
     def test_first_start_is_in_english(self):
         # The translations are partial; 'System' stays a choice in Advanced.
