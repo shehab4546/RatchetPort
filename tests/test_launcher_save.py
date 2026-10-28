@@ -24,6 +24,10 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
     INI = None  # ratchet.ini the launcher opens over, when a test needs one
 
     def setUp(self):
+        # CI has no person to dismiss a modal dialog. Expected dialogs are mocked
+        # in their individual tests; an unexpected one must fail immediately.
+        self.enterContext(mock.patch.object(messagebox, '_show', side_effect=
+            AssertionError('Unexpected modal dialog during launcher test')))
         self.tmp = Path(tempfile.mkdtemp())
         self.saved = (launcher.CONFIG_DIR, launcher.CONFIG_FILE, launcher.DATA_DIR, launcher.LANG,
                       os.environ.get('RATCHET_CONFIG'))
@@ -70,6 +74,22 @@ class SaveButtonTest(LauncherOverTemporaryFiles):
         env = launcher.game_environment(settings)
         self.assertEqual(env['RATCHET_GLYPH_STYLE'], 'keyboard')
         self.assertIn('cross=F24', env['RATCHET_KEY_MAP'])
+
+    def test_duplicate_binding_reports_conflict_without_writing_settings(self):
+        self.app.save()
+        ini = self.tmp / 'ratchet.ini'
+        before = launcher.CONFIG_FILE.read_bytes(), ini.read_bytes()
+        self.app.control_vars['key']['cross'].set('Q')
+        self.assertEqual(self.app.control_vars['key']['triangle'].get(), 'Q')
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.collect())
+        error.assert_called_once()
+        self.assertIn('cross (Primary) / triangle (Primary)', error.call_args.args[1])
+        self.assertEqual((launcher.CONFIG_FILE.read_bytes(), ini.read_bytes()), before)
+        self.assertEqual(self.save_state(), 'normal')
+        self.app.control_vars['key']['cross'].set('F24')
+        self.app.save()
+        self.assertEqual(self.save_state(), 'disabled')
 
     def test_language_and_mouse_options_survive_save_and_rebuild(self):
         self.assertEqual(self.app.vars['language'].get(), '1')
@@ -323,7 +343,7 @@ class EverySettingSavesTest(LauncherOverTemporaryFiles):
         for key in list(app.vars):
             self.change_and_save(key, app.vars[key], self.other_value(key, app.vars[key]))
         self.change_and_save('pad_style', app.pad_style, 'xbox')
-        self.change_and_save('key cross', app.control_vars['key']['cross'], 'Q')
+        self.change_and_save('key cross', app.control_vars['key']['cross'], 'F24')
         self.change_and_save('pad cross', app.control_vars['pad']['cross'], 'b')
         expected = {key: var.get() for key, var in app.vars.items()}
         self.assertEqual(len(expected), len([k for k in launcher.INI_DEFAULTS if k in app.vars]) +
@@ -335,7 +355,7 @@ class EverySettingSavesTest(LauncherOverTemporaryFiles):
         for key, value in expected.items():
             self.assertEqual(reopened.vars[key].get(), value, key)
         self.assertEqual(reopened.pad_style.get(), 'xbox')
-        self.assertEqual(reopened.control_vars['key']['cross'].get(), 'Q')
+        self.assertEqual(reopened.control_vars['key']['cross'].get(), 'F24')
         self.assertEqual(reopened.control_vars['pad']['cross'].get(), 'b')
         self.assertEqual(str(reopened.save_button['state']), 'disabled')
 
