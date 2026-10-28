@@ -24,7 +24,7 @@ def stick_preset(values, side):
 
 
 def validate_sources(primary, secondary, sticks):
-    """Assignments remain unchanged until save/launch checks all conflicts."""
+    """Final guard for saved mappings and direct launches."""
     used, errors = {}, []
     for title, mapping in (('Primary', primary), ('Secondary', secondary), ('Stick', sticks)):
         for button, source in mapping.items():
@@ -44,6 +44,34 @@ def validate_sources(primary, secondary, sticks):
                 used[key] = label
     if errors:
         raise ValueError('Resolve these control assignments before saving or starting:\n' + '\n'.join(errors))
+
+
+def binding_conflicts(mappings, kind, changes):
+    """Find owners of proposed inputs without mutating either table.
+
+    Only the proposed inputs are checked, so an unrelated conflict in an old
+    saved layout does not prevent repairing another binding. Stick changes are
+    considered as one transaction, excluding all four previous directions.
+    """
+    used = {}
+    for table in ('key', 'key_alt'):
+        for button, source in mappings.get(table, {}).items():
+            if table == kind and button in changes:
+                continue
+            key = canonical_key(source)
+            if key and key.casefold() != 'none':
+                used.setdefault(key.casefold(), []).append((table, button))
+    conflicts = []
+    for button, source in changes.items():
+        key = canonical_key(source)
+        if key is None:
+            raise ValueError(f'Unsupported input: {source}')
+        key = key.casefold()
+        if key == 'none':
+            continue
+        conflicts.extend((source, table, owner) for table, owner in used.get(key, []))
+        used.setdefault(key, []).append((kind, button))
+    return conflicts
 
 
 def validate_environment(env):

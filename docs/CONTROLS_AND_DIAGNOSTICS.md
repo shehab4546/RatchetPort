@@ -3,8 +3,11 @@
 The control editor has separate Primary and Secondary bindings. Either input
 holds the same PS4 button. Releasing one does not release the button while the
 other remains held. Editing an assignment never moves another binding.
-Duplicate keyboard or mouse inputs are rejected on Save and Play, including
-conflicts with stick inputs. Direct `run.py` launches apply the same checks.
+Duplicate keyboard or mouse inputs are rejected immediately, across Primary,
+Secondary and both sticks. The message identifies the existing assignment and
+the previous binding stays unchanged. Clear the old assignment before moving an
+input. Stick preset changes are accepted or rejected as a whole. Save, Play and
+direct `run.py` launches retain a final validation for saved configurations.
 
 Each stick has one selector: WASD, Arrow keys, Mouse movement or None. Existing
 custom direction maps remain available as Custom (saved). New installations use

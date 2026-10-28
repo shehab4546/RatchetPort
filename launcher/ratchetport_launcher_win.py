@@ -549,13 +549,7 @@ def sdl_key_name(keysym):
     return None
 
 
-def bind_key(bindings, button, name):
-    """Assign without changing another row. Validate at save and launch."""
-    bindings[button] = name
-    return None
-
-
-from control_bindings import KEY_DEFAULTS, LEGACY_KEYS, STICK_PRESETS, stick_preset, validate_sources, validate_environment
+from control_bindings import KEY_DEFAULTS, LEGACY_KEYS, STICK_PRESETS, stick_preset, validate_sources, validate_environment, binding_conflicts
 CONTROLS_LAYOUT = 3
 
 
@@ -2138,8 +2132,7 @@ class Launcher:
             original = tuple(values[side+s] for s in ('x_neg', 'x_pos', 'y_neg', 'y_pos'))
             def select(_event=None, side=side, var=var, original=original):
                 sources = STICK_PRESETS.get(var.get(), original)
-                for suffix, source in zip(('x_neg', 'x_pos', 'y_neg', 'y_pos'), sources):
-                    self.control_vars['key'][side+suffix].set(source)
+                self.assign_stick(side, sources)
             box.bind('<<ComboboxSelected>>', select)
             self.row(f, _(title), box)
         self.section(f, _('Keyboard & Mouse Mapping'), top=16)
@@ -2160,7 +2153,7 @@ class Launcher:
                 clear.grid(row=r, column=col+1, sticky='w', padx=self.px((0, 10)))
                 if kind == 'key':
                     self.key_rows[button] = (box, clear)
-        self.note(f, _('Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Conflicts are checked only when saving or starting. Mouse wheel inputs are brief taps. Insert opens the port menu.'))
+        self.note(f, _('Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.'))
         ttk.Button(f, text=_('Reset keyboard & mouse to defaults'), command=lambda: self.reset_controls('key')).grid(
             row=self.next_row(f), column=0, sticky='w', pady=self.px((14, 0)))
         # Gamepad: the controller type names its buttons, then the vibration and the table.
@@ -2239,8 +2232,10 @@ class Launcher:
             return 'break'
 
         def bind(name):
+            # Release capture before a conflict dialog can take focus or grab.
+            finish()
             self.assign_key(kind, button, name)
-            return finish()
+            return 'break'
 
         def pressed(event):
             name = sdl_key_name(event.keysym)
@@ -2288,13 +2283,34 @@ class Launcher:
         return box
 
     def assign_key(self, kind, button, name):
-        """Set this binding without changing another control."""
-        table = self.control_vars[kind]
-        bindings = {b: v.get() for b, v in table.items()}
-        other = bind_key(bindings, button, name)
-        if other:
-            table[other].set(bindings[other])
-        table[button].set(name)
+        """Reject a used input before changing either binding."""
+        return self.assign_inputs(kind, {button: name})
+
+    def assign_stick(self, side, sources):
+        # Restore the dropdown before validation, including on rejection.
+        current = {b: v.get() for b, v in self.control_vars['key'].items()}
+        self.stick_vars[side].set(stick_preset(current, side))
+        changes = dict(zip((side+s for s in ('x_neg', 'x_pos', 'y_neg', 'y_pos')), sources))
+        if not self.assign_inputs('key', changes):
+            return False
+        self.stick_vars[side].set(stick_preset(changes, side))
+        return True
+
+    def assign_inputs(self, kind, changes):
+        mappings = {table: {b: v.get() for b, v in self.control_vars[table].items()}
+                    for table in ('key', 'key_alt')}
+        conflicts = binding_conflicts(mappings, kind, changes)
+        if conflicts:
+            lines = []
+            for source, table, button in conflicts:
+                slot = _('Secondary') if table == 'key_alt' else _('Primary')
+                lines.append(_('{input} is already assigned to {control} ({slot}). Clear that binding first.').format(
+                    input=source, control=_(PS_BUTTON_NAMES.get(button, button)), slot=slot))
+            self.messagebox.showerror(_('Input already assigned'), '\n'.join(lines))
+            return False
+        for button, source in changes.items():
+            self.control_vars[kind][button].set(source)
+        return True
 
     def draw_pad_icon(self, button):
         """The gamepad column's icon of a game button, in the chosen style (L2/R2: the triggers)."""

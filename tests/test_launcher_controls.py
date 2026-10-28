@@ -201,12 +201,20 @@ class ControlMapTest(unittest.TestCase):
         self.assertEqual(old['controls_layout'], 2)
         launcher.validate_controls(migrated['controls'])
 
-    def test_binding_does_not_swap_and_save_validation_detects_conflict(self):
-        bindings = {'cross': 'Space', 'square': 'E'}
-        self.assertIsNone(launcher.bind_key(bindings, 'cross', 'E'))
-        self.assertEqual(bindings, {'cross': 'E', 'square': 'E'})
+    def test_proposed_binding_detects_other_table_and_normalizes_names(self):
+        bindings = {'key': {'cross': 'Space', 'square': 'E'}, 'key_alt': {'circle': 'F24'}}
+        self.assertEqual(launcher.binding_conflicts(bindings, 'key', {'cross': ' e '}),
+                         [(' e ', 'key', 'square')])
+        self.assertEqual(launcher.binding_conflicts(bindings, 'key', {'cross': 'f24'}),
+                         [('f24', 'key_alt', 'circle')])
+        self.assertEqual(bindings['key']['cross'], 'Space')
+
+    def test_same_binding_unbinding_and_unrelated_old_conflicts(self):
+        bindings = {'key': {'cross': 'Space', 'square': 'E', 'circle': 'E'}}
+        for source in ('Space', 'None', 'F24'):
+            self.assertEqual(launcher.binding_conflicts(bindings, 'key', {'cross': source}), [])
         with self.assertRaisesRegex(ValueError, 'cross.*square'):
-            launcher.validate_controls({'key': bindings})
+            launcher.validate_controls({'key': {'cross': 'E', 'square': 'E'}})
 
     def test_secondary_export_and_launch_conflict(self):
         settings = {**launcher.APP_DEFAULTS, 'controls': {'key_alt': {'r2': 'Mouse Forward'}}}

@@ -63,6 +63,67 @@ class LauncherOverTemporaryFiles(unittest.TestCase):
 
 
 class SaveButtonTest(LauncherOverTemporaryFiles):
+    def test_binding_conflicts_are_rejected_before_save(self):
+        before = {k: {b: v.get() for b, v in rows.items()}
+                  for k, rows in self.app.control_vars.items()}
+        for kind, source, owner in (('key', 'Q', 'Triangle'),
+                                     ('key_alt', 'Mouse Left', 'R2'),
+                                     ('key', 'W', 'Left stick up'),
+                                     ('key_alt', 'Space', 'Cross')):
+            with self.subTest(kind=kind, source=source), mock.patch.object(self.app.messagebox, 'showerror') as error:
+                self.assertFalse(self.app.assign_key(kind, 'cross', source))
+                error.assert_called_once()
+                self.assertIn(owner, error.call_args.args[1])
+        self.assertEqual(before, {k: {b: v.get() for b, v in rows.items()}
+                                 for k, rows in self.app.control_vars.items()})
+
+    def test_clear_then_move_input_and_check_secondary_owner(self):
+        self.assertTrue(self.app.assign_key('key_alt', 'square', 'F24'))
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.assign_key('key', 'cross', 'F24'))
+        self.assertIn('Square (Secondary)', error.call_args.args[1])
+        self.assertTrue(self.app.assign_key('key_alt', 'square', 'None'))
+        self.assertTrue(self.app.assign_key('key', 'cross', 'F24'))
+        self.assertTrue(self.app.assign_key('key', 'cross', 'F24'))
+        self.app.save()
+        self.assertEqual(self.save_state(), 'disabled')
+
+    def test_stick_preset_conflict_is_atomic_and_restores_selection(self):
+        before = {b: v.get() for b, v in self.app.control_vars['key'].items()}
+        self.app.stick_vars['r'].set('WASD')
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.assign_stick('r', launcher.STICK_PRESETS['WASD']))
+        error.assert_called_once()
+        self.assertEqual(self.app.stick_vars['r'].get(), 'Mouse movement')
+        self.assertEqual(before, {b: v.get() for b, v in self.app.control_vars['key'].items()})
+        self.assertTrue(self.app.assign_stick('l', launcher.STICK_PRESETS['None']))
+        self.assertTrue(self.app.assign_stick('r', launcher.STICK_PRESETS['WASD']))
+        self.assertEqual(self.app.stick_vars['r'].get(), 'WASD')
+
+    def test_stick_preset_checks_secondary_button_bindings(self):
+        self.assertTrue(self.app.assign_key('key_alt', 'cross', 'Up'))
+        with mock.patch.object(self.app.messagebox, 'showerror') as error:
+            self.assertFalse(self.app.assign_stick('l', launcher.STICK_PRESETS['Arrow keys']))
+        self.assertIn('Cross (Secondary)', error.call_args.args[1])
+        self.assertEqual(self.app.stick_vars['l'].get(), 'WASD')
+
+    def test_capture_releases_grab_before_conflict_dialog(self):
+        self.app.show('controls')
+        box = self.app.key_rows['cross'][0]
+        self.root.update()
+        box.invoke()
+        self.root.update()
+        self.assertIs(self.app.capturing_key, box)
+        def conflict(*args):
+            self.assertIsNone(self.app.capturing_key)
+            self.assertIsNone(self.root.grab_current())
+        with mock.patch.object(self.app.messagebox, 'showerror', side_effect=conflict) as error:
+            box.event_generate('<KeyPress>', keysym='q')
+            self.root.update()
+        error.assert_called_once()
+        self.assertEqual(self.app.control_vars['key']['cross'].get(), 'Space')
+        self.assertEqual(str(box['text']), 'Space')
+
     def test_in_game_icon_choice_survives_save_and_rebuild(self):
         self.app.var('glyph_style', 'app').set('keyboard')
         self.app.control_vars['key']['cross'].set('F24')
