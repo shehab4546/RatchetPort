@@ -3,7 +3,7 @@
 set -euo pipefail
 cd -- "$(dirname -- "$0")/../.."
 source ./msys2-env.sh
-for tool in clang make nasm cmp python curl tar; do
+for tool in clang make nasm cmp python curl tar sha256sum; do
     command -v "$tool" >/dev/null || { echo "Missing build tool: $tool (install make nasm diffutils)." >&2; exit 1; }
 done
 version=9.0.2
@@ -14,8 +14,17 @@ source_dir="$root/out/ffmpeg-source-$version"
 build_dir="$root/out/ffmpeg-lgpl-build"
 prefix="$root/out/ffmpeg-lgpl"
 mkdir -p "$(dirname "$archive")" "$build_dir"
-if [[ ! -f "$archive" ]]; then
-    curl -fL --retry 3 "https://ffmpeg.org/releases/ffmpeg-$version.tar.xz" -o "$archive"
+if ! printf '%s  %s\n' "$sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
+    # TLS resets (curl 35) need --retry-all-errors. Keep incomplete downloads
+    # separate from the source archive, including when a previous run failed.
+    partial="$archive.part"
+    trap 'rm -f -- "$partial"' EXIT
+    curl -fL --retry 3 --retry-all-errors --connect-timeout 30 \
+        --max-time 300 --retry-max-time 600 \
+        "https://ffmpeg.org/releases/ffmpeg-$version.tar.xz" -o "$partial"
+    printf '%s  %s\n' "$sha256" "$partial" | sha256sum -c -
+    mv -f -- "$partial" "$archive"
+    trap - EXIT
 fi
 printf '%s  %s\n' "$sha256" "$archive" | sha256sum -c -
 if [[ ! -d "$source_dir" ]]; then
