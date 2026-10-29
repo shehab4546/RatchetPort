@@ -7,6 +7,35 @@
 
 typedef int32_t (ABI *Query)(void);
 
+static void test_heap_trace_contract(void) {
+    typedef void (ABI *TraceQuery)(void *);
+    const char *name="NWtTN10cJzE#libSceLibcInternalExt";
+    TraceQuery query=(TraceQuery)runtime_resolve(name,0);
+    assert(query && !strcmp(runtime_import_name(name),"sceLibcHeapGetTraceInfo"));
+    assert(!runtime_resolve(name,1));
+    assert(!runtime_resolve("NWtTN10cJzE#libc",0));
+    assert(!runtime_resolve("NWtTN10cJzE#unrelated",0));
+    /* Raw byte offsets deliberately independent of runtime.c's private struct.
+     * The actual libc template is size=32, flags=1, with two output pointers. */
+    uint64_t record[6]={UINT64_C(0x12345678abcdef01),32,1,0,0,UINT64_C(0x1122334455667788)};
+    uint32_t enabled=99;
+    memcpy((char *)&record[1]+12,&enabled,4);
+    query(&record[1]);
+    assert(record[0]==UINT64_C(0x12345678abcdef01) && record[5]==UINT64_C(0x1122334455667788));
+    assert(record[1]==32 && record[2]==1); /* size/flags preserved, segment tracing disabled */
+    uint64_t *mask=(uint64_t *)(uintptr_t)record[3];
+    uint64_t *states=(uint64_t *)(uintptr_t)record[4];
+    assert(mask && states && !*mask);
+    for (unsigned i=0;i<64;++i) assert(!states[i]);
+    *mask=UINT64_C(1)<<63;
+    states[0]=0x1234; states[63]=0x5678;
+    uint64_t again[4]={32,7,0,0};
+    query(again);
+    assert(again[0]==32 && again[1]==7 && again[2]==record[3] && again[3]==record[4]);
+    assert(*mask==(UINT64_C(1)<<63) && states[0]==0x1234 && states[63]==0x5678);
+    *mask=0; states[0]=states[63]=0;
+}
+
 int main(void) {
     const char *queries[]={"WslcK1FQcGI#libkernel",
         "mpxAdqW7dKY#libkernel_cpumode_platform", "mpxAdqW7dKY#libkernel"};
@@ -27,6 +56,7 @@ int main(void) {
     }
     assert(!strcmp(runtime_import_name("TywrFKCoLGY#libSceSaveData"),"sceSaveDataInitialize3"));
     assert(!strcmp(runtime_import_name("0z45PIH+SNI#libSceSaveData"),"sceSaveDataMount2"));
-    puts("PASS: update console queries and exact SDK aliases");
+    test_heap_trace_contract();
+    puts("PASS: update console queries, exact SDK aliases and persistent heap-trace ABI");
     return 0;
 }

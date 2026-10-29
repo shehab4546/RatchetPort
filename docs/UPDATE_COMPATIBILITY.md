@@ -119,6 +119,18 @@ and [save data](https://github.com/shadps4-emu/shadPS4/blob/0614ce324be092791b75
 registrations. The native `update-imports-test` checks exact-library resolution,
 console query results, data-import rejection and the file aliases.
 
+The update's native libc also calls `sceLibcHeapGetTraceInfo` through
+`NWtTN10cJzE#libSceLibcInternalExt` during startup. The host preserves the caller's
+size/flags, disables segment tracing, and returns process-lifetime writable
+storage for the allocation mask and 64-entry state table. This is a 32-byte
+exchange structure, independently checked against the actual 1.09 caller at
+`libc.prx+0x5bd68` and the upstream
+[memory registration/contract](https://github.com/shadps4-emu/shadPS4/blob/0614ce324be092791b758d79f93d9f1ca5b10a81/src/core/libraries/libc_internal/libc_internal_memory.cpp).
+The native import test checks offsets, boundaries, pointer persistence, retained
+contents and exact-library resolution. An isolated execution of the actual libc
+query/consumer block through `+0x5be29` also passed; it does not exercise the rest
+of initialization or gameplay.
+
 Before promoting this profile, test initial boot, gameplay, save/load, 720p–4K
 rendering, all shadow caps, Original restoration, the voice
 archive checks, text/voice separation, and returning to 1.00 with the previous

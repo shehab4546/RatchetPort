@@ -929,3 +929,4 @@
 {"ih4CD9-gghM#libkernel","ftruncate"},
 {"VAzswvTOCzI#libkernel","unlink"},
 {"FN4gaPmuFV8#libkernel","write"},
+{"NWtTN10cJzE#libSceLibcInternalExt","sceLibcHeapGetTraceInfo"},
