@@ -39,6 +39,30 @@ def self_fixture():
 
 
 class ModuleTests(unittest.TestCase):
+    def test_plain_section_markers_are_retained_without_nid_identity(self):
+        for name in ('__start__Ztext', '__stop__Ztext'):
+            for unpacked in (False, True):
+                with self.subTest(name=name, unpacked=unpacked), tempfile.TemporaryDirectory() as tmp:
+                    source = bytearray(self_fixture())
+                    source[0x220:0x230] = name.encode().ljust(16, b'\0')
+                    # Match the update's undefined, global, NOTYPE markers.
+                    struct.pack_into('<IBBHQQ', source, 0x260, 0, 0x10, 0, 0, 0, 0)
+                    data = link_libc.parse_self(bytes(source))[0] if unpacked else source
+                    path = Path(tmp) / 'libc.prx'
+                    path.write_bytes(data)
+                    symbol = link_libc.module(path)['symbols'][0]
+                    self.assertEqual(symbol, dict(name=name, type=0, binding=1,
+                                                 section=0, value=0, size=0, identity=None))
+
+    def test_malformed_encoded_symbol_is_still_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = bytearray(self_fixture())
+            source[0x220:0x230] = b'broken#C\0'.ljust(16, b'\0')
+            path = Path(tmp) / 'libc.prx'
+            path.write_bytes(source)
+            with self.assertRaisesRegex(ValueError, 'unsupported symbol encoding'):
+                link_libc.module(path)
+
     def test_module_accepts_unpacked_elf_with_the_same_exports(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'libc.prx'
@@ -92,6 +116,39 @@ class LinkTests(unittest.TestCase):
         self.assertEqual(data[:8],b'G3PROBE4')
         self.assertEqual(report['symbol_bindings'],[
             dict(import_name='fixture#q#q',address='0x10010',kind=1)])
+
+    def test_unreferenced_plain_markers_do_not_change_linked_image(self):
+        expected = self.run_link(*self.fixture())
+        main, libc = self.fixture()
+        for name in ('__start__Ztext', '__stop__Ztext'):
+            libc['symbols'].append(dict(name=name, type=0, binding=1, section=0,
+                                        value=0, size=0, identity=None))
+        self.assertEqual(self.run_link(main, libc), expected)
+
+    def test_defined_plain_symbol_keeps_local_relocation(self):
+        main, libc = self.fixture(relocs=[(64, 1, 2, 3)])
+        libc['symbols'].append(dict(name='local_marker', type=1, binding=1, section=1,
+                                    value=24, size=8, identity=None))
+        data, report = self.run_link(main, libc)
+        _, _, _, ns, nr, _, _ = struct.unpack_from('<8s6Q', data)
+        nb = report['bindings']
+        pos = 56 + 64 + 32 + nb * 24 + ns * 24 + len(report['imports']) * 128
+        relocs = [struct.unpack_from('<QQqq', data, pos + i * 32) for i in range(nr)]
+        self.assertIn((65536 + 64, 0, 65536 + 27, 0), relocs)
+        self.assertEqual(report['bindings'], 1)
+
+    def test_referenced_plain_undefined_symbol_is_not_silently_bound(self):
+        main, libc = self.fixture(relocs=[(64, 1, 2, 0)])
+        libc['symbols'].append(dict(name='__start__Ztext', type=0, binding=1, section=0,
+                                    value=0, size=0, identity=None))
+        with self.assertRaisesRegex(ValueError, 'unsupported libc import without NID identity'):
+            self.run_link(main, libc)
+
+    def test_main_import_without_identity_is_rejected(self):
+        main, libc = self.fixture()
+        main['identity'] = lambda name: None
+        with self.assertRaisesRegex(ValueError, 'unsupported main import without NID identity'):
+            self.run_link(main, libc)
 
     def test_same_nid_wrong_library_version_does_not_bind(self):
         _,report=self.run_link(*self.fixture(version=2))

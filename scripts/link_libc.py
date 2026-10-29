@@ -48,6 +48,11 @@ def module(path):
                 raise ValueError('conflicting module/library IDs')
             table[key] = identity
     def identity(name):
+        if '#' not in name:
+            # Section-boundary/metadata symbols (e.g. __start__Ztext in 1.09)
+            # have no NID identity. Keep them for local relocations, but never
+            # publish them as exports or invent an external import binding.
+            return None
         parts = name.split('#')
         if len(parts) != 3:
             raise ValueError(f'unsupported symbol encoding {name!r}')
@@ -103,11 +108,18 @@ def link(game, out):
         segments.append((base+p['vaddr'],p['memsz'],p['flags']))
     # Preserve main-program spelling for the existing host resolver. New kernel
     # NIDs get the main module's spelling only if identity AND version match.
-    identities = {main['identity'](name):i for i,name in enumerate(names)}
+    identities = {}
+    for i, name in enumerate(names):
+        key = main['identity'](name)
+        if key is None:
+            raise ValueError(f'unsupported main import without NID identity {name!r}')
+        identities[key] = i
     main_libraries = {identity:key for key,identity in main['libraries'].items()}
     main_modules = {identity:key for key,identity in main['modules'].items()}
     def imported(symbol):
         key = symbol['identity']
+        if key is None:
+            raise ValueError(f'unsupported libc import without NID identity {symbol["name"]!r}')
         if key not in identities:
             n,lib,mod = key
             name = (f'{n}#{main_libraries[lib]}#{main_modules[mod]}'
