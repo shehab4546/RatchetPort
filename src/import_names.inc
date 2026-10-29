@@ -930,3 +930,6 @@
 {"VAzswvTOCzI#libkernel","unlink"},
 {"FN4gaPmuFV8#libkernel","write"},
 {"NWtTN10cJzE#libSceLibcInternalExt","sceLibcHeapGetTraceInfo"},
+{"kvYEw2lBndk#libSceGameLiveStreaming","sceGameLiveStreamingInitialize"},
+{"dWM80AX39o4#libSceGameLiveStreaming","sceGameLiveStreamingEnableLiveStreaming"},
+{"9yK6Fk8mKOQ#libSceGameLiveStreaming","sceGameLiveStreamingTerminate"},

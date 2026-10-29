@@ -131,6 +131,18 @@ contents and exact-library resolution. An isolated execution of the actual libc
 query/consumer block through `+0x5be29` also passed; it does not exercise the rest
 of initialization or gameplay.
 
+The 1.09 startup also initializes the optional console live-streaming service.
+Its three imported functions (initialize, enable/disable permission, terminate)
+now use an offline compatibility lifecycle. They retain permission state without
+starting a broadcast or opening a network/media backend. Unimplemented broadcast
+operations remain unresolved. NIDs are cross-checked against upstream
+[GameLiveStreaming registrations](https://github.com/shadps4-emu/shadPS4/blob/0614ce324be092791b758d79f93d9f1ca5b10a81/src/core/libraries/game_live_streaming/gamelivestreaming.cpp);
+the actual 1.09 calls pass `0x4000` at `0x17c5f97`, permission `1` at `0x1781a8b`
+and `0` at `0x1782c4e`, and terminate at `0x17c64c2`. Service and resolver tests
+cover these calls, repeated lifecycle changes and rejection of unrelated imports.
+A Windows test log confirms both module initializers now return zero and the
+original 1.09 entry executes; full startup/gameplay is still pending.
+
 Before promoting this profile, test initial boot, gameplay, save/load, 720p–4K
 rendering, all shadow caps, Original restoration, the voice
 archive checks, text/voice separation, and returning to 1.00 with the previous

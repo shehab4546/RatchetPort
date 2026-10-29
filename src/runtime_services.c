@@ -107,6 +107,33 @@ static ABI int32_t safe_area(float *info) { if (!info) return SYSTEM_PARAMETER; 
 static ABI int32_t disable_music_player(void) { return 0; }
 static ABI int32_t launch_browser(void) { note("SystemService: web browser request ignored (offline)"); return 0; }
 
+/* ---- GameLiveStreaming: offline lifecycle and broadcast permission ----
+ * 1.09 imports exactly Initialize, EnableLiveStreaming and Terminate. The
+ * enable flag permits console broadcasting; it does not start a broadcast.
+ * Retain the requested lifecycle/permission without a network/media backend.
+ * No broadcast-start or status-query contracts are invented here. */
+static struct { int initialized, permitted; uint64_t init_argument; } live_stream;
+static ABI int32_t live_stream_initialize(uint64_t argument) {
+    pthread_mutex_lock(&lock);
+    live_stream.initialized=1;
+    live_stream.init_argument=argument; /* 1.09 passes the scalar 0x4000. */
+    pthread_mutex_unlock(&lock);
+    note("GameLiveStreaming initialized in offline mode; broadcasting unavailable");
+    return ORBIS_OK;
+}
+static ABI int32_t live_stream_enable(int32_t enabled) {
+    pthread_mutex_lock(&lock);
+    live_stream.permitted=enabled!=0;
+    pthread_mutex_unlock(&lock);
+    return ORBIS_OK;
+}
+static ABI int32_t live_stream_terminate(void) {
+    pthread_mutex_lock(&lock);
+    memset(&live_stream,0,sizeof live_stream);
+    pthread_mutex_unlock(&lock);
+    return ORBIS_OK;
+}
+
 /* ---- NetCtl / Net / Http / Ssl: no network ---- */
 static int32_t net_errno;
 static ABI int32_t net_init(void) { return 0; }
@@ -621,6 +648,9 @@ static ABI int32_t audio_in_open(void) { return AUDIO_IN_NOT_OPENED; }
 
 
 static const RuntimeExport exports[]={
+    {"sceGameLiveStreamingInitialize",live_stream_initialize},
+    {"sceGameLiveStreamingEnableLiveStreaming",live_stream_enable},
+    {"sceGameLiveStreamingTerminate",live_stream_terminate},
     {"sceUserServiceInitialize",user_initialize}, {"sceUserServiceTerminate",user_terminate},
     {"sceUserServiceGetInitialUser",user_initial}, {"sceUserServiceGetLoginUserIdList",user_list},
     {"sceUserServiceGetUserName",user_name}, {"sceUserServiceGetEvent",user_event},

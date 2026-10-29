@@ -17,6 +17,17 @@ int runtime_savedata_param(int32_t user, const char *dir, void *param) { (void)u
 int runtime_savedata_icon(int32_t user, const char *dir, char *out, size_t size) { (void)user; (void)dir; (void)out; (void)size; return -1; }
 
 int main(void) {
+    /* Optional console broadcast permission never starts a network service. */
+    assert(live_stream_terminate()==0);
+    assert(live_stream_enable(1)==0 && live_stream.permitted && !live_stream.initialized);
+    assert(live_stream_initialize(0x4000)==0);
+    assert(live_stream.initialized && live_stream.permitted && live_stream.init_argument==0x4000);
+    assert(live_stream_enable(0)==0 && !live_stream.permitted);
+    assert(live_stream_enable(1)==0 && live_stream.permitted);
+    assert(live_stream_initialize(0x4000)==0 && live_stream.permitted);
+    assert(live_stream_terminate()==0 && !live_stream.initialized && !live_stream.permitted);
+    assert(!live_stream.init_argument && live_stream_terminate()==0);
+
     unsigned char param[128]={0}, result[64]={0}; /* the game zeroes the pointers it does not want */
     uint32_t value;
 

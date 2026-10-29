@@ -57,6 +57,20 @@ int main(void) {
     assert(!strcmp(runtime_import_name("TywrFKCoLGY#libSceSaveData"),"sceSaveDataInitialize3"));
     assert(!strcmp(runtime_import_name("0z45PIH+SNI#libSceSaveData"),"sceSaveDataMount2"));
     test_heap_trace_contract();
-    puts("PASS: update console queries, exact SDK aliases and persistent heap-trace ABI");
+    const char *stream_names[]={"kvYEw2lBndk#libSceGameLiveStreaming",
+        "dWM80AX39o4#libSceGameLiveStreaming","9yK6Fk8mKOQ#libSceGameLiveStreaming"};
+    for (unsigned i=0;i<3;++i) {
+        assert(runtime_resolve(stream_names[i],0));
+        assert(!runtime_resolve(stream_names[i],1));
+    }
+    typedef int32_t (ABI *StreamInit)(uint64_t);
+    typedef int32_t (ABI *StreamEnable)(int32_t);
+    StreamInit init=(StreamInit)runtime_resolve(stream_names[0],0);
+    StreamEnable enable=(StreamEnable)runtime_resolve(stream_names[1],0);
+    Query terminate=(Query)runtime_resolve(stream_names[2],0);
+    assert(init(0x4000)==0 && enable(1)==0 && enable(0)==0 && terminate()==0);
+    assert(!runtime_resolve("kvYEw2lBndk#unrelated",0));
+    assert(!runtime_resolve("caqgDl+V9qA#libSceGameLiveStreaming_debug",0));
+    puts("PASS: update console queries, SDK aliases, heap-trace ABI and offline streaming imports");
     return 0;
 }
