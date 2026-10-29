@@ -6,6 +6,7 @@ or a junction / hard link on Windows without the symlink privilege, see mods.mak
 a 47 GB game costs a handful of links. Names are matched without regard to case.
 """
 from pathlib import Path
+from contextlib import contextmanager
 import shutil
 import tempfile
 
@@ -58,6 +59,8 @@ def create_view(base, update, out):
         raise ValueError('Choose two separate folders for the game and its update')
     if not (update / 'eboot.bin').is_file():
         raise ValueError('The update folder needs eboot.bin and sce_sys/param.sfo')
+    if any(Path(out).resolve().is_relative_to(folder) for folder in (base, update)):
+        raise ValueError('Update view output must be outside both original game folders')
     Path(out).mkdir(parents=True, exist_ok=True)
     target = Path(tempfile.mkdtemp(prefix='game-update-', dir=out))
     try:
@@ -74,3 +77,16 @@ def remove_view(path):
     """Deletes a view made by create_view (the dumps stay untouched)."""
     if Path(path).exists():
         remove(path)
+
+
+@contextmanager
+def selected_view(base, update, out):
+    """Validate before creating links and clean up even if preparation or launch fails."""
+    from ratchet_game import validate_selection
+    values = validate_selection(base, update)
+    target = create_view(base, update, out) if update else Path(base).resolve()
+    try:
+        yield target, values
+    finally:
+        if update:
+            remove_view(target)

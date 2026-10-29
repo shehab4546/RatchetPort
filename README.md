@@ -2,7 +2,7 @@
 
 RatchetPort is an **unofficial, experimental PC port project for Ratchet & Clank
 (2016), the PS4 game**, using a native Windows runtime. It targets **CUSA01047 USA
-v1.00** and requires a self-made dump of your own original disc. **Pre-Alpha:**
+v1.00**, with **experimental USA 1.09 support in development builds**, and requires a self-made dump of your own original disc. **Pre-Alpha:**
 I observed steady **30 FPS gameplay on my NVIDIA GeForce RTX 5070 Laptop GPU**
 with V1.1 PlayGo. General hardware compatibility and
 long-session stability remain unverified.
@@ -50,14 +50,14 @@ Automated checks do not establish game compatibility.
 
 A Windows-first, **Pre-Alpha** native runtime for **Ratchet & Clank (PS4), CUSA01047, USA, version 1.00**. RatchetPort is derived directly from [FelipePrado0/SpartanPort](https://github.com/FelipePrado0/SpartanPort) and uses renderer and shader-recompiler work from [shadPS4](https://github.com/shadps4-emu/shadPS4).
 
-This is experimental software. Intel UHD 730 has previously reproduced `VK_ERROR_DEVICE_LOST`, including with the zero-clear mirror disabled. Successful compilation or a launcher opening does not establish playable or stable gameplay. Other title IDs, updates and regions are not supported by this configuration.
+This is experimental software. Intel UHD 730 has previously reproduced `VK_ERROR_DEVICE_LOST`, including with the zero-clear mirror disabled. Successful compilation or a launcher opening does not establish playable or stable gameplay. The development build also recognizes the fingerprinted USA 1.09 update; gameplay validation is pending. Other title IDs, updates, regions and add-ons remain unreviewed. See [update compatibility and feature limits](docs/UPDATE_COMPATIBILITY.md).
 
 ## Requirements
 
 - Windows 10 1903+ or Windows 11, 64-bit; an x86-64 CPU with AVX.
 - A Vulkan 1.3-capable GPU and driver. Compatibility depends on the device's reported features; there is no validated minimum performance specification yet.
 - Enough RAM and page-file capacity for the guest memory pool and renderer. Out-of-memory errors remain possible.
-- **You must own the original PS4 game disc and make your own dump from that disc using your own PS4.** RatchetPort targets CUSA01047 USA v1.00 only. Extract your dump into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, `sce_sys/playgo-chunk.dat`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
+- **You must own the original PS4 game disc and make your own dump from that disc using your own PS4.** The published V2.0 package targets CUSA01047 USA v1.00. Development builds can layer the matching USA 1.09 update over that base. Extract your dump into a directory containing nonempty `eboot.bin`, `sce_sys/param.sfo`, `sce_sys/playgo-chunk.dat`, and `sce_module/libc.prx` and `sce_module/libSceFios2.prx`.
 
 **No game files, PS4 system modules, keys or game artwork are included.** RatchetPort does not download or decrypt a game. Keep the original dump unchanged.
 
@@ -103,7 +103,7 @@ See [the detailed evidence and test counts](docs/TESTING.md).
 3. Leave the initial settings at **30 FPS, VSync on, 1280x720 output, windowed, upscaling off, Deferred GPU readbacks off** and start the game.
 4. `Play RatchetPort.exe` can subsequently start using the saved configuration.
 
-The launcher validates the title ID and version before preparation. Separate update directories are rejected. Original mode applies no timing patch. Experimental 60 FPS applies the verified pacing/clock pair for the exact supported build; saved patch selections cannot activate another game's patches. Output resolution is a host presentation setting, not a claim that the game's internal rendering resolution was patched.
+The launcher validates the title ID and version before preparation. Development builds add an optional **Update folder** for USA 1.09 and verify its executable and asset-index fingerprints. Update files are combined with the base through a temporary view; clearing the update field returns to the installed version. See [the version-specific feature table](docs/UPDATE_COMPATIBILITY.md). Original mode applies no timing patch. Experimental 60 FPS applies the verified pacing/clock pair for the exact supported build; saved patch selections cannot activate another game's patches. Output resolution is a host presentation setting, not a claim that the game's internal rendering resolution was patched.
 
 Settings (`settings.json`, `ratchet.ini`), prepared executable files (`out/`), shader caches, logs and saves are generated beside the extracted application by default. A custom data/saves directory can be selected. Preserve these user files when replacing a package. Never distribute the generated prepared executable or shader dumps.
 

@@ -920,3 +920,12 @@
 {"5jRCs2axtr4#libkernel","inet_ntop"},
 {"P41kTWUS3EI#libkernel","scePthreadGetschedparam"},
 {"oIRFTjoILbg#libkernel","scePthreadSetschedparam"},
+/* CUSA01047 1.09: process model and newer SDK aliases. */
+{"WslcK1FQcGI#libkernel","sceKernelIsNeoMode"},
+{"mpxAdqW7dKY#libkernel_cpumode_platform","sceKernelIsProspero"},
+{"mpxAdqW7dKY#libkernel","sceKernelIsProspero"},
+{"TywrFKCoLGY#libSceSaveData","sceSaveDataInitialize3"},
+{"0z45PIH+SNI#libSceSaveData","sceSaveDataMount2"},
+{"ih4CD9-gghM#libkernel","ftruncate"},
+{"VAzswvTOCzI#libkernel","unlink"},
+{"FN4gaPmuFV8#libkernel","write"},

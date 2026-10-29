@@ -1,0 +1,12 @@
+{
+  "source_sha256": "d0bbf7a28ff633bf8f80379c00bd12209611cfcafcaaa39598263f34c366113b",
+  "app_version": "01.09",
+  "lookup_cases": 12834,
+  "language_overrides": 5,
+  "original_and_replacements_passed": true,
+  "linked_relocation_guards_passed": true,
+  "os_table_address": "0x29a2ab0",
+  "usa_mask": "0x242042",
+  "lookup_address": "0x17dd2b0",
+  "gameplay_tested": false
+}

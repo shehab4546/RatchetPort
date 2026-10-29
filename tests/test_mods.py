@@ -319,7 +319,8 @@ class ModTests(unittest.TestCase):
             (port / 'scripts' / f'{name}.py').write_text('')
         # This fixture tests overlay lifecycle, not validation of a real SELF dump.
         game_validation = port / 'scripts/ratchet_game.py'
-        game_validation.write_text(game_validation.read_text() + '\ndef validate_game(folder): return {}\n')
+        game_validation.write_text(game_validation.read_text() +
+            "\ndef validate_game(folder): return {'TITLE_ID': 'CUSA01047', 'APP_VER': '01.00'}\n")
         probe = self.root / 'probe'
         probe.write_text(f'#!{sys.executable}\nimport json,sys,os\nfrom pathlib import Path\n'
             'if \"--cpu-features\" in sys.argv: sys.exit(0)\n'

@@ -142,11 +142,11 @@ class Binary:
         }
 
 
-def verify_candidates(binary, manifest):
+def verify_candidates(binary, manifest, title_id=TITLE_ID, app_version=APP_VERSION):
     """Mechanical validation only. Never promote a candidate to supported."""
     if not isinstance(manifest, dict) or manifest.get('schema_version') != 1:
         raise ValueError('unsupported evidence schema')
-    if manifest.get('title_id') != TITLE_ID or manifest.get('app_version') != APP_VERSION:
+    if manifest.get('title_id') != title_id or manifest.get('app_version') != app_version:
         raise ValueError('evidence belongs to a different title or version')
     for field, actual in (('source_sha256', digest(binary.source)), ('elf_sha256', digest(binary.elf))):
         if not isinstance(manifest.get(field), str) or manifest[field] != actual:
@@ -210,7 +210,7 @@ def audit(game, manifest=None):
         'rp02_complete': False,
     }
     if manifest is not None:
-        report['candidate_results'] = verify_candidates(binary, manifest)
+        report['candidate_results'] = verify_candidates(binary, manifest, identity['TITLE_ID'], identity['APP_VER'])
     return report
 
 

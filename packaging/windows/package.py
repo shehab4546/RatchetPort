@@ -89,7 +89,7 @@ def main():
     work = ROOT / 'out' / ('package-' + datetime.now().strftime('%Y%m%d-%H%M%S'))
     work.mkdir(parents=True, exist_ok=False)
     hidden = ['release_updates', 'session_diagnostics', 'control_bindings', 'game_glyphs', 'glyph_archive', 'glyph_profile', 'glyph_mapping', 'glyph_keys', 'glyph_gfx', 'glyph_art', 'glyph_texture', 'glyph_font', 'PIL.ImageDraw', 'PIL.ImageChops',
-              'voice_archive', 'language_split', 'graphics_presets', 'frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
+              'game_update', 'ratchet_update_patches', 'voice_archive', 'language_split', 'graphics_presets', 'frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
               'tempfile', 'threading', 'uuid', 'xml.etree.ElementTree', 'urllib.request', 'ctypes.wintypes',
               'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'release_info', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
               'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']

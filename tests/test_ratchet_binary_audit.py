@@ -216,10 +216,13 @@ class AuditCliTests(unittest.TestCase):
         self.assertEqual(self.cli('--output', self.game / 'new.json'), 2)
         self.assertFalse((self.game / 'new.json').exists())
 
-    def test_version_109_rejected_even_without_manifest(self):
+    def test_version_109_inventory_does_not_reuse_base_evidence(self):
         (self.game / 'sce_sys/param.sfo').write_bytes(sfo_bytes('01.09'))
-        with self.assertRaisesRegex(ValueError, 'version 1.00'):
-            audit(self.game)
+        report = audit(self.game)
+        self.assertEqual(report['app_version'], '01.09')
+        self.assertFalse(any(x['runtime_enabled'] for x in report['capabilities'].values()))
+        with self.assertRaisesRegex(ValueError, 'different title or version'):
+            audit(self.game, evidence(Binary(bytes(fixture()))))
 
     def test_bad_manifest_causes_nonzero_exit(self):
         manifest = self.root / 'evidence.json'

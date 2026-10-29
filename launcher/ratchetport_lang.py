@@ -2605,3 +2605,32 @@ EXTRA['ar'].update({"Input already assigned": 'الإدخال مستخدم با�
 EXTRA['es'].update({"Input already assigned": 'Entrada ya asignada', '{input} is already assigned to {control} ({slot}). Clear that binding first.': '{input} ya está asignada a {control} ({slot}). Borra primero esa asignación.', 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'Ambas asignaciones mantienen pulsado el mismo botón del juego. Los iconos muestran Principal, o Secundario si Principal está vacío. Las entradas ya asignadas se rechazan de inmediato. Borra la asignación anterior para mover una entrada. La rueda del ratón envía pulsaciones breves. Insert abre el menú del port.'})
 EXTRA['pt'].update({"Input already assigned": 'Entrada já atribuída', '{input} is already assigned to {control} ({slot}). Clear that binding first.': '{input} já está atribuída a {control} ({slot}). Remova essa atribuição primeiro.', 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'Ambas as atribuições mantêm o mesmo botão do jogo pressionado. Os ícones mostram Principal, ou Secundário quando Principal está vazio. Entradas já atribuídas são rejeitadas imediatamente. Remova a atribuição anterior para mover uma entrada. A roda do mouse envia toques breves. Insert abre o menu do port.'})
 EXTRA['ru'].update({"Input already assigned": 'Ввод уже назначен', '{input} is already assigned to {control} ({slot}). Clear that binding first.': '{input} уже назначен действию {control} ({slot}). Сначала удалите это назначение.', 'Either binding holds the same game button. Icons show Primary, or Secondary when Primary is empty. Inputs already assigned are rejected immediately. Clear the previous binding to move an input. Mouse wheel inputs are brief taps. Insert opens the port menu.': 'Оба назначения удерживают одну кнопку игры. Значки показывают основное назначение или дополнительное, если основное пусто. Уже назначенный ввод отклоняется сразу. Для переноса сначала удалите прежнее назначение. Колесо мыши отправляет короткие нажатия. Insert открывает меню порта.'})
+
+# Version-specific update selection.
+EXTRA['ar'].update({
+    'USA 1.00 and experimental USA 1.09 support.': 'دعم النسخة الأمريكية 1.00 ودعم تجريبي للتحديث الأمريكي 1.09.',
+    'Update folder (optional)': 'مجلد التحديث (اختياري)',
+    'Select the USA 1.09 update folder': 'اختر مجلد التحديث الأمريكي 1.09',
+    'Leave empty for the installed version. A separate 1.09 update requires USA base 1.00.': 'اتركه فارغًا لاستخدام النسخة المثبتة. يتطلب التحديث المنفصل 1.09 النسخة الأمريكية الأساسية 1.00.',
+    'Update compatibility': 'توافق التحديث',
+    '1.09: separate text/voice, native resolution up to 4K and shadow caps. Motion blur, FPS patches and custom icons remain unavailable.': '1.09: فصل النص والصوت، ودقة داخلية حتى 4K، وخيارات تقليل دقة الظلال. تعديلات ضبابية الحركة والفريمات والأيقونات المخصصة غير متاحة بعد.',
+    'Experimental separation for USA 1.00 and 1.09. Save and restart. Unverified builds use matching text and voice.': 'فصل تجريبي للنسختين الأمريكيتين 1.00 و1.09. احفظ وأعد التشغيل. تستخدم النسخ غير المتحقق منها لغة موحدة للنص والصوت.',
+})
+EXTRA['pt'].update({
+    'USA 1.00 and experimental USA 1.09 support.': 'Suporte a USA 1.00 e suporte experimental a USA 1.09.',
+    'Update folder (optional)': 'Pasta de atualização (opcional)',
+    'Select the USA 1.09 update folder': 'Selecione a pasta da atualização USA 1.09',
+    'Leave empty for the installed version. A separate 1.09 update requires USA base 1.00.': 'Deixe vazio para usar a versão instalada. A atualização separada 1.09 requer a versão base USA 1.00.',
+    'Update compatibility': 'Compatibilidade da atualização',
+    '1.09: separate text/voice, native resolution up to 4K and shadow caps. Motion blur, FPS patches and custom icons remain unavailable.': '1.09: texto e voz separados, resolução interna até 4K e limites de sombras. Patches de desfoque de movimento, FPS e ícones personalizados ainda não estão disponíveis.',
+    'Experimental separation for USA 1.00 and 1.09. Save and restart. Unverified builds use matching text and voice.': 'Separação experimental para USA 1.00 e 1.09. Salve e reinicie. Versões não verificadas usam o mesmo idioma para texto e voz.',
+})
+EXTRA['es'].update({
+    'USA 1.00 and experimental USA 1.09 support.': 'Compatible con USA 1.00 y soporte experimental para USA 1.09.',
+    'Update folder (optional)': 'Carpeta de actualización (opcional)',
+    'Select the USA 1.09 update folder': 'Selecciona la carpeta de la actualización USA 1.09',
+    'Leave empty for the installed version. A separate 1.09 update requires USA base 1.00.': 'Déjalo vacío para usar la versión instalada. La actualización separada 1.09 requiere la versión base USA 1.00.',
+    'Update compatibility': 'Compatibilidad de la actualización',
+    '1.09: separate text/voice, native resolution up to 4K and shadow caps. Motion blur, FPS patches and custom icons remain unavailable.': '1.09: texto y voz separados, resolución interna hasta 4K y límites de sombras. Los parches de desenfoque de movimiento, FPS e iconos personalizados aún no están disponibles.',
+    'Experimental separation for USA 1.00 and 1.09. Save and restart. Unverified builds use matching text and voice.': 'Separación experimental para USA 1.00 y 1.09. Guarda y reinicia. Las versiones no verificadas usan el mismo idioma para texto y voz.',
+})

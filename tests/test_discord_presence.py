@@ -231,7 +231,8 @@ class PresenceLifecycle(unittest.TestCase):
 
 class GameProcessPresence(unittest.TestCase):
     def setUp(self):
-        self.enterContext(mock.patch('ratchet_game.validate_game', return_value={}))
+        self.enterContext(mock.patch('ratchet_game.validate_game',
+                                     return_value={'TITLE_ID': 'CUSA01047', 'APP_VER': '01.00'}))
         sys.path.insert(0, str(ROOT))
         import run
         import patches

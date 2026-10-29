@@ -4,7 +4,12 @@
 #include "gpu/ratchetgpu.h"
 #define RESOLVER(name) uintptr_t runtime_##name##_resolve(const char *nid) { (void)nid; return 0; }
 RESOLVER(mutex) RESOLVER(thread) RESOLVER(content) RESOLVER(time) RESOLVER(sema)
-RESOLVER(event) RESOLVER(rwlock) RESOLVER(memory) RESOLVER(kernel) RESOLVER(netctl)
+RESOLVER(event) RESOLVER(rwlock) RESOLVER(memory) RESOLVER(netctl)
+#ifndef RATCHET_TEST_KERNEL
+RESOLVER(kernel)
+#else
+void runtime_thread_count_yield(int zero_sleep) { (void)zero_sleep; }
+#endif
 RESOLVER(ajm) RESOLVER(videodec) RESOLVER(audio) RESOLVER(pad) RESOLVER(rtc) RESOLVER(savedata)
 #define REPORT(name) void runtime_##name##_report(void) {}
 REPORT(thread) REPORT(mutex) REPORT(rwlock) REPORT(sema) REPORT(event) REPORT(content)
@@ -12,7 +17,9 @@ REPORT(netctl) REPORT(memory) REPORT(ajm) REPORT(audio) REPORT(pad) REPORT(saved
 uintptr_t ratchetgpu_resolve(const char *nid) { (void)nid; return 0; }
 static int32_t guest_errno;
 int32_t *runtime_errno(void) { return &guest_errno; }
+#ifndef RATCHET_TEST_KERNEL
 int runtime_guest_errno(int value) { return value; }
+#endif
 int ratchetgpu_text_input_begin(const char *text,const char *prompt) { (void)text; (void)prompt; return 0; }
 int ratchetgpu_text_input_poll(char *text,uint64_t size) { (void)text; (void)size; return 0; }
 int ratchetgpu_choice_begin(const char *title,const char *const *items,const char *const *images,int count,int focus) {
