@@ -189,7 +189,7 @@ def main():
         fail(f'No eboot.bin in {game} (set RATCHET_GAME_DIR).')
     from contextlib import ExitStack
     with ExitStack() as views:
-        from ratchet_game import validate_game
+        from ratchet_game import validate_game, linked_modules
         import game_update
         original_game = game.resolve()
         update = env.get('RATCHET_PATCH_DIR', '')
@@ -214,7 +214,7 @@ def main():
                 validate_game(game)  # Mods must not swap a different executable into this profile.
             run_script('prepare.py', game, '--out', out)
             run_script('link_libc.py', game, '--out', out)
-            run_script('link_modules.py', game, '--out', out)
+            run_script('link_modules.py', game, '--out', out, '--modules', *linked_modules(identity))
             # A failed rewrite prints its reason and the game starts without the table.
             isa_args = []
             if isa_rewrite_wanted(missing, env):

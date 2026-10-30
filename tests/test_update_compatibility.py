@@ -40,6 +40,9 @@ class UpdateCompatibility(unittest.TestCase):
         self.write(self.base / 'asset_archive/g00s000', b'base archive')
         self.write(self.base / 'asset_archive/toc', b'base toc')
         self.write(self.update / 'asset_archive/toc', b'update toc')
+        self.write(self.update / 'sce_module/libSceNpToolkit.prx', b'update toolkit')
+        self.enterContext(mock.patch.object(game, 'UPDATE_TOOLKIT_SHA256',
+                                            hashlib.sha256(b'update toolkit').hexdigest()))
         for name in game.UPDATE_ARCHIVES:
             self.write(self.update / name, b'patch archive')
         self.enterContext(mock.patch.object(game, 'UPDATE_TOC_SHA256',
@@ -74,6 +77,25 @@ class UpdateCompatibility(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'g00s000'):
             game.validate_game(self.update)
         self.assertFalse(launcher.ready_to_play(self.update))
+
+    def test_toolkit_is_required_only_for_the_reviewed_update(self):
+        base = game.validate_game(self.base)
+        update = game.validate_selection(self.base, self.update)
+        self.assertEqual(game.linked_modules(base), ('libc.prx', 'libSceFios2.prx'))
+        self.assertEqual(game.linked_modules(update),
+                         ('libc.prx', 'libSceFios2.prx', 'libSceNpToolkit.prx'))
+        path = self.update / 'sce_module/libSceNpToolkit.prx'
+        for content in (b'wrong toolkit', b'', None):
+            if content is None:
+                path.unlink()
+            else:
+                path.write_bytes(content)
+            with self.assertRaisesRegex(ValueError, 'Toolkit'):
+                game.validate_selection(self.base, self.update)
+            self.assertFalse(launcher.ready_to_play(self.base, self.update))
+            self.assertEqual(game.validate_game(self.base)['APP_VER'], '01.00')
+        with self.assertRaisesRegex(ValueError, 'Unreviewed'):
+            game.linked_modules({'TITLE_ID': 'CUSA01047', 'APP_VER': '01.08'})
 
     def test_spoofed_metadata_and_changed_executable_are_rejected(self):
         for content in (self.old, self.new + b'changed'):
@@ -206,8 +228,13 @@ class UpdateCompatibility(unittest.TestCase):
                         view = mods.build_overlay(folder, self.out, [('test', mod)])
                         views.append(view)
                         return str(view)
-                    if name == 'link_modules.py' and fail_preparation:
-                        raise RuntimeError('link failed')
+                    if name == 'link_modules.py':
+                        self.assertEqual(args[args.index('--modules') + 1:],
+                            ('libc.prx', 'libSceFios2.prx', 'libSceNpToolkit.prx'))
+                        self.assertEqual((Path(folder) / 'sce_module/libSceNpToolkit.prx').read_bytes(),
+                                         b'update toolkit')
+                        if fail_preparation:
+                            raise RuntimeError('link failed')
                     return ''
                 def wait():
                     command = start.call_args.args[0]

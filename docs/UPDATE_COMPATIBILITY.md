@@ -19,7 +19,8 @@ original paths; normal exit and preparation failures remove it.
 
 The update needs its original `eboot.bin`, `sce_sys/param.sfo`, valid
 `sce_sys/playgo-chunk.dat`, `sce_module/libc.prx`, `sce_module/libSceFios2.prx`,
-`asset_archive/toc` and `asset_archive/p000035` through `p000048`. Base archives
+`sce_module/libSceNpToolkit.prx`, `asset_archive/toc` and
+`asset_archive/p000035` through `p000048`. Base archives
 remain necessary. Voice checks prefer an updated archive when one exists and
 otherwise inspect the base archive. Missing voice data is reported separately.
 
@@ -50,7 +51,7 @@ resolution remains separate from the game's native rendering resolution.
 number. Exact SELF and reconstructed ELF hashes, unique signatures, original
 bytes, mapped ranges, and relocation/ISA exclusions still guard patch writes.
 Every launch resets the patch packet and invalidates the previous loader receipt.
-The 1.09 preflight also verifies the executable and TOC fingerprints, checks
+The 1.09 preflight also verifies the executable, TOC and NP Toolkit fingerprints, checks
 required patch archives, and rejects mismatched titles, unknown versions and
 incomplete update folders. It does not verify every byte of every game archive.
 
@@ -61,7 +62,7 @@ incomplete update folders. It does not verify every byte of every game archive.
 - Reconstructed ELF SHA-256: `4deebb465b6635b351a301b64841062d3986122a99cc4ffc4f92c1b9aea53bb5`.
 - TOC SHA-256: `5fdfb07df834d6be96435a39dcb92b03fdcff128bc518de9cce31f8bb1aad654`.
 - Entry: `0x1f70fa0`; prepared image: 80,017,808 bytes; PlayGo: 72 chunks.
-- Module linking: 168 native bindings; 494 imports left for the host runtime;
+- Module linking: 277 native bindings; 590 imports left for the host runtime;
   2,154 FS-to-GS rewrites. These counts are not a complete host-import acceptance test.
 - Language conversion table: `0x29a2ab0`; USA mask: `0x242042`.
 - Resource lookup: `0x17dd2b0`, 98 bytes. It reads 48-byte language rows,
@@ -142,6 +143,31 @@ and `0` at `0x1782c4e`, and terminate at `0x17c64c2`. Service and resolver tests
 cover these calls, repeated lifecycle changes and rejection of unrelated imports.
 A Windows test log confirms both module initializers now return zero and the
 original 1.09 entry executes; full startup/gameplay is still pending.
+
+### Native NP Toolkit
+
+The update imports 84 functions from its bundled `libSceNpToolkit.prx`. The
+previous two-module link omitted that library and stopped at
+`7wRBEcZoyPI#libSceNpToolkit`, called from `0x1765a9d`, after creating the render
+thread. This export is an object constructor at module offset `0x11140`; it
+initializes 144 bytes. Returning a generic success value would leave the object
+uninitialized.
+
+The 1.09 launch now links the original toolkit after libc and Fios2, resolving
+all 84 game imports to their native exports and assigning independent TLS module
+ID 4. Preflight requires the reviewed toolkit SHA-256
+`ac57585f2b8bac3289e12a29191c423f27ff844ee641b79fc5f2df55aaef6407`
+for merged and separate updates. Version 1.00 keeps its existing two modules.
+The toolkit's additional OS/service imports still use the host resolver; this
+does not add PSN support or establish that every service call is implemented.
+
+`tools/verify_update_toolkit.py --game-dir <update> --linked <boot-linked.bin>`
+checks actual native bindings and TLS, runs the original module initializer
+with destructor registration intercepted, and exercises the original constructor
+on aligned and unaligned buffers with boundary checks. Initialization returns
+zero and registers three destructors; all three constructor cases pass. Other
+external calls trap during this isolated test. Game initialization, rendering,
+and gameplay still require a Windows test.
 
 Before promoting this profile, test initial boot, gameplay, save/load, 720p–4K
 rendering, all shadow caps, Original restoration, the voice

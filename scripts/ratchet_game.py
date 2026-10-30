@@ -18,6 +18,16 @@ BUILD_FINGERPRINTS = {
 }
 UPDATE_ARCHIVES = tuple(f'asset_archive/p{i:06d}' for i in range(35, 49))
 UPDATE_TOC_SHA256 = '5fdfb07df834d6be96435a39dcb92b03fdcff128bc518de9cce31f8bb1aad654'
+UPDATE_TOOLKIT_SHA256 = 'ac57585f2b8bac3289e12a29191c423f27ff844ee641b79fc5f2df55aaef6407'
+
+
+def linked_modules(values):
+    """Keep the base module set; the reviewed update also imports native NP Toolkit."""
+    validate_identity(values)
+    modules = ('libc.prx', 'libSceFios2.prx')
+    if values['APP_VER'] == '01.09':
+        modules += ('libSceNpToolkit.prx',)
+    return modules
 
 
 def playgo_header_chunks(header, file_size):
@@ -92,6 +102,14 @@ def verify_update(game, values):
     if actual != expected:
         raise ValueError('Update executable fingerprint does not match CUSA01047 USA 1.09. '
                          'Restore the original update; changing APP_VER does not convert a build.')
+    require_files(game, ('sce_module/libSceNpToolkit.prx',))
+    toolkit = game / 'sce_module/libSceNpToolkit.prx'
+    if toolkit.stat().st_size > 32 * 1024 * 1024:
+        raise ValueError('Update NP Toolkit exceeds the 32 MiB limit')
+    with toolkit.open('rb') as stream:
+        if hashlib.file_digest(stream, 'sha256').hexdigest() != UPDATE_TOOLKIT_SHA256:
+            raise ValueError('Update NP Toolkit fingerprint does not match CUSA01047 USA 1.09. '
+                             'Restore sce_module/libSceNpToolkit.prx from the matching update.')
     require_files(game, ('asset_archive/toc', *UPDATE_ARCHIVES))
     toc = game / 'asset_archive/toc'
     if toc.stat().st_size > 32 * 1024 * 1024:
