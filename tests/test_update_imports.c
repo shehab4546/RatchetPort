@@ -7,6 +7,40 @@
 
 typedef int32_t (ABI *Query)(void);
 
+static unsigned toolkit_callback_calls;
+static ABI void toolkit_callback(void) { ++toolkit_callback_calls; }
+static void test_toolkit_callbacks(void) {
+    const char *names[]={"0c7HbXRKUt4#libSceNpManagerForToolkit",
+        "YIvqqvJyjEc#libSceNpManagerForToolkit","JELHf4xPufo#libSceNpManagerForToolkit",
+        "JELHf4xPufo#libSceNpManager"};
+    const char *symbols[]={"sceNpRegisterStateCallbackForToolkit",
+        "sceNpUnregisterStateCallbackForToolkit","sceNpCheckCallbackForLib","sceNpCheckCallbackForLib"};
+    for (unsigned i=0;i<4;++i) {
+        assert(runtime_resolve(names[i],0) && !runtime_resolve(names[i],1));
+        assert(!strcmp(runtime_import_name(names[i]),symbols[i]));
+    }
+    typedef int32_t (ABI *Register)(void *,void *);
+    Register reg=(Register)runtime_resolve(names[0],0);
+    Query unreg=(Query)runtime_resolve(names[1],0);
+    Query poll=(Query)runtime_resolve(names[2],0);
+    assert(runtime_resolve(names[2],0)==runtime_resolve(names[3],0));
+    assert(unreg()==(int32_t)0x80550009);
+    assert(reg(NULL,NULL)==(int32_t)0x80550003);
+    int context=123;
+    assert(reg((void *)toolkit_callback,&context)==0);
+    Query net_poll=(Query)runtime_resolve("iQw3iQPhvUQ#libSceNetCtl",0);
+    Query np_poll=(Query)runtime_resolve("3Zl8BePTh9Y#libSceNpManager",0);
+    assert(net_poll && np_poll);
+    /* The native toolkit worker polls all three services each iteration. */
+    for (unsigned i=0;i<16;++i) assert(net_poll()==0 && np_poll()==0 && poll()==0);
+    assert(!toolkit_callback_calls && context==123);
+    assert(reg((void *)toolkit_callback,NULL)==0 && unreg()==0 && poll()==0);
+    assert(!toolkit_callback_calls && unreg()==(int32_t)0x80550009);
+    assert(!runtime_resolve("0c7HbXRKUt4#unrelated",0));
+    assert(!runtime_resolve("0c7HbXRKUt4#libSceNpManager",0));
+    assert(!runtime_resolve("JELHf4xPufo#libSceNpToolkit",0));
+}
+
 static void test_heap_trace_contract(void) {
     typedef void (ABI *TraceQuery)(void *);
     const char *name="NWtTN10cJzE#libSceLibcInternalExt";
@@ -57,6 +91,7 @@ int main(void) {
     assert(!strcmp(runtime_import_name("TywrFKCoLGY#libSceSaveData"),"sceSaveDataInitialize3"));
     assert(!strcmp(runtime_import_name("0z45PIH+SNI#libSceSaveData"),"sceSaveDataMount2"));
     test_heap_trace_contract();
+    test_toolkit_callbacks();
     const char *stream_names[]={"kvYEw2lBndk#libSceGameLiveStreaming",
         "dWM80AX39o4#libSceGameLiveStreaming","9yK6Fk8mKOQ#libSceGameLiveStreaming"};
     for (unsigned i=0;i<3;++i) {
@@ -71,6 +106,6 @@ int main(void) {
     assert(init(0x4000)==0 && enable(1)==0 && enable(0)==0 && terminate()==0);
     assert(!runtime_resolve("kvYEw2lBndk#unrelated",0));
     assert(!runtime_resolve("caqgDl+V9qA#libSceGameLiveStreaming_debug",0));
-    puts("PASS: update console queries, SDK aliases, heap-trace ABI and offline streaming imports");
+    puts("PASS: update SDK imports, heap-trace ABI, offline streaming and toolkit callbacks");
     return 0;
 }

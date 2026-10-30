@@ -17,6 +17,26 @@ int runtime_savedata_param(int32_t user, const char *dir, void *param) { (void)u
 int runtime_savedata_icon(int32_t user, const char *dir, char *out, size_t size) { (void)user; (void)dir; (void)out; (void)size; return -1; }
 
 int main(void) {
+    /* Offline toolkit callback registration retains/replaces the opaque pair;
+     * polling never dereferences it, dispatches an event or changes NP state. */
+    int callback_a, callback_b, userdata_a, userdata_b;
+    assert(np_toolkit_unregister()==NP_CALLBACK_NOT_REGISTERED);
+    assert(np_toolkit_register(NULL,&userdata_a)==NP_INVALID_ARGUMENT);
+    assert(np_toolkit_register(&callback_a,&userdata_a)==0);
+    assert(np_toolkit_callback.callback==&callback_a && np_toolkit_callback.userdata==&userdata_a);
+    assert(np_toolkit_register(NULL,NULL)==NP_INVALID_ARGUMENT);
+    assert(np_toolkit_callback.callback==&callback_a && np_toolkit_callback.userdata==&userdata_a);
+    assert(np_toolkit_register(&callback_b,&userdata_b)==0);
+    for (int i=0;i<16;++i) assert(np_check_callback_for_lib()==0);
+    assert(np_toolkit_callback.callback==&callback_b && np_toolkit_callback.userdata==&userdata_b);
+    int32_t state=99;
+    assert(np_state(USER_ID,&state)==0 && state==1);
+    assert(np_toolkit_unregister()==0);
+    assert(!np_toolkit_callback.callback && !np_toolkit_callback.userdata);
+    assert(np_toolkit_unregister()==NP_CALLBACK_NOT_REGISTERED);
+    assert(np_check_callback_for_lib()==0);
+    assert(np_toolkit_register(&callback_a,NULL)==0 && np_toolkit_unregister()==0);
+
     /* Optional console broadcast permission never starts a network service. */
     assert(live_stream_terminate()==0);
     assert(live_stream_enable(1)==0 && live_stream.permitted && !live_stream.initialized);

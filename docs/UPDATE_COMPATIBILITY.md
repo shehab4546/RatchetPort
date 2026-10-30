@@ -169,6 +169,25 @@ zero and registers three destructors; all three constructor cases pass. Other
 external calls trap during this isolated test. Game initialization, rendering,
 and gameplay still require a Windows test.
 
+The subsequent Windows log confirms all three module initializers return zero
+and the `Toolkit::NP` worker starts. Its next stop was
+`0c7HbXRKUt4#libSceNpManagerForToolkit` at toolkit offset `0x4655d`.
+The host now supports the toolkit's separate state-callback registration,
+unregistration, and `sceNpCheckCallbackForLib` polling (also exported by
+`libSceNpManager`). Registration retains the callback/context pair under a lock;
+replacement is supported, NULL callbacks reject, and unregistering an empty slot
+reports `0x80550009`. The offline runtime has no PSN state transitions, so polling
+returns without invoking guest callbacks or manufacturing sign-in events.
+
+NIDs, the registration pair, and the unregister error are cross-checked against
+upstream [NP Manager](https://github.com/shadps4-emu/shadPS4/blob/0614ce324be092791b758d79f93d9f1ca5b10a81/src/core/libraries/np/np_manager.cpp)
+and [NP errors](https://github.com/shadps4-emu/shadPS4/blob/0614ce324be092791b758d79f93d9f1ca5b10a81/src/core/libraries/np/np_error.h).
+The actual module passes its callback at `+0x46620` and context in RSI, checks
+the registration result, then starts the polling worker at `+0x10fb0`.
+Service/resolver tests cover replacement, empty/invalid registration, retained
+context, repeated polling, no callback delivery, exact libraries and data-import
+rejection. This adds an offline startup contract, not PSN connectivity.
+
 Before promoting this profile, test initial boot, gameplay, save/load, 720p–4K
 rendering, all shadow caps, Original restoration, the voice
 archive checks, text/voice separation, and returning to 1.00 with the previous

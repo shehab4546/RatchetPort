@@ -31,6 +31,7 @@
 #define NET_CTL_INVALID_ADDR ((int32_t)0x80412107)
 #define NP_SIGNED_OUT ((int32_t)0x80550006)
 #define NP_INVALID_ARGUMENT ((int32_t)0x80550003)
+#define NP_CALLBACK_NOT_REGISTERED ((int32_t)0x80550009)
 #define NET_ENETUNREACH ((int32_t)0x80410133)
 #define NET_EINVAL ((int32_t)0x80410116)
 #define HTTP_NETWORK ((int32_t)0x80431063)
@@ -212,6 +213,29 @@ static ABI int32_t np_has_signed_up(int32_t user,uint8_t *has_signed_up) {
 }
 
 static ABI int32_t np_signed_out(void) { return NP_SIGNED_OUT; }
+/* Toolkit has its own single callback slot, separate from the game's legacy
+ * callback. Keep its address opaque: SDK callback layouts differ. This runtime
+ * stays signed out and has no state transitions to dispatch. In particular,
+ * registration must not call guest code synchronously during toolkit startup. */
+static struct { void *callback, *userdata; } np_toolkit_callback;
+static ABI int32_t np_toolkit_register(void *callback,void *userdata) {
+    if (!callback) return NP_INVALID_ARGUMENT;
+    pthread_mutex_lock(&lock);
+    np_toolkit_callback.callback=callback;
+    np_toolkit_callback.userdata=userdata;
+    pthread_mutex_unlock(&lock);
+    return 0;
+}
+static ABI int32_t np_toolkit_unregister(void) {
+    pthread_mutex_lock(&lock);
+    int32_t result=np_toolkit_callback.callback ? 0 : NP_CALLBACK_NOT_REGISTERED;
+    memset(&np_toolkit_callback,0,sizeof(np_toolkit_callback));
+    pthread_mutex_unlock(&lock);
+    return result;
+}
+static ABI int32_t np_check_callback_for_lib(void) {
+    return 0; /* Signed-out state is constant; no pending network events. */
+}
 static ABI int32_t np_register(void *cb,void *arg) { (void)cb; (void)arg; return new_id(); }
 static ABI void np_register_void(void *cb,void *arg) { (void)cb; (void)arg; }
 static ABI int32_t np_request(const void *param) { (void)param; return new_id(); }
@@ -691,6 +715,9 @@ static const RuntimeExport exports[]={
     {"sceNpGetState",np_state}, {"sceNpHasSignedUp",np_has_signed_up},
     {"sceNpGetOnlineId",np_signed_out}, {"sceNpGetNpId",np_signed_out},
     {"sceNpRegisterStateCallback",np_register}, {"sceNpUnregisterStateCallback",ok_void},
+    {"sceNpRegisterStateCallbackForToolkit",np_toolkit_register},
+    {"sceNpUnregisterStateCallbackForToolkit",np_toolkit_unregister},
+    {"sceNpCheckCallbackForLib",np_check_callback_for_lib},
     {"sceNpRegisterGamePresenceCallback",np_register_void}, {"sceNpRegisterPlusEventCallback",np_register},
     {"sceNpUnregisterPlusEventCallback",ok_void}, {"sceNpCheckCallback",ok_void},
     {"sceNpSetNpTitleId",ok_void}, {"sceNpNotifyPlusFeature",ok_void}, {"sceNpSetContentRestriction",ok_void},
