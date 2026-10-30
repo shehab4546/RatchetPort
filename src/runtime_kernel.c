@@ -309,7 +309,13 @@ static ABI int32_t posix_key_create(uint32_t *k,KeyDestructor d) { int32_t r=key
 static ABI int32_t posix_key_delete(uint32_t k) { int32_t r=key_delete(k); return r ? r&0xffff : 0; }
 static ABI int32_t posix_key_set(uint32_t k,void *v) { int32_t r=key_set(k,v); return r ? r&0xffff : 0; }
 
+/* Match gpu/shim/ratchetgpu.cpp's base-PS4 hardware model. The 1.09 executable
+ * queries both PS4 Pro and PS5 before selecting its render/clock paths. */
+static ABI int32_t is_neo_mode(void) { return 0; }
+static ABI int32_t is_prospero(void) { return 0; }
+
 static const RuntimeExport exports[]={
+    {"sceKernelIsNeoMode",is_neo_mode}, {"sceKernelIsProspero",is_prospero},
     {"sceKernelClockGettime",kernel_clock_gettime}, {"clock_gettime",posix_clock_gettime},
     {"clock_getres",posix_clock_getres},
     {"sceKernelGetProcessTime",process_time}, {"sceKernelGetProcessTimeCounter",process_time_counter},

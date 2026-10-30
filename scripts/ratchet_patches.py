@@ -15,12 +15,13 @@ import secrets
 import struct
 
 from ratchet_binary_audit import Binary, LIMIT, integer, original, pattern
-from ratchet_game import validate_identity
+from ratchet_game import BUILD_FINGERPRINTS, validate_identity
 from frame_timing import FPS60_GROUP, FPS60_WRITES
 from motion_blur import BLUR_OFF_GROUP, BLUR_OFF_WRITES
 from shadow_resolution import PATCH_GROUPS as SHADOW_GROUPS
 from internal_resolution import PATCH_GROUPS as RESOLUTION_GROUPS
 from language_split import PATCH_GROUPS as LANGUAGE_GROUPS
+from ratchet_update_patches import PATCH_GROUPS as UPDATE_GROUPS
 from prepare import load_sfo, span, unpack
 
 PROFILE = {
@@ -30,6 +31,19 @@ PROFILE = {
     'groups': {FPS60_GROUP: {'writes': FPS60_WRITES},
                BLUR_OFF_GROUP: {'writes': BLUR_OFF_WRITES}, **SHADOW_GROUPS, **RESOLUTION_GROUPS, **LANGUAGE_GROUPS},
 }
+UPDATE_PROFILE = {
+    'title_id': 'CUSA01047', 'app_version': '01.09',
+    'source_sha256': BUILD_FINGERPRINTS[('CUSA01047', '01.09')][0],
+    'elf_sha256': BUILD_FINGERPRINTS[('CUSA01047', '01.09')][1],
+    'groups': UPDATE_GROUPS,
+}
+PROFILES = {('CUSA01047', '01.00'): PROFILE, ('CUSA01047', '01.09'): UPDATE_PROFILE}
+
+
+def select_profile(values):
+    validate_identity(values)
+    return PROFILES[(values['TITLE_ID'], values['APP_VER'])]
+
 HEADER = struct.Struct('<8sQ32s16sQ')
 MAX_WRITES = 1024
 MAX_BYTES = 4096
@@ -139,7 +153,8 @@ def compile_groups(binary, image, segments, forbidden, requested, profile=PROFIL
 
     A group is {'writes': [{'signature', 'offset', 'elf_vaddr',
     'original_hex', 'replacement_hex'}]}. Profile injection is for synthetic
-    unit tests; production accepts only the module's reviewed PROFILE.
+    unit tests; production selects a reviewed profile by title and APP_VER,
+    then requires both executable fingerprints before considering any group.
     """
     requested = list(dict.fromkeys(requested))
     skipped, candidates = {}, {}
@@ -153,7 +168,7 @@ def compile_groups(binary, image, segments, forbidden, requested, profile=PROFIL
     for name in requested:
         try:
             if name not in profile['groups']:
-                raise ValueError('feature has no reviewed RP-03 replacement group')
+                raise ValueError(f"feature has no reviewed replacement for {profile['title_id']} {profile['app_version']}")
             group = profile['groups'][name]
             if not isinstance(group.get('writes'), list) or not group['writes']:
                 raise ValueError('empty replacement group')
@@ -210,7 +225,9 @@ def prepare(game, out, requested=(), isa_path=None):
         print('Patches: disabled (no reviewed feature selected)', flush=True)
         return report  # No game patch requested: unchanged baseline, even on an unknown dump.
     try:
-        validate_identity(load_sfo(game / 'sce_sys/param.sfo'))
+        profile = select_profile(load_sfo(game / 'sce_sys/param.sfo'))
+        report.update(title_id=profile['title_id'], app_version=profile['app_version'],
+                      profile=f"{profile['title_id']}-{profile['app_version']}")
         with (game / 'eboot.bin').open('rb') as stream:
             binary = Binary(stream.read(LIMIT + 1))
         report['source_sha256'] = digest(binary.source).hex()
@@ -224,7 +241,7 @@ def prepare(game, out, requested=(), isa_path=None):
         while at >= 0:
             forbidden.append((at, len(tcb)))
             at = image.find(tcb, at + 1)
-        writes, prepared, skipped = compile_groups(binary, image, segments, forbidden, requested)
+        writes, prepared, skipped = compile_groups(binary, image, segments, forbidden, requested, profile)
         atomic_write(out / 'patches.bin', encode(image, writes, bytes.fromhex(report['transaction'])))
         report.update(prepared=prepared, skipped=skipped, write_count=len(writes),
                       phase='prepared' if writes else 'disabled')

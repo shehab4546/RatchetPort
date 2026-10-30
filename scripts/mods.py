@@ -444,6 +444,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('game', type=Path)
     parser.add_argument('--out', required=True, type=Path)
+    parser.add_argument('--base-game-dir', type=Path, help='Original folder for adjacent loose mods')
     parser.add_argument('--mods-dir', required=True, type=Path)
     parser.add_argument('--config', type=Path)
     parser.add_argument('--enabled', choices=('0', '1'), default='1')
@@ -451,7 +452,7 @@ def main():
     layers = []
     if args.enabled == '1':
         # shadPS4's loose overlay convention, beside the original game.
-        legacy = Path(str(args.game.resolve()) + '-mods')
+        legacy = Path(str((args.base_game_dir or args.game).resolve()) + '-mods')
         if legacy.is_dir():
             layers.append((legacy.name, legacy))
         # A directly selected loose overlay is also accepted.

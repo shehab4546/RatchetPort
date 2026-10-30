@@ -17,6 +17,54 @@ int runtime_savedata_param(int32_t user, const char *dir, void *param) { (void)u
 int runtime_savedata_icon(int32_t user, const char *dir, char *out, size_t size) { (void)user; (void)dir; (void)out; (void)size; return -1; }
 
 int main(void) {
+    /* Actual 1.09 metadata sequence: permission=1, chapter=1, chapter=2. */
+    unsigned char recording[6]={0xa5,1,0,0,0,0x5a};
+    assert(video_recording_set_info(0xa007,recording+1,4)==0);
+    assert(video_recording_info.permission==1 && video_recording_info.chapter==0);
+    assert(video_recording_set_info(0xd,recording+1,4)==0);
+    recording[1]=2;
+    assert(video_recording_set_info(0xd,recording+1,4)==0);
+    recording[1]=99; /* no retained pointer to the caller's temporary payload */
+    assert(video_recording_info.permission==1 && video_recording_info.chapter==2);
+    assert(recording[0]==0xa5 && recording[5]==0x5a);
+    assert(video_recording_set_info(0xa007,NULL,4)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xd,recording+1,3)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xd,recording+1,5)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xa007,recording+1,UINT64_MAX)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xa008,recording+1,4)==VIDEO_RECORDING_UNSUPPORTED);
+    assert(video_recording_info.permission==1 && video_recording_info.chapter==2);
+
+    /* Offline toolkit callback registration retains/replaces the opaque pair;
+     * polling never dereferences it, dispatches an event or changes NP state. */
+    int callback_a, callback_b, userdata_a, userdata_b;
+    assert(np_toolkit_unregister()==NP_CALLBACK_NOT_REGISTERED);
+    assert(np_toolkit_register(NULL,&userdata_a)==NP_INVALID_ARGUMENT);
+    assert(np_toolkit_register(&callback_a,&userdata_a)==0);
+    assert(np_toolkit_callback.callback==&callback_a && np_toolkit_callback.userdata==&userdata_a);
+    assert(np_toolkit_register(NULL,NULL)==NP_INVALID_ARGUMENT);
+    assert(np_toolkit_callback.callback==&callback_a && np_toolkit_callback.userdata==&userdata_a);
+    assert(np_toolkit_register(&callback_b,&userdata_b)==0);
+    for (int i=0;i<16;++i) assert(np_check_callback_for_lib()==0);
+    assert(np_toolkit_callback.callback==&callback_b && np_toolkit_callback.userdata==&userdata_b);
+    int32_t state=99;
+    assert(np_state(USER_ID,&state)==0 && state==1);
+    assert(np_toolkit_unregister()==0);
+    assert(!np_toolkit_callback.callback && !np_toolkit_callback.userdata);
+    assert(np_toolkit_unregister()==NP_CALLBACK_NOT_REGISTERED);
+    assert(np_check_callback_for_lib()==0);
+    assert(np_toolkit_register(&callback_a,NULL)==0 && np_toolkit_unregister()==0);
+
+    /* Optional console broadcast permission never starts a network service. */
+    assert(live_stream_terminate()==0);
+    assert(live_stream_enable(1)==0 && live_stream.permitted && !live_stream.initialized);
+    assert(live_stream_initialize(0x4000)==0);
+    assert(live_stream.initialized && live_stream.permitted && live_stream.init_argument==0x4000);
+    assert(live_stream_enable(0)==0 && !live_stream.permitted);
+    assert(live_stream_enable(1)==0 && live_stream.permitted);
+    assert(live_stream_initialize(0x4000)==0 && live_stream.permitted);
+    assert(live_stream_terminate()==0 && !live_stream.initialized && !live_stream.permitted);
+    assert(!live_stream.init_argument && live_stream_terminate()==0);
+
     unsigned char param[128]={0}, result[64]={0}; /* the game zeroes the pointers it does not want */
     uint32_t value;
 

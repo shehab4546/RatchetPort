@@ -33,6 +33,23 @@ static ABI void guest_set_heap_api(void **api) {
     puts("Runtime: application heap API registered");
 }
 void **runtime_application_heap_api(void) { return application_heap_api; }
+/* libSceLibcInternalExt heap-trace exchange used by the 1.09 native libc.
+ * The caller supplies size/flags and retains both returned pointers. Tracing
+ * is disabled, but the writable mask/table must live for the whole process. */
+typedef struct {
+    uint64_t size;
+    uint32_t flags, get_segment_info;
+    uint64_t *mspace_atomic_id_mask, *mstate_table;
+} HeapTraceInfo;
+_Static_assert(sizeof(HeapTraceInfo)==32 && offsetof(HeapTraceInfo,get_segment_info)==12 &&
+               offsetof(HeapTraceInfo,mspace_atomic_id_mask)==16 &&
+               offsetof(HeapTraceInfo,mstate_table)==24, "PS4 heap trace ABI");
+static uint64_t heap_trace_mask, heap_trace_states[64];
+static ABI void guest_heap_get_trace_info(HeapTraceInfo *info) {
+    info->get_segment_info=0;
+    info->mspace_atomic_id_mask=&heap_trace_mask;
+    info->mstate_table=heap_trace_states;
+}
 void runtime_set_module_tls(uint64_t module, const void *data, uint64_t filesz, uint64_t memsz) {
     if (module<2 || module>=TLS_MODULES) { fputs("STOP: unsupported TLS module id\n",stderr); exit(21); }
     tls_modules[module].data=data; tls_modules[module].filesz=filesz; tls_modules[module].memsz=memsz;
@@ -223,6 +240,7 @@ uintptr_t runtime_resolve(const char *name, int is_data) {
     if (!strcmp(name, "vNe1w4diLCs#libkernel")) return (uintptr_t)guest_tls_get_addr;
     if (!strcmp(name, "959qrazPIrg#libkernel")) return (uintptr_t)guest_procparam;
     if (!strcmp(name, "p5EcQeEeJAE#libkernel")) return (uintptr_t)guest_set_heap_api;
+    if (!strcmp(name, "NWtTN10cJzE#libSceLibcInternalExt")) return (uintptr_t)guest_heap_get_trace_info;
     uintptr_t mutex = runtime_mutex_resolve(name);
     if (mutex) return mutex;
     uintptr_t thread = runtime_thread_resolve(name);

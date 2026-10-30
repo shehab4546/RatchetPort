@@ -18,13 +18,15 @@ BLOCK = 1024 * 1024
 SAMPLES = 8
 
 
-def inspect(game, language):
+def inspect(game, language, update=''):
     language = '2' if str(language) == '22' else str(language)
     name, text, filename = LANGUAGES.get(language, LANGUAGES['1'])
     relative = 'asset_archive/' + filename
     result = dict(language=name, locale=filename.rsplit('.', 1)[1], archive=relative,
                   exists=False, size=0, integrity='UNKNOWN', reason='', sampled_blocks=0)
     path = Path(game) / relative
+    if update and (Path(update) / relative).exists():
+        path = Path(update) / relative
     try:
         result['exists'] = path.is_file()
         if not result['exists']:

@@ -1,0 +1,20 @@
+{
+  "source_sha256": "d0bbf7a28ff633bf8f80379c00bd12209611cfcafcaaa39598263f34c366113b",
+  "app_version": "01.09",
+  "guarded_combinations": 144,
+  "selector_cases": 63,
+  "resize_coordinator_modes": 5,
+  "shadow_constructor_cases": 120,
+  "shadow_tile_cases": 55,
+  "heap_initialization_cases": 16,
+  "final_gpu_heap_mib": {
+    "1440p": 1549,
+    "4K": 1933
+  },
+  "allocation_failure_log_and_null_return": true,
+  "original_restoration_passed": true,
+  "rendering_tested": false,
+  "gameplay_tested": false,
+  "production_transaction_4k_shadow256_text": "prepared; awaiting loader confirmation",
+  "production_relocation_isa_tcb_guards_passed": true
+}

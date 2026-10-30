@@ -59,7 +59,8 @@ jobs:
       - name: Build
         run: |
           bash build.sh
-          cmake --build out/ratchet-clean --target playgo-resolver-test services-test churn-trace-test verified-patches-test graphics-settings-test adaptive-gc-test pad-map-test audio-downmix-test resolution-diagnostics-test frame-capture-test record-data-lifetime-test --parallel 3
+          cmake --build out/ratchet-clean --target playgo-resolver-test update-imports-test services-test churn-trace-test verified-patches-test graphics-settings-test adaptive-gc-test pad-map-test audio-downmix-test resolution-diagnostics-test frame-capture-test record-data-lifetime-test --parallel 3
+          out/ratchet-clean/update-imports-test.exe
           out/ratchet-clean/record-data-lifetime-test.exe
           out/ratchet-clean/resolution-diagnostics-test.exe
           RATCHET_RESOLUTION_DIAGNOSTICS=0 out/ratchet-clean/resolution-diagnostics-test.exe disabled

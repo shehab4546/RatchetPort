@@ -44,12 +44,16 @@ class VisualLaunchTests(unittest.TestCase):
                     captured.update(os.environ)
                     return types.SimpleNamespace(wait=lambda: 7, pid=123)
                 def script(name, *args, **kwargs):
+                    if name == 'link_modules.py':
+                        self.assertEqual(args[args.index('--modules') + 1:],
+                                         ('libc.prx', 'libSceFios2.prx'))
                     return str(game) if name == 'mods.py' else None
                 cwd = Path.cwd()
                 try:
                     with patch.dict(os.environ, env, clear=True), patch.object(run, 'PORT', ROOT), \
                             patch.object(run, 'WINDOWS', False), patch.object(sys, 'argv', ['run.py']), \
-                            patch.object(run, 'run_script', side_effect=script), patch('ratchet_game.validate_game'), \
+                            patch.object(run, 'run_script', side_effect=script), \
+                            patch('ratchet_game.validate_game', return_value={'TITLE_ID': 'CUSA01047', 'APP_VER': '01.00'}), \
                             patch('ratchet_patches.prepare', return_value={'prepared': requested if accepted else []}) as prepare, \
                             patch('ratchet_patches.finish'), patch('discord_presence.Presence', return_value=None), \
                             patch.object(run.subprocess, 'run', return_value=types.SimpleNamespace(stdout='CPU: complete', returncode=0)), \

@@ -158,6 +158,18 @@ if (WIN32)
 endif()
 
 add_executable(scissor-test EXCLUDE_FROM_ALL ../tests/test_scissor.cpp)
+add_executable(update-imports-test EXCLUDE_FROM_ALL ../tests/test_update_imports.c
+    ../tests/playgo_backends.c ../src/runtime.c ../src/runtime_kernel.c
+    ../src/runtime_services.c ../src/runtime_file.c)
+set_target_properties(update-imports-test PROPERTIES C_STANDARD 11 C_EXTENSIONS OFF)
+target_compile_definitions(update-imports-test PRIVATE RATCHET_TEST_KERNEL)
+target_compile_options(update-imports-test PRIVATE -Wall -Wextra -Werror)
+target_include_directories(update-imports-test PRIVATE .. ../src)
+target_link_libraries(update-imports-test PRIVATE -pthread)
+if (WIN32)
+    target_sources(update-imports-test PRIVATE ../src/compat_win.c)
+    target_link_libraries(update-imports-test PRIVATE bcrypt ws2_32)
+endif()
 target_include_directories(scissor-test PRIVATE shadps4)
 target_compile_options(scissor-test PRIVATE -UNDEBUG -Wall -Wextra -Werror)
 

@@ -31,6 +31,9 @@
 #define NET_CTL_INVALID_ADDR ((int32_t)0x80412107)
 #define NP_SIGNED_OUT ((int32_t)0x80550006)
 #define NP_INVALID_ARGUMENT ((int32_t)0x80550003)
+#define NP_CALLBACK_NOT_REGISTERED ((int32_t)0x80550009)
+#define VIDEO_RECORDING_INVALID_VALUE ((int32_t)0x80A80003)
+#define VIDEO_RECORDING_UNSUPPORTED ((int32_t)0x80A80008)
 #define NET_ENETUNREACH ((int32_t)0x80410133)
 #define NET_EINVAL ((int32_t)0x80410116)
 #define HTTP_NETWORK ((int32_t)0x80431063)
@@ -106,6 +109,50 @@ static ABI int32_t hide_splash(void) { note("SystemService: splash screen hidden
 static ABI int32_t safe_area(float *info) { if (!info) return SYSTEM_PARAMETER; *info=1.0f; return 0; } /* full screen */
 static ABI int32_t disable_music_player(void) { return 0; }
 static ABI int32_t launch_browser(void) { note("SystemService: web browser request ignored (offline)"); return 0; }
+
+/* ---- GameLiveStreaming: offline lifecycle and broadcast permission ----
+ * 1.09 imports exactly Initialize, EnableLiveStreaming and Terminate. The
+ * enable flag permits console broadcasting; it does not start a broadcast.
+ * Retain the requested lifecycle/permission without a network/media backend.
+ * No broadcast-start or status-query contracts are invented here. */
+static struct { int initialized, permitted; uint64_t init_argument; } live_stream;
+static ABI int32_t live_stream_initialize(uint64_t argument) {
+    pthread_mutex_lock(&lock);
+    live_stream.initialized=1;
+    live_stream.init_argument=argument; /* 1.09 passes the scalar 0x4000. */
+    pthread_mutex_unlock(&lock);
+    note("GameLiveStreaming initialized in offline mode; broadcasting unavailable");
+    return ORBIS_OK;
+}
+static ABI int32_t live_stream_enable(int32_t enabled) {
+    pthread_mutex_lock(&lock);
+    live_stream.permitted=enabled!=0;
+    pthread_mutex_unlock(&lock);
+    return ORBIS_OK;
+}
+static ABI int32_t live_stream_terminate(void) {
+    pthread_mutex_lock(&lock);
+    memset(&live_stream,0,sizeof live_stream);
+    pthread_mutex_unlock(&lock);
+    return ORBIS_OK;
+}
+
+/* The update sets recording permission and chapter metadata, but never starts
+ * a recorder through this API. Copy the reviewed four-byte payloads without
+ * retaining guest stack pointers or opening a capture/file backend. */
+static struct { uint32_t permission, chapter; } video_recording_info;
+static ABI int32_t video_recording_set_info(uint32_t type,const void *info,uint64_t size) {
+    if (!info) return VIDEO_RECORDING_INVALID_VALUE;
+    if (type!=0xa007 && type!=0x0d) return VIDEO_RECORDING_UNSUPPORTED;
+    if (size!=sizeof(uint32_t)) return VIDEO_RECORDING_INVALID_VALUE;
+    uint32_t value;
+    memcpy(&value,info,sizeof(value));
+    pthread_mutex_lock(&lock);
+    if (type==0xa007) video_recording_info.permission=value;
+    else video_recording_info.chapter=value;
+    pthread_mutex_unlock(&lock);
+    return ORBIS_OK;
+}
 
 /* ---- NetCtl / Net / Http / Ssl: no network ---- */
 static int32_t net_errno;
@@ -185,6 +232,29 @@ static ABI int32_t np_has_signed_up(int32_t user,uint8_t *has_signed_up) {
 }
 
 static ABI int32_t np_signed_out(void) { return NP_SIGNED_OUT; }
+/* Toolkit has its own single callback slot, separate from the game's legacy
+ * callback. Keep its address opaque: SDK callback layouts differ. This runtime
+ * stays signed out and has no state transitions to dispatch. In particular,
+ * registration must not call guest code synchronously during toolkit startup. */
+static struct { void *callback, *userdata; } np_toolkit_callback;
+static ABI int32_t np_toolkit_register(void *callback,void *userdata) {
+    if (!callback) return NP_INVALID_ARGUMENT;
+    pthread_mutex_lock(&lock);
+    np_toolkit_callback.callback=callback;
+    np_toolkit_callback.userdata=userdata;
+    pthread_mutex_unlock(&lock);
+    return 0;
+}
+static ABI int32_t np_toolkit_unregister(void) {
+    pthread_mutex_lock(&lock);
+    int32_t result=np_toolkit_callback.callback ? 0 : NP_CALLBACK_NOT_REGISTERED;
+    memset(&np_toolkit_callback,0,sizeof(np_toolkit_callback));
+    pthread_mutex_unlock(&lock);
+    return result;
+}
+static ABI int32_t np_check_callback_for_lib(void) {
+    return 0; /* Signed-out state is constant; no pending network events. */
+}
 static ABI int32_t np_register(void *cb,void *arg) { (void)cb; (void)arg; return new_id(); }
 static ABI void np_register_void(void *cb,void *arg) { (void)cb; (void)arg; }
 static ABI int32_t np_request(const void *param) { (void)param; return new_id(); }
@@ -621,6 +691,10 @@ static ABI int32_t audio_in_open(void) { return AUDIO_IN_NOT_OPENED; }
 
 
 static const RuntimeExport exports[]={
+    {"sceGameLiveStreamingInitialize",live_stream_initialize},
+    {"sceGameLiveStreamingEnableLiveStreaming",live_stream_enable},
+    {"sceGameLiveStreamingTerminate",live_stream_terminate},
+    {"sceVideoRecordingSetInfo",video_recording_set_info},
     {"sceUserServiceInitialize",user_initialize}, {"sceUserServiceTerminate",user_terminate},
     {"sceUserServiceGetInitialUser",user_initial}, {"sceUserServiceGetLoginUserIdList",user_list},
     {"sceUserServiceGetUserName",user_name}, {"sceUserServiceGetEvent",user_event},
@@ -661,6 +735,9 @@ static const RuntimeExport exports[]={
     {"sceNpGetState",np_state}, {"sceNpHasSignedUp",np_has_signed_up},
     {"sceNpGetOnlineId",np_signed_out}, {"sceNpGetNpId",np_signed_out},
     {"sceNpRegisterStateCallback",np_register}, {"sceNpUnregisterStateCallback",ok_void},
+    {"sceNpRegisterStateCallbackForToolkit",np_toolkit_register},
+    {"sceNpUnregisterStateCallbackForToolkit",np_toolkit_unregister},
+    {"sceNpCheckCallbackForLib",np_check_callback_for_lib},
     {"sceNpRegisterGamePresenceCallback",np_register_void}, {"sceNpRegisterPlusEventCallback",np_register},
     {"sceNpUnregisterPlusEventCallback",ok_void}, {"sceNpCheckCallback",ok_void},
     {"sceNpSetNpTitleId",ok_void}, {"sceNpNotifyPlusFeature",ok_void}, {"sceNpSetContentRestriction",ok_void},

@@ -880,10 +880,10 @@ def describe_missing(missing):
 
 
 def ready_to_play(game_dir, update_dir=''):
-    from ratchet_game import validate_game
+    from ratchet_game import validate_selection
     try:
-        validate_game(game_dir)
-        return not update_dir
+        validate_selection(game_dir, update_dir)
+        return True
     except (OSError, ValueError):
         return False
 
@@ -1142,6 +1142,8 @@ def game_environment(s):
         env['RATCHET_GLYPH_STYLE'] = s['glyph_style']
     env['RATCHET_GAME_DIR'] = s['game_dir']
     env.pop('RATCHET_PATCH_DIR', None)
+    if s.get('update_dir'):
+        env['RATCHET_PATCH_DIR'] = s['update_dir']
     # Temporal upscaling is parked (build_graphics): a switch saved on by 2.1.8 has no control left to
     # turn it off, so it is ignored until the upscaler section comes back.
     env['RATCHET_EXPERIMENTAL_UPSCALER'] = '0'
@@ -1732,7 +1734,7 @@ class Launcher:
 
     def build_home(self):
         f = self.scrolled_page('home', f'RatchetPort V{VERSION}',
-                               f'{CODENAME} · CUSA01047 USA · Game v1.00')
+                               f'{CODENAME} · CUSA01047 USA · Game 1.00 / 1.09')
         self.note(f, 'Choose the frame rate, motion blur and shadow-map resolution, then restart the game. '
                      'Experimental options need gameplay testing. Original restores the game settings.')
         self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
@@ -1892,9 +1894,15 @@ class Launcher:
         card.trace_add('write', relabel)
 
     def build_game(self):
-        f = self.scrolled_page('game', 'Game and saves', 'CUSA01047 USA version 1.00 only.')
+        f = self.scrolled_page('game', 'Game and saves', _('USA 1.00 and experimental USA 1.09 support.'))
         self.folder(f, 'game_dir', 'Game folder', 'Select your game folder',
                     'eboot.bin, sce_sys/param.sfo and sce_module', on_change=self.game_changed)
+        self.folder(f, 'update_dir', _('Update folder (optional)'), _('Select the USA 1.09 update folder'),
+                    _('Leave empty for the installed version. A separate 1.09 update requires USA base 1.00.'),
+                    on_change=self.game_changed)
+        self.row(f, _('Update compatibility'), self.ttk.Label(f,
+                 text=_('1.09: separate text/voice, native resolution up to 4K and shadow caps. Motion blur, FPS patches and custom icons remain unavailable.'),
+                 style='Muted.TLabel', wraplength=self.px(480)))
         self.folder(f, 'user_dir', 'Saves folder', 'Choose the saves folder',
                     'Empty uses the portable user folder.', on_change=self.refresh_status)
         self.row(f, 'Text and subtitles language', self.choice(f, 'language', 'app',
@@ -1902,7 +1910,7 @@ class Launcher:
                  hint=_('Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'))
         self.row(f, 'Voice language', self.choice(f, 'voice_language', 'app',
                  [('same', ('Same as text',))] + LANGUAGES),
-                 'Experimental separation for USA v1.00. Save and restart. Unsupported patches fall back to matching text and voice.', restart=True)
+                 _('Experimental separation for USA 1.00 and 1.09. Save and restart. Unverified builds use matching text and voice.'), restart=True)
         archive_status = self.tk.StringVar(value='Choose a game folder to check voice data.')
         label = self.tk.Label(f, textvariable=archive_status, bg=PANEL, fg=MUTED,
                               justify='left', anchor='w', wraplength=self.px(480))
@@ -1912,13 +1920,14 @@ class Launcher:
             generation[0] += 1
             ticket = generation[0]
             folder = self.var('game_dir', 'app').get()
+            update = self.var('update_dir', 'app').get()
             language = self.var('voice_language', 'app').get()
             if language == 'same':
                 language = self.var('language', 'app').get()
             archive_status.set('Checking voice archive…')
             result = []
             def worker():
-                result.append(voice_archive.inspect(folder, language))
+                result.append(voice_archive.inspect(folder, language, update))
             threading.Thread(target=worker, daemon=True).start()
             def poll():
                 if ticket != generation[0] or not label.winfo_exists():
@@ -1929,7 +1938,7 @@ class Launcher:
                 report = result[0]
                 archive_status.set(report['archive'] + '\n' + report['integrity'] + ': ' + voice_archive.warning(report))
             self.root.after(50, poll)
-        for key in ('game_dir', 'language', 'voice_language'):
+        for key in ('game_dir', 'update_dir', 'language', 'voice_language'):
             self.var(key, 'app').trace_add('write', check_archive)
         check_archive()
         self.build_save_backups(f)
@@ -2479,7 +2488,9 @@ class Launcher:
                                                                      'Сначала выберите папку игры.'), fg=MUTED)
 
     def summary(self):
-        return (f'V{VERSION} · {CODENAME} · CUSA01047 USA v1.00 · '
+        info = game_info(self.meta_dir())
+        version = info[1] if info else '?'
+        return (f'V{VERSION} · {CODENAME} · CUSA01047 USA v{version} · '
                 f"requested {self.var('game_fps', 'ini').get()} FPS (applied state in launch log)")
 
     def refresh_lists(self):
@@ -2889,9 +2900,9 @@ class Launcher:
                                                   'Выберите папку игры с eboot.bin (CUSA01047).'))
             self.show('game')
             return
-        from ratchet_game import validate_game
+        from ratchet_game import validate_selection
         try:
-            validate_game(self.app['game_dir'])
+            validate_selection(self.app['game_dir'], self.app.get('update_dir', ''))
         except (OSError, ValueError) as error:
             self.messagebox.showerror(APP_NAME, str(error))
             return
