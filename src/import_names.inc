@@ -937,3 +937,4 @@
 {"kvYEw2lBndk#libSceGameLiveStreaming","sceGameLiveStreamingInitialize"},
 {"dWM80AX39o4#libSceGameLiveStreaming","sceGameLiveStreamingEnableLiveStreaming"},
 {"9yK6Fk8mKOQ#libSceGameLiveStreaming","sceGameLiveStreamingTerminate"},
+{"Fc8qxlKINYQ#libSceVideoRecording","sceVideoRecordingSetInfo"},

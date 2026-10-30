@@ -188,6 +188,25 @@ Service/resolver tests cover replacement, empty/invalid registration, retained
 context, repeated polling, no callback delivery, exact libraries and data-import
 rejection. This adds an offline startup contract, not PSN connectivity.
 
+### Recording metadata
+
+The next Windows run reaches PlayGo (72 installed chunks), archive I/O, Havok
+workers and input initialization, then stops at
+`Fc8qxlKINYQ#libSceVideoRecording` (`sceVideoRecordingSetInfo`). The three actual
+1.09 call sites pass four-byte values: permission type `0xa007`, value 1 at
+`0x17818ca`; chapter type `0x0d`, value 1 at `0x1781aa5`; and chapter value 2 at
+`0x1782c6e`. The host now copies these metadata values without retaining guest
+pointers or starting capture. NULL/wrong-sized payloads reject; other metadata
+types explicitly return unsupported. No recording-start/status API is added.
+
+The function identity, argument layout, metadata types and error constants are
+cross-checked against upstream
+[VideoRecording](https://github.com/shadps4-emu/shadPS4/blob/0614ce324be092791b758d79f93d9f1ca5b10a81/src/core/libraries/video_recording/video_recording.cpp)
+and its adjacent headers. Native service/resolver tests cover the three actual
+calls, unaligned payloads, copying rather than retaining pointers, boundaries,
+invalid sizes, unsupported metadata, exact-library resolution and data-import
+rejection. Gameplay validation remains pending.
+
 Before promoting this profile, test initial boot, gameplay, save/load, 720p–4K
 rendering, all shadow caps, Original restoration, the voice
 archive checks, text/voice separation, and returning to 1.00 with the previous

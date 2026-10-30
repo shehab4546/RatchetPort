@@ -17,6 +17,23 @@ int runtime_savedata_param(int32_t user, const char *dir, void *param) { (void)u
 int runtime_savedata_icon(int32_t user, const char *dir, char *out, size_t size) { (void)user; (void)dir; (void)out; (void)size; return -1; }
 
 int main(void) {
+    /* Actual 1.09 metadata sequence: permission=1, chapter=1, chapter=2. */
+    unsigned char recording[6]={0xa5,1,0,0,0,0x5a};
+    assert(video_recording_set_info(0xa007,recording+1,4)==0);
+    assert(video_recording_info.permission==1 && video_recording_info.chapter==0);
+    assert(video_recording_set_info(0xd,recording+1,4)==0);
+    recording[1]=2;
+    assert(video_recording_set_info(0xd,recording+1,4)==0);
+    recording[1]=99; /* no retained pointer to the caller's temporary payload */
+    assert(video_recording_info.permission==1 && video_recording_info.chapter==2);
+    assert(recording[0]==0xa5 && recording[5]==0x5a);
+    assert(video_recording_set_info(0xa007,NULL,4)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xd,recording+1,3)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xd,recording+1,5)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xa007,recording+1,UINT64_MAX)==VIDEO_RECORDING_INVALID_VALUE);
+    assert(video_recording_set_info(0xa008,recording+1,4)==VIDEO_RECORDING_UNSUPPORTED);
+    assert(video_recording_info.permission==1 && video_recording_info.chapter==2);
+
     /* Offline toolkit callback registration retains/replaces the opaque pair;
      * polling never dereferences it, dispatches an event or changes NP state. */
     int callback_a, callback_b, userdata_a, userdata_b;

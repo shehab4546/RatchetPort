@@ -92,6 +92,20 @@ int main(void) {
     assert(!strcmp(runtime_import_name("0z45PIH+SNI#libSceSaveData"),"sceSaveDataMount2"));
     test_heap_trace_contract();
     test_toolkit_callbacks();
+    const char *recording_name="Fc8qxlKINYQ#libSceVideoRecording";
+    typedef int32_t (ABI *RecordingInfo)(uint32_t,const void *,uint64_t);
+    RecordingInfo set_info=(RecordingInfo)runtime_resolve(recording_name,0);
+    assert(set_info && !runtime_resolve(recording_name,1));
+    assert(!strcmp(runtime_import_name(recording_name),"sceVideoRecordingSetInfo"));
+    assert(!runtime_resolve("Fc8qxlKINYQ#unrelated",0));
+    uint32_t recording_value=1;
+    assert(set_info(0xa007,&recording_value,4)==0 && recording_value==1);
+    assert(set_info(0xd,&recording_value,4)==0);
+    recording_value=2;
+    assert(set_info(0xd,&recording_value,4)==0 && recording_value==2);
+    assert(set_info(0xa007,NULL,4)==(int32_t)0x80A80003);
+    assert(set_info(0xd,&recording_value,0)==(int32_t)0x80A80003);
+    assert(set_info(0xa008,&recording_value,4)==(int32_t)0x80A80008);
     const char *stream_names[]={"kvYEw2lBndk#libSceGameLiveStreaming",
         "dWM80AX39o4#libSceGameLiveStreaming","9yK6Fk8mKOQ#libSceGameLiveStreaming"};
     for (unsigned i=0;i<3;++i) {
@@ -106,6 +120,6 @@ int main(void) {
     assert(init(0x4000)==0 && enable(1)==0 && enable(0)==0 && terminate()==0);
     assert(!runtime_resolve("kvYEw2lBndk#unrelated",0));
     assert(!runtime_resolve("caqgDl+V9qA#libSceGameLiveStreaming_debug",0));
-    puts("PASS: update SDK imports, heap-trace ABI, offline streaming and toolkit callbacks");
+    puts("PASS: update SDK imports, heap-trace ABI, offline streaming, toolkit callbacks and recording metadata");
     return 0;
 }
