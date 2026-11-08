@@ -209,6 +209,15 @@ def main():
             print(output, end='', flush=True)
             if code == 0:
                 isa_args = ['--isa-rewrite', str(out / 'isa-rewrite.bin')]
+        # Windows has no SysV red zone: exceptions on guest threads destroy the data leaf functions keep
+        # below RSP (spiky skinned meshes, job worker crash). RATCHET_REDZONE=0 disables the rewrite.
+        redzone_args = []
+        if WINDOWS and env.get('RATCHET_REDZONE', '1') != '0':
+            code, output = run_script('redzone_rewrite.py', out / 'boot-linked.bin', '--out', out,
+                                      capture=True, check=False)
+            print(output, end='', flush=True)
+            if code == 0:
+                redzone_args = ['--redzone', str(out / 'redzone.bin')]
         run_script('content_profile.py', game, '--out', out, '--sku', env.get('RATCHET_CONTENT_SKU', 'full'))
 
         requested = [n.strip() for n in env.get('RATCHET_PATCHES', '').split(';') if n.strip()]
@@ -313,7 +322,7 @@ def main():
                    '--patches', str(out / 'patches.bin'), '--patch-receipt', str(out / 'patch_receipt.bin'),
                    '--app0', str(game),
                    '--user', str(user_dir),
-                   '--timeout', env.get('RATCHET_TIMEOUT', '0'), *isa_args, *mount_args, *args]
+                   '--timeout', env.get('RATCHET_TIMEOUT', '0'), *isa_args, *redzone_args, *mount_args, *args]
         # No stdin: an inherited pipe (shells such as Git Bash) cost the game its console output.
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, creationflags=no_console())
         presence = None
