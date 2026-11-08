@@ -84,6 +84,77 @@ static void protect(void *p, size_t size, unsigned flags) {
     if (mprotect(p, size, mode)) fail("mprotect failed");
 #endif
 }
+
+/* Red-zone patch. Guest leaf functions keep data below RSP (the SysV
+ * red zone); Windows has no red zone, so an exception on the thread (write-tracking access
+ * violations) writes its frame below RSP and destroys that data. The file holds relocated copies
+ * of those functions that keep RSP 256 bytes lower; each original entry gets a jmp to its copy
+ * when its bytes (CRC32) still match what the copy was made from. */
+typedef struct { uint64_t off; uint32_t size, crc, entry; } RzEntry;
+typedef struct { uint64_t off; uint32_t len; unsigned char *old_bytes, *new_bytes; } RzBytes;
+typedef struct { uint64_t blob_off; uint32_t blob_size, count; RzEntry *entries; unsigned char *blob;
+                 uint32_t byte_count; RzBytes *bytes; } RzPatch;
+static uint32_t rz_crc32(const unsigned char *p, size_t n) {
+    uint32_t c = 0xffffffffu;
+    for (size_t i = 0; i < n; ++i) { c ^= p[i]; for (int k = 0; k < 8; ++k) c = (c >> 1) ^ (0xedb88320u & (0u - (c & 1))); }
+    return ~c;
+}
+static int rz_load(RzPatch *rz, const char *path) {
+    memset(rz, 0, sizeof(*rz));
+    FILE *f = fopen(path, "rb");
+    if (!f) { printf("Red zone: cannot open %s\n", path); return 0; }
+    char magic[4]; uint32_t version = 0;
+    int ok = fread(magic, 1, 4, f) == 4 && !memcmp(magic, "RZP1", 4) && fread(&version, 4, 1, f) == 1 && version == 1 &&
+             fread(&rz->blob_off, 8, 1, f) == 1 && fread(&rz->blob_size, 4, 1, f) == 1 && fread(&rz->count, 4, 1, f) == 1 &&
+             rz->count < 100000 && rz->blob_size < (64u << 20);
+    if (ok) {
+        rz->entries = calloc(rz->count ? rz->count : 1, sizeof(RzEntry));
+        rz->blob = malloc(rz->blob_size ? rz->blob_size : 1);
+        ok = rz->entries && rz->blob;
+        for (uint32_t i = 0; ok && i < rz->count; ++i)
+            ok = fread(&rz->entries[i].off, 8, 1, f) == 1 && fread(&rz->entries[i].size, 4, 1, f) == 1 &&
+                 fread(&rz->entries[i].crc, 4, 1, f) == 1 && fread(&rz->entries[i].entry, 4, 1, f) == 1;
+        ok = ok && fread(rz->blob, 1, rz->blob_size, f) == rz->blob_size;
+        char trailer[4];
+        if (ok && fread(trailer, 1, 4, f) == 4 && !memcmp(trailer, "RZB1", 4)) {
+            ok = fread(&rz->byte_count, 4, 1, f) == 1 && rz->byte_count < 10000 &&
+                 (rz->bytes = calloc(rz->byte_count ? rz->byte_count : 1, sizeof(RzBytes))) != NULL;
+            for (uint32_t i = 0; ok && i < rz->byte_count; ++i) {
+                RzBytes *b = &rz->bytes[i];
+                ok = fread(&b->off, 8, 1, f) == 1 && fread(&b->len, 4, 1, f) == 1 && b->len && b->len <= 64 &&
+                     (b->old_bytes = malloc(b->len)) && (b->new_bytes = malloc(b->len)) &&
+                     fread(b->old_bytes, 1, b->len, f) == b->len && fread(b->new_bytes, 1, b->len, f) == b->len;
+            }
+        }
+    }
+    fclose(f);
+    if (!ok) { printf("Red zone: %s is not a valid patch file\n", path); free(rz->entries); free(rz->blob); memset(rz, 0, sizeof(*rz)); }
+    return ok;
+}
+static void rz_apply(RzPatch *rz, unsigned char *base, size_t image_size) {
+    uint32_t applied = 0, changed = 0;
+    memcpy(base + rz->blob_off, rz->blob, rz->blob_size);
+    for (uint32_t i = 0; i < rz->count; ++i) {
+        const RzEntry *e = &rz->entries[i];
+        if (e->size < 5 || e->off + e->size > image_size || e->entry + 5 > rz->blob_size ||
+            rz_crc32(base + e->off, e->size) != e->crc) { ++changed; continue; }
+        int64_t rel = (int64_t)(rz->blob_off + e->entry) - (int64_t)(e->off + 5);
+        int32_t rel32 = (int32_t)rel;
+        if ((int64_t)rel32 != rel) { ++changed; continue; }
+        base[e->off] = 0xe9;
+        memcpy(base + e->off + 1, &rel32, 4);
+        ++applied;
+    }
+    uint32_t bytes_applied = 0, bytes_changed = 0;
+    for (uint32_t i = 0; i < rz->byte_count; ++i) {
+        const RzBytes *b = &rz->bytes[i];
+        if (b->off + b->len > image_size || memcmp(base + b->off, b->old_bytes, b->len)) { ++bytes_changed; continue; }
+        memcpy(base + b->off, b->new_bytes, b->len);
+        ++bytes_applied;
+    }
+    printf("Red zone: %u guest functions keep their red zone above RSP, %u skipped (bytes differ); "
+           "%u in-place fixes, %u skipped\n", applied, changed, bytes_applied, bytes_changed);
+}
 static ABI __attribute__((noreturn)) void unresolved(uint32_t id, uintptr_t argument) {
     if (id >= import_count) fail("bad import trap index");
     printf("STOP: first unsupported PS4 import: %s (index %u)\n", names[id], id);
@@ -625,6 +696,29 @@ static void isa_context_regs(CONTEXT *c, IsaRegs *regs, int to_context) {
     for (int i=0;i<16;++i) { if (to_context) *g[i]=regs->gpr[i]; else regs->gpr[i]=*g[i]; }
     if (to_context) c->EFlags=(DWORD)regs->rflags; else regs->rflags=c->EFlags;
 }
+/* RATCHET_FAULT_SITES=1 (diagnostics): guest code addresses that take write-tracking faults,
+ * printed at the 1st, 2nd, 4th, ... fault of each address. The function running there loses
+ * whatever it kept in its red zone. */
+static int fault_sites_on;
+#define FAULT_SITE_SLOTS 8192
+static volatile LONG64 fault_site_keys[FAULT_SITE_SLOTS];
+static volatile LONG fault_site_counts[FAULT_SITE_SLOTS];
+static void note_fault_site(const CONTEXT *c) {
+    if (!fault_sites_on || !image) return;
+    uint64_t off = (uint64_t)c->Rip - (uint64_t)(uintptr_t)image;
+    if (off >= UINT64_C(0x6000000)) off = UINT64_C(0xffffffff); /* host code */
+    LONG64 key = (LONG64)off + 1;
+    uint32_t h = (uint32_t)((off * UINT64_C(0x9E3779B97F4A7C15)) >> 51) & (FAULT_SITE_SLOTS - 1);
+    for (int probe = 0; probe < FAULT_SITE_SLOTS; ++probe, h = (h + 1) & (FAULT_SITE_SLOTS - 1)) {
+        LONG64 k = fault_site_keys[h];
+        if (!k) { LONG64 prev = InterlockedCompareExchange64(&fault_site_keys[h], key, 0); k = prev ? prev : key; }
+        if (k != key) continue;
+        LONG n = InterlockedIncrement(&fault_site_counts[h]);
+        if (!(n & (n - 1))) printf("FAULT SITE: guest+0x%llx rsp_low=0x%03llx count=%ld\n", (unsigned long long)off,
+                                   (unsigned long long)(c->Rsp & 0xfff), (long)n);
+        return;
+    }
+}
 static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
     const EXCEPTION_RECORD *record=info->ExceptionRecord;
     DWORD code=record->ExceptionCode;
@@ -641,7 +735,7 @@ static LONG CALLBACK vectored_fault(EXCEPTION_POINTERS *info) {
     }
     if (code==EXCEPTION_ACCESS_VIOLATION && record->NumberParameters>=2) {
         /* GPU page tracking (write-protected guest pages) is resolved first. */
-        if (gpu_enabled && ratchetgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) return EXCEPTION_CONTINUE_EXECUTION;
+        if (gpu_enabled && ratchetgpu_handle_fault(info,(void *)record->ExceptionInformation[1])) { note_fault_site(info->ContextRecord); return EXCEPTION_CONTINUE_EXECUTION; }
         if (runtime_fault_recover) {
             /* A speculative guest memory read (GPU draw preparation) faulted: the thread resumes
              * in ratchetport_longjmp, outside the exception dispatcher, back at its recovery point. */
@@ -931,7 +1025,7 @@ int main(int argc, char **argv) {
 #endif
     int cpu_only = 0, strict_imports = 0, check_imports = 0;
     unsigned timeout_seconds = 10;
-    const char *content_profile=NULL, *app0=NULL, *user_dir=NULL, *patch_file=NULL, *patch_receipt=NULL, *isa_file=NULL;
+    const char *content_profile=NULL, *app0=NULL, *user_dir=NULL, *patch_file=NULL, *patch_receipt=NULL, *isa_file=NULL, *redzone_file=NULL;
     const char *mounts[8]; int mount_count=0;
     for (int i = 2; i < argc; ++i) {
         if (!strcmp(argv[i], "--cpu-only")) cpu_only = 1;
@@ -943,6 +1037,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--patch-receipt") && i+1<argc) patch_receipt=argv[++i];
         else if (!strcmp(argv[i], "--patches") && i+1<argc) patch_file=argv[++i];
         else if (!strcmp(argv[i], "--isa-rewrite") && i+1<argc) isa_file=argv[++i];
+        else if (!strcmp(argv[i], "--redzone") && i+1<argc) redzone_file=argv[++i];
         else if (!strcmp(argv[i], "--mount") && i+1<argc) {
             /* guest=host; the guest part never has '=', so the first one splits */
             const char *spec=argv[++i], *eq=strchr(spec,'=');
@@ -953,7 +1048,7 @@ int main(int argc, char **argv) {
         else { fprintf(stderr, "Unknown option: %s\n", argv[i]); return 1; }
     }
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s boot.bin [--cpu-only] [--strict-imports] [--check-imports] [--content-profile file] [--app0 dir] [--user dir] [--patches file] [--patch-receipt file] [--isa-rewrite file] [--mount guest=host]... [--timeout seconds] | --vulkan-only | --cpu-features | --gamepad\n", argv[0]);
+        fprintf(stderr, "Usage: %s boot.bin [--cpu-only] [--strict-imports] [--check-imports] [--content-profile file] [--app0 dir] [--user dir] [--patches file] [--patch-receipt file] [--isa-rewrite file] [--redzone file] [--mount guest=host]... [--timeout seconds] | --vulkan-only | --cpu-features | --gamepad\n", argv[0]);
         return 1;
     }
     /* Invalidate even if CPU/image validation fails; never reuse an old acknowledgement. */
@@ -1130,7 +1225,19 @@ int main(int argc, char **argv) {
     if (!isa_table && cpu_missing_sets) { printf("STOP: this CPU lacks %s and no rewrite table matches the image\n", missing); return 20; }
     /* The stubs follow the image in the same low mapping (rel32 jmps reach them). */
     size_t stub_area = isa_table ? round_page(isa_stub_area_size(isa_table)) : 0;
-    image = allocate(round_page(size) + stub_area);
+    RzPatch redzone = {0};
+    int redzone_on = redzone_file && *redzone_file && rz_load(&redzone, redzone_file);
+    if (redzone_on && redzone.blob_off < round_page(size) + stub_area) {
+        printf("Red zone: patch blob at 0x%" PRIx64 " overlaps the image (0x%zx bytes); not applied\n",
+               redzone.blob_off, round_page(size) + stub_area);
+        redzone_on = 0;
+    }
+    size_t image_area = round_page(size) + stub_area;
+    if (redzone_on) image_area = (size_t)redzone.blob_off + round_page(redzone.blob_size);
+    image = allocate(image_area);
+#ifdef _WIN32
+    fault_sites_on = getenv("RATCHET_FAULT_SITES") != NULL;
+#endif
     unsigned char *stubs = image + round_page(size);
     if (fread(image, 1, size, f) != size || fgetc(f) != EOF) fail("incorrect memory image size");
     fclose(f);
@@ -1223,6 +1330,7 @@ int main(int argc, char **argv) {
         const char *error = rp_apply(&patch_plan, image);
         if (error) fail(error);
     }
+    if (redzone_on) rz_apply(&redzone, image, size);
     runtime_set_report_hook(loader_report_hook);
     protect(traps, round_page((import_count + 1) * 32), 5);
     protect(image, round_page(size), 0);
@@ -1233,6 +1341,7 @@ int main(int argc, char **argv) {
             executable_entry = 1;
     }
     if (!executable_entry) fail("entry is not executable");
+    if (redzone_on) protect(image + redzone.blob_off, round_page(redzone.blob_size), 5);
     if (patch_file) {
         const char *error = patch_receipt ? rp_receipt(&patch_plan, patch_receipt) : NULL;
         if (error) fail(error);
