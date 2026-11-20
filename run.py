@@ -152,7 +152,9 @@ def main():
     import internal_resolution
     import language_split
     import voice_archive
-    game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
+    import editions
+    # Without RATCHET_GAME_DIR: a CUSA01047 or CUSA01073 folder next to the port (portable copies).
+    game = Path(env.get('RATCHET_GAME_DIR') or editions.default_game_dir(PORT.parent))
     if out.resolve().is_relative_to(game.resolve()):
         fail('Data output must be outside the original game directory.')
     ratchet_patches.reset(out)
@@ -181,7 +183,7 @@ def main():
         sys.exit(20)
     missing = parse_cpu_features(features.stdout)
 
-    game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
+    game = Path(env.get('RATCHET_GAME_DIR') or editions.default_game_dir(PORT.parent))
     if not (game / 'eboot.bin').is_file():
         fail(f'No eboot.bin in {game} (set RATCHET_GAME_DIR).')
     from ratchet_game import validate_game
@@ -190,7 +192,7 @@ def main():
     except (OSError, ValueError) as error:
         fail(str(error))
     if env.get('RATCHET_PATCH_DIR'):
-        fail('Separate game updates are not supported: use CUSA01047 USA v1.00.')
+        fail('Separate game updates are not supported: use version 1.00 (CUSA01047 USA or CUSA01073 Europe).')
     original_game = game.resolve()
     game = Path(run_script('mods.py', game, '--out', out,
                            '--mods-dir', env.get('RATCHET_MODS_DIR', data / 'mods'),
@@ -216,18 +218,20 @@ def main():
         requested = motion_blur.requested_groups(graphics['motion_blur'], requested)
         requested = shadow_resolution.requested_groups(graphics['shadow_resolution'], requested)
         requested = internal_resolution.requested_groups(graphics['internal_resolution'], requested)
+        title_id = editions.title_of(original_game)
+        print(f"Edition: {title_id} {(editions.edition(title_id) or {}).get('name', 'unknown')}", flush=True)
         text_language = env.get('RATCHET_TEXT_LANGUAGE', env.get('RATCHET_LANGUAGE', '1'))
         voice_language = env.get('RATCHET_VOICE_LANGUAGE', text_language)
-        requested = language_split.requested_groups(text_language, voice_language, requested)
+        requested = language_split.requested_groups(text_language, voice_language, requested, title_id)
         patch_report = ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
-        languages = language_split.launch_environment(text_language, voice_language, patch_report)
+        languages = language_split.launch_environment(text_language, voice_language, patch_report, title_id)
         env.update(languages)
         print(f"Languages: text={text_language}, requested voice={voice_language}, "
               f"launch voice={languages['RATCHET_LANGUAGE']}, split={languages['RATCHET_LANGUAGE_SPLIT']}; "
               "loader confirmation required", flush=True)
-        text_locale = voice_archive.LANGUAGES[language_split.normalize(text_language)][1]
+        text_locale = editions.languages(title_id)[language_split.normalize(text_language, title_id)][1]
         voice_id = languages['RATCHET_LANGUAGE']
-        report = voice_archive.inspect(original_game, voice_id)
+        report = voice_archive.inspect(original_game, voice_id, title_id)
         print(f"[Language]\nText language: {text_locale}\nVoice language: {report['locale']}", flush=True)
         print(voice_archive.describe(report), flush=True)
         if report['integrity'] in ('FAILED', 'WARNING'):

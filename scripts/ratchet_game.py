@@ -6,6 +6,8 @@ from prepare import load_sfo
 
 TITLE_ID = 'CUSA01047'
 APP_VERSION = '01.00'
+# Supported editions (scripts/editions.py): CUSA01047 USA and CUSA01073 Europe, both 01.00.
+from editions import EDITIONS
 PLAYGO_PATH = 'sce_sys/playgo-chunk.dat'
 
 
@@ -53,8 +55,9 @@ def validate_playgo(path):
 
 
 def validate_identity(values):
-    if values.get('TITLE_ID') != TITLE_ID or values.get('APP_VER') != APP_VERSION:
-        raise ValueError('RatchetPort requires Ratchet & Clank PS4 CUSA01047 USA version 1.00.')
+    if values.get('TITLE_ID') not in EDITIONS or values.get('APP_VER') != APP_VERSION:
+        raise ValueError('RatchetPort requires Ratchet & Clank PS4 version 1.00: '
+                         'CUSA01047 (USA) or CUSA01073 (Europe).')
     return values
 
 

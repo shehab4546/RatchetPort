@@ -16,12 +16,13 @@ import struct
 
 from ratchet_binary_audit import Binary, LIMIT, integer, original, pattern
 from ratchet_game import validate_identity
-from frame_timing import FPS60_GROUP, FPS60_WRITES
-from motion_blur import BLUR_OFF_GROUP, BLUR_OFF_WRITES
+from frame_timing import FPS60_GROUP, FPS60_WRITES, FPS60_WRITES_EUROPE
+from motion_blur import BLUR_OFF_GROUP, BLUR_OFF_WRITES, BLUR_OFF_WRITES_EUROPE
 from shadow_resolution import PATCH_GROUPS as SHADOW_GROUPS
 from internal_resolution import PATCH_GROUPS as RESOLUTION_GROUPS
 from language_split import PATCH_GROUPS as LANGUAGE_GROUPS
 from prepare import load_sfo, span, unpack
+import editions
 
 PROFILE = {
     'title_id': 'CUSA01047', 'app_version': '01.00',
@@ -30,6 +31,17 @@ PROFILE = {
     'groups': {FPS60_GROUP: {'writes': FPS60_WRITES},
                BLUR_OFF_GROUP: {'writes': BLUR_OFF_WRITES}, **SHADOW_GROUPS, **RESOLUTION_GROUPS, **LANGUAGE_GROUPS},
 }
+# European edition: same checks and transport; only the groups located in its build so far.
+# Shadow-map caps, internal resolution and the text/voice split are not yet located there and
+# are skipped with "feature has no reviewed RP-03 replacement group".
+PROFILE_EUROPE = {
+    'title_id': editions.EUROPE, 'app_version': editions.APP_VERSION,
+    'source_sha256': editions.EDITIONS[editions.EUROPE]['source_sha256'],
+    'elf_sha256': editions.EDITIONS[editions.EUROPE]['elf_sha256'],
+    'groups': {FPS60_GROUP: {'writes': FPS60_WRITES_EUROPE},
+               BLUR_OFF_GROUP: {'writes': BLUR_OFF_WRITES_EUROPE}},
+}
+PROFILES = {PROFILE['title_id']: PROFILE, PROFILE_EUROPE['title_id']: PROFILE_EUROPE}
 HEADER = struct.Struct('<8sQ32s16sQ')
 MAX_WRITES = 1024
 MAX_BYTES = 4096
@@ -210,7 +222,8 @@ def prepare(game, out, requested=(), isa_path=None):
         print('Patches: disabled (no reviewed feature selected)', flush=True)
         return report  # No game patch requested: unchanged baseline, even on an unknown dump.
     try:
-        validate_identity(load_sfo(game / 'sce_sys/param.sfo'))
+        identity = validate_identity(load_sfo(game / 'sce_sys/param.sfo'))
+        profile = PROFILES.get(identity.get('TITLE_ID'), PROFILE)
         with (game / 'eboot.bin').open('rb') as stream:
             binary = Binary(stream.read(LIMIT + 1))
         report['source_sha256'] = digest(binary.source).hex()
@@ -224,7 +237,7 @@ def prepare(game, out, requested=(), isa_path=None):
         while at >= 0:
             forbidden.append((at, len(tcb)))
             at = image.find(tcb, at + 1)
-        writes, prepared, skipped = compile_groups(binary, image, segments, forbidden, requested)
+        writes, prepared, skipped = compile_groups(binary, image, segments, forbidden, requested, profile)
         atomic_write(out / 'patches.bin', encode(image, writes, bytes.fromhex(report['transaction'])))
         report.update(prepared=prepared, skipped=skipped, write_count=len(writes),
                       phase='prepared' if writes else 'disabled')

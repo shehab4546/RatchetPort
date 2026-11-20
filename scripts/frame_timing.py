@@ -24,6 +24,31 @@ FPS60_WRITES = [
         'replacement_hex': '90 90 90 90',
     },
 ]
+# The same two writes in the European edition (CUSA01073 01.00), located by behaviour; see
+# docs/EUROPE_EDITION.md. Its newer compiler copies the interval with integer moves, so the
+# 1.0 store fits only by reordering the 34-byte block (same instructions and effects; `mov esi,8`
+# becomes `push 8; pop rsi` in this non-leaf function, which keeps nothing below rsp).
+FPS60_WRITES_EUROPE = [
+    {
+        # mov eax,[rsi+24h]; imul r15,r12,148h; mov [r14+1Ch],eax; mov eax,[rsi+28h]; mov esi,8;
+        # mov rdi,r15; mov [r14+20h],eax; mov byte [r14+24h],1  ->  interval 1.0, rest unchanged.
+        'signature': '8B 46 24 4D 69 FC 48 01 00 00 41 89 46 1C 8B 46 28 BE 08 00 00 00 4C 89 FF '
+                     '41 89 46 20 41 C6 46 24 01 41 C7 46 2C 00 00',
+        'offset': 0, 'elf_vaddr': 0x1722f64,
+        'original_hex': '8B 46 24 4D 69 FC 48 01 00 00 41 89 46 1C 8B 46 28 BE 08 00 00 00 4C 89 FF '
+                        '41 89 46 20 41 C6 46 24 01',
+        'replacement_hex': '4D 69 FC 48 01 00 00 41 C7 46 1C 00 00 80 3F 8B 46 28 41 89 46 20 '
+                           '41 C6 46 24 01 4C 89 FF 6A 08 5E 90',
+    },
+    {
+        # vmaxsd xmm0,xmm0,xmm1 (caller minimum) before the retained 1/60 floor.
+        'signature': '80 78 24 00 75 05 C5 FA 5F 40 20 C5 FA 59 40 18 C5 FB 10 4D E0 C5 FB 10 55 E8 '
+                     'C5 FA 5A C0 C5 FB 5F C1 C5 FB 5F 0D D0 5B',
+        'offset': 30, 'elf_vaddr': 0x16991f4,
+        'original_hex': 'C5 FB 5F C1',
+        'replacement_hex': '90 90 90 90',
+    },
+]
 
 
 def normalize(value):

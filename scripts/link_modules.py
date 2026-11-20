@@ -17,6 +17,7 @@ from pathlib import Path
 import struct
 from prepare import parse_self, read_self, span, unpack
 from link_libc import encode_id
+from edition_compat import compat_for
 
 DEFAULT_MODULES = ('libc.prx', 'libSceFios2.prx')
 FS_LOAD = bytes.fromhex('64488b042500000000')  # mov rax, fs:[0]
@@ -196,12 +197,23 @@ def link(game, out, module_names=DEFAULT_MODULES):
                           tls_relocations=tls_relocations, exports=count, sha256=m['sha256']))
         base = (base + modsize + 65535) & ~65535
 
+    # Editions other than the reviewed USA build get their link-time fixes (edition_compat.py);
+    # for USA and unknown dumps nothing is added and the image is unchanged.
+    compat, stubs = compat_for(game), {}
+    if compat:
+        main_code = [(a, s) for a, s, f in segments[:ns] if f & 1]
+        stubs = compat.apply(image, segments, base, main_code, out)
+        # The runtime only accepts bindings inside a linked module: the last one covers the page.
+        table[-1]['size'] = len(image) - table[-1]['base']
+
     bindings, unresolved = [], []
     for identity, index in identities.items():
         found = exports.get(identity)
         if not found and identity and identity[1][0] == 'libSceLibcInternal':
             candidates = by_nid.get((identity[0], 'libc'), [])
             found = candidates[0] if len(candidates) == 1 else None
+        if not found and identity and (identity[1][0], identity[0]) in stubs:
+            found = (stubs[(identity[1][0], identity[0])], 1, 'edition stub')   # kind 1: function
         if found:
             bindings.append((index, found[0], found[1]))
         else:

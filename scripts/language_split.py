@@ -4,6 +4,8 @@
 The rest of the game's resources use the selected voice/system language. The compact
 lookup preserves the original sorted-index search and ABI, without a code cave.
 """
+import editions
+
 # Assembly source for TEMPLATE is docs/evidence/language-lookup.S.
 # The injected mov edx immediate is at byte 16; only localization_all is redirected.
 TEXT_IDS = {'1': 1, '2': 6, '7': 13, '17': 18, '20': 21, '22': 6}
@@ -12,7 +14,11 @@ ORIGINAL = '55 48 89 e5 41 56 53 48 89 f0 48 89 fb 89 c9 48 63 d2 48 8d 34 52 48
 TEMPLATE = bytes.fromhex('48 b8 de f8 1b 17 4f d9 55 be 48 39 c6 75 05 ba 15 00 00 00 6b d2 30 89 c9 48 8d 14 ca 48 03 17 44 8b 02 44 8b 52 04 45 01 c2 4c 8b 4f 08 45 39 d0 73 26 43 8d 04 10 d1 e8 49 39 34 c1 74 0d 72 05 41 89 c2 eb e8 44 8d 40 01 eb e2 48 8d 04 40 48 8b 57 18 48 8d 04 82 c3 31 c0 c3 90')
 
 
-def normalize(value):
+def normalize(value, title_id=None):
+    """System language ID for the edition (USA by default). Only USA has the text/voice split
+    groups; other editions keep their own languages and voices follow the text."""
+    if title_id and title_id != editions.USA:
+        return editions.normalize_language(value, title_id)
     value = str(value)
     return '2' if value == '22' else value if value in GROUPS else '1'
 
@@ -27,15 +33,15 @@ def writes(value):
 PATCH_GROUPS = {name: {'writes': writes(value)} for value, name in GROUPS.items()}
 
 
-def requested_groups(text, voice, other=()):
+def requested_groups(text, voice, other=(), title_id=None):
     names = [name for name in other if name not in GROUPS.values()]
-    text, voice = normalize(text), normalize(voice)
-    return names + ([GROUPS[text]] if text != voice else [])
+    text, voice = normalize(text, title_id), normalize(voice, title_id)
+    return names + ([GROUPS[text]] if text != voice and text in GROUPS else [])
 
 
-def launch_environment(text, voice, report):
-    text, voice = normalize(text), normalize(voice)
-    prepared = text != voice and GROUPS[text] in report.get('prepared', [])
+def launch_environment(text, voice, report, title_id=None):
+    text, voice = normalize(text, title_id), normalize(voice, title_id)
+    prepared = text != voice and text in GROUPS and GROUPS[text] in report.get('prepared', [])
     # A rejected override falls back to matching text/voice, keeping the chosen text readable.
     return {'RATCHET_LANGUAGE': voice if prepared else text,
             'RATCHET_LANGUAGE_SPLIT': '1' if prepared else '0'}

@@ -2362,6 +2362,34 @@ EXTRA['ar']['Applies after restarting. USA text and voice: English, French, Port
 EXTRA['pt']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'Aplicado ao reiniciar. Textos e vozes da edição USA: inglês, francês, português (Portugal/Brasil) e espanhol latino-americano com vozes mexicanas.'
 EXTRA['es']['Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'] = 'Se aplica al reiniciar. Textos y voces de USA: inglés, francés, portugués (Portugal/Brasil) y español latinoamericano con voces mexicanas.'
 
+# European edition (CUSA01073): game folder messages, edition-dependent language lists and names.
+_EDITION_TEXTS = {
+    'es': {
+        'CUSA01047 USA or CUSA01073 Europe, version 1.00.': 'CUSA01047 USA o CUSA01073 Europa, versión 1.00.',
+        'Choose the game folder with eboot.bin (CUSA01047 or CUSA01073).': 'Elige la carpeta con eboot.bin (CUSA01047 o CUSA01073).',
+        'Applies after restarting. The list follows the game folder. USA: English, French, Portuguese (Portugal/Brazil) and Latin American Spanish. Europe: Spanish (Spain), English, French, German, Italian, Portuguese, Russian, Polish and more.':
+            'Se aplica al reiniciar. La lista depende de la carpeta del juego. USA: inglés, francés, portugués (Portugal/Brasil) y español latinoamericano. Europa: español (España), inglés, francés, alemán, italiano, portugués, ruso, polaco y más.',
+        'Experimental separation for USA v1.00 only; in the European edition voices follow the text. Save and restart.':
+            'Separación experimental solo para USA v1.00; en la edición europea las voces siguen al texto. Guarda y reinicia.',
+        'Spanish (Spain)': 'Español (España)', 'English (UK)': 'Inglés (Reino Unido)', 'German': 'Alemán',
+        'Italian': 'Italiano', 'Dutch': 'Neerlandés', 'Russian': 'Ruso', 'Polish': 'Polaco', 'Finnish': 'Finés',
+        'Swedish': 'Sueco', 'Danish': 'Danés', 'Norwegian': 'Noruego', 'Turkish': 'Turco', 'Arabic': 'Árabe',
+    },
+    'pt': {
+        'CUSA01047 USA or CUSA01073 Europe, version 1.00.': 'CUSA01047 USA ou CUSA01073 Europa, versão 1.00.',
+        'Choose the game folder with eboot.bin (CUSA01047 or CUSA01073).': 'Escolha a pasta com eboot.bin (CUSA01047 ou CUSA01073).',
+        'Applies after restarting. The list follows the game folder. USA: English, French, Portuguese (Portugal/Brazil) and Latin American Spanish. Europe: Spanish (Spain), English, French, German, Italian, Portuguese, Russian, Polish and more.':
+            'Aplicado ao reiniciar. A lista segue a pasta do jogo. USA: inglês, francês, português (Portugal/Brasil) e espanhol latino-americano. Europa: espanhol (Espanha), inglês, francês, alemão, italiano, português, russo, polonês e outros.',
+        'Experimental separation for USA v1.00 only; in the European edition voices follow the text. Save and restart.':
+            'Separação experimental só para USA v1.00; na edição europeia as vozes seguem o texto. Salve e reinicie.',
+        'Spanish (Spain)': 'Espanhol (Espanha)', 'English (UK)': 'Inglês (Reino Unido)', 'German': 'Alemão',
+        'Italian': 'Italiano', 'Dutch': 'Holandês', 'Russian': 'Russo', 'Polish': 'Polonês', 'Finnish': 'Finlandês',
+        'Swedish': 'Sueco', 'Danish': 'Dinamarquês', 'Norwegian': 'Norueguês', 'Turkish': 'Turco', 'Arabic': 'Árabe',
+    },
+}
+for _language, _texts in _EDITION_TEXTS.items():
+    EXTRA[_language].update(_texts)
+
 # Control editor, update checks and optional diagnostics.
 EXTRA['ar'].update({'Stick mapping': 'تعيين العصوين',
  'Game button': 'زر اللعبة',
