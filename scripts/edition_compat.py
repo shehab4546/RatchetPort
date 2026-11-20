@@ -45,15 +45,22 @@ EUROPE_ZERO_STUBS = {
         'uiOi3D5osbI', 'utSFHQbm8+I', 'v2dS6RrHRZg', 'vHGVN2bUMfM', 'vOA3a52SjWo', 'vuEwc1lpJ-U',
         'xKF1H20+f3c', 'xMdAAKfBCAQ', 'xWDZ0jzZbgg', 'yrRz1HggR4s', 'zkg+kaBk8Dw', 'zqsgWAHMGy0'),
     'libScePosix': ('FN4gaPmuFV8', 'VAzswvTOCzI', 'ih4CD9-gghM'),
-    'libSceSaveData': ('TywrFKCoLGY',),            # sceSaveDataInitialize3: OK
     'libSceVideoRecording': ('Fc8qxlKINYQ',),
     'libkernel': ('-YTW+qXc3CQ', 'WslcK1FQcGI', 'yDBwVAolDgg'),  # WslcK1FQcGI: sceKernelIsNeoMode -> base PS4
 }
 # (library, NID) -> stub name in guest_code().
 EUROPE_SPECIAL_STUBS = {
     ('libSceLibcInternalExt', 'NWtTN10cJzE'): 'heap_trace',     # sceLibcHeapGetTraceInfo (as shadPS4)
-    ('libSceSaveData', '0z45PIH+SNI'): 'savedata_mount2',       # sceSaveDataMount2: "/savedata0"
+    ('libSceSaveData', '0z45PIH+SNI'): 'savedata_mount2',       # sceSaveDataMount2 -> sceSaveDataMount
 }
+# (library, NID) -> a NID#library the runtime knows for the same function (same arguments).
+# ratchet-probe implements these by name but its NID table only lists the older SDK's NIDs.
+EUROPE_IMPORT_ALIASES = {
+    ('libSceSaveData', 'TywrFKCoLGY'): 'ZkZhskCPXFw#libSceSaveData',   # Initialize3 -> Initialize
+}
+# Runtime functions the guest stubs call through a pointer slot in the data page.
+SAVEDATA_MOUNT = '32HQAQdwM2o#libSceSaveData'   # sceSaveDataMount(const Mount1 *, MountResult *)
+MOUNT_SLOT = 0x300                              # data page offset (after the heap-trace statics)
 # Leaf functions that keep locals in the red zone and run while page watchers fault.
 EUROPE_REDZONE_FUNCTIONS = (
     (0x178d500, 0x178d6a0),   # animation/skinning job: crashed at 0x178d667 / 0x178d681
@@ -72,13 +79,29 @@ def guest_code(code_at, data_at):
     code += bytes.fromhex('488d05') + struct.pack('<i', data_at + 8 - (start + 25))   # lea rax, table (u64[64])
     code += bytes.fromhex('48894718')                                          # mov [rdi+0x18], rax
     code += bytes.fromhex('31c0c3')                                            # xor eax, eax; ret
+    # sceSaveDataMount2(const Mount2 *m, MountResult *r): the runtime's Mount2 is Mount with no
+    # title, so build Mount1{user, title=NULL, dir, fingerprint=NULL, blocks, mode} on the stack
+    # and call sceSaveDataMount through the data-page slot. Mount2: user@0 dir@8 blocks@16 mode@24.
     names['savedata_mount2'] = code_at + len(code)
-    code += bytes.fromhex('4885f6' '741b')                                     # test rsi, rsi; jz done
-    code += bytes.fromhex('48b8') + b'/savedat'                                # mov rax, "/savedat"
-    code += bytes.fromhex('488906')                                            # mov [rsi], rax
-    code += bytes.fromhex('c74608') + b'a0\0\0'                                # mov dword [rsi+8], "a0"
-    code += bytes.fromhex('c7460c00000000')                                    # mov dword [rsi+12], 0
-    code += bytes.fromhex('31c0c3')                                            # done: xor eax, eax; ret
+    code += bytes.fromhex('4885ff')                                            # test rdi, rdi
+    jz_at = len(code)
+    code += bytes.fromhex('7400')                                              # jz parameter_error (below)
+    code += bytes.fromhex('4883ec58')                                          # sub rsp, 88 (Mount1 + align)
+    code += bytes.fromhex('4889f8')                                            # mov rax, rdi
+    code += bytes.fromhex('488b08' '48890c24')                                 # [rsp] = user, pad
+    code += bytes.fromhex('48c744240800000000')                                # [rsp+8] = title NULL
+    code += bytes.fromhex('488b4808' '48894c2410')                             # [rsp+16] = dir
+    code += bytes.fromhex('48c744241800000000')                                # [rsp+24] = fingerprint NULL
+    code += bytes.fromhex('488b4810' '48894c2420')                             # [rsp+32] = blocks
+    code += bytes.fromhex('8b4818' '48894c2428')                               # [rsp+40] = mode (zero-extended)
+    for offset in (0x30, 0x38, 0x40, 0x48):                                    # reserved and padding = 0
+        code += bytes.fromhex('48c74424') + bytes([offset]) + bytes(4)
+    code += bytes.fromhex('4889e7')                                            # mov rdi, rsp (rsi = result)
+    call_at = code_at + len(code)
+    code += bytes.fromhex('ff15') + struct.pack('<i', data_at + MOUNT_SLOT - (call_at + 6))  # call [slot]
+    code += bytes.fromhex('4883c458' 'c3')                                     # add rsp, 88; ret
+    code[jz_at + 1] = len(code) - (jz_at + 2)
+    code += bytes.fromhex('b800009f80' 'c3')                                   # parameter_error: eax = 0x809F0000
     names['zero'] = code_at + len(code)
     code += bytes.fromhex('31c0c3')                                            # xor eax, eax; ret
     return code, names
@@ -210,9 +233,10 @@ def redzone_plan(image, start, end):
 class Compat:
     """One edition's link-time fixes."""
 
-    def __init__(self, name, zero_stubs, special_stubs, redzone_functions, sse4a=True):
+    def __init__(self, name, zero_stubs, special_stubs, redzone_functions, sse4a=True, aliases=None):
         self.name, self.zero_stubs, self.special_stubs = name, zero_stubs, special_stubs
         self.redzone_functions, self.sse4a = redzone_functions, sse4a
+        self.aliases = aliases or {}
 
     def stub_names(self):
         """(library, NID) -> stub name, for every import this edition serves with guest code."""
@@ -222,7 +246,11 @@ class Compat:
 
     def apply(self, image, segments, base, main_code, out):
         """Append a data page and the stub/trampoline code at `base` (64 KiB aligned), patch the main
-        image in memory, add both segments and return {(library, NID): image address} of the stubs."""
+        image in memory and add both segments.
+
+        Returns ({(library, NID): image address} of the stubs, [(slot address, NID#library)] of the
+        runtime functions the stubs call; the caller relocates each slot to that import).
+        """
         data_at, code_at = base, base + PAGE
         code, names = guest_code(code_at, data_at)
         jumps, redzone = [], []
@@ -262,10 +290,13 @@ class Compat:
         segments.append((code_at, code_size, 5))   # R+X: stubs and trampolines
         if jumps:
             print(f'SSE4a: {len(jumps)} INSERTQ/EXTRQ sites redirected to emulation', flush=True)
-        return {key: names[name] for key, name in self.stub_names().items()}
+        stubs = {key: names[name] for key, name in self.stub_names().items()}
+        slots = [(data_at + MOUNT_SLOT, SAVEDATA_MOUNT)] if 'savedata_mount2' in self.special_stubs.values() else []
+        return stubs, slots
 
 
-EUROPE = Compat('europe', EUROPE_ZERO_STUBS, EUROPE_SPECIAL_STUBS, EUROPE_REDZONE_FUNCTIONS)
+EUROPE = Compat('europe', EUROPE_ZERO_STUBS, EUROPE_SPECIAL_STUBS, EUROPE_REDZONE_FUNCTIONS,
+                aliases=EUROPE_IMPORT_ALIASES)
 COMPAT = {'europe': EUROPE}
 
 

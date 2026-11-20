@@ -83,17 +83,27 @@ not yet understood.
 
 1. **Newer libc.** `__start__Ztext`/`__stop__Ztext` are plain-named, unreferenced symbols;
    they are given no NID identity.
-2. **Missing HLE functions.** 103 imports have no implementation in ratchet-probe (84
+2. **Missing HLE functions.** 102 imports have no implementation in ratchet-probe (84
    `libSceNpToolkit`, error dialogs, live streaming, video recording, three `libScePosix`,
-   `sceKernelIsNeoMode` and two others in `libkernel`, `sceSaveDataInitialize3`, one
-   `libSceDiscMap`). They are listed explicitly in `EUROPE_ZERO_STUBS` and return 0.
-   Two have dedicated stubs: `sceLibcHeapGetTraceInfo` (fills `HeapInfoInfo` like
-   shadPS4) and `sceSaveDataMount2` (writes `/savedata0`). A stub is bound only when no
-   native or libc export resolves the import.
-3. **SSE4a.** Five `insertq xmmN,xmmM,30h,0` (AMD Jaguar only; `#UD` on Intel) jump to
+   `sceKernelIsNeoMode` and two others in `libkernel`, one `libSceDiscMap`). They are listed
+   explicitly in `EUROPE_ZERO_STUBS` and return 0. `sceLibcHeapGetTraceInfo` has a dedicated
+   stub (fills `HeapInfoInfo` like shadPS4). A stub is bound only when no native or libc
+   export resolves the import.
+3. **Saves (newer SDK names).** ratchet-probe implements `sceSaveDataInitialize3` and
+   `sceSaveDataMount2` by name (`src/runtime_savedata.c`), but its NID table
+   (`src/import_names.inc`) only lists the older SDK's NIDs, so the European imports never
+   reached them. `Initialize3` (`TywrFKCoLGY`) is linked under `sceSaveDataInitialize`'s NID
+   (`ZkZhskCPXFw`): the runtime uses the same function for both (`EUROPE_IMPORT_ALIASES`).
+   `Mount2` (`0z45PIH+SNI`) takes a different struct, so a guest bridge copies `Mount2`
+   (user, dir, blocks, mode) into a `Mount1` with no title and no fingerprint (exactly what
+   `save_mount2` does) and calls `sceSaveDataMount` through a relocated pointer slot. In game:
+   `save data 'rcps4' mounted at /savedata0 (created)`, then `(existing)`, with
+   `rcps4.save` and `rcps4_userprefs.save` written under `savedata/1/CUSA01073/`.
+   Adding the two NIDs to `import_names.inc` would make the alias and bridge unnecessary.
+4. **SSE4a.** Five `insertq xmmN,xmmM,30h,0` (AMD Jaguar only; `#UD` on Intel) jump to
    trampolines that emulate them with `movq/pinsrq`, preserving rax/rcx/rdx, flags and the
    red zone. The scan is cached in `out/sse4a-sites.json`.
-4. **Red zone.** The leaf job at `0x178d500` keeps four locals at `[rsp-8…-20h]` while it
+5. **Red zone.** The leaf job at `0x178d500` keeps four locals at `[rsp-8…-20h]` while it
    writes buffers watched by the page manager. On Windows the access-violation dispatch
    runs on the guest stack and overwrites them, crashing intermittently on entering the
    post-difficulty cinematic (`lock xadd [rcx]` with `rcx=0`, or `lock add [rax+54h]` with
@@ -103,8 +113,6 @@ not yet understood.
 
 ## Known limitations
 
-- Saves do not persist yet: the runtime implements the older `sceSaveDataMount` only, so
-  `/savedata0` is never mounted for `sceSaveDataMount2`.
 - Xbox/keyboard button icons use the USA prompt profile; they prepared and ran on the
   European dump in testing but are not reviewed for it.
 - Cinematics show object/texture pop-in at 30 and 60 FPS (also reported on USA); try

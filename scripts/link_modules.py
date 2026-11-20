@@ -202,9 +202,18 @@ def link(game, out, module_names=DEFAULT_MODULES):
     compat, stubs = compat_for(game), {}
     if compat:
         main_code = [(a, s) for a, s, f in segments[:ns] if f & 1]
-        stubs = compat.apply(image, segments, base, main_code, out)
+        stubs, slots = compat.apply(image, segments, base, main_code, out)
         # The runtime only accepts bindings inside a linked module: the last one covers the page.
         table[-1]['size'] = len(image) - table[-1]['base']
+        # Imports the runtime implements under an older SDK's NID: spell them that way.
+        for identity, index in identities.items():
+            if identity and (identity[1][0], identity[0]) in compat.aliases:
+                names[index] = compat.aliases[(identity[1][0], identity[0])]
+        # Pointer slots the stubs call through, resolved by the runtime like any function import.
+        for slot, name in slots:
+            if name not in names:
+                names.append(name)
+            relocs.append((slot, 1, names.index(name), 0))
 
     bindings, unresolved = [], []
     for identity, index in identities.items():

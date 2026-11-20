@@ -113,7 +113,8 @@ class EuropeCompat(unittest.TestCase):
         image, segments = bytearray(SYNTHETIC_LEAF), [(0, len(SYNTHETIC_LEAF), 5)]
         compat = edition_compat.Compat('test', {'libkernel': ('WslcK1FQcGI',)}, {}, [(0, len(SYNTHETIC_LEAF))], sse4a=False)
         with tempfile.TemporaryDirectory() as out:
-            stubs = compat.apply(image, segments, 0x10000, [(0, len(SYNTHETIC_LEAF))], out)
+            stubs, slots = compat.apply(image, segments, 0x10000, [(0, len(SYNTHETIC_LEAF))], out)
+        self.assertEqual(slots, [])                                 # no Mount2 bridge requested
         self.assertEqual(image[0], 0xE9)                            # prologue jumps to the trampoline
         self.assertEqual(image[14], 0x08)                           # [rsp-8] -> [rsp+8]
         address = stubs[('libkernel', 'WslcK1FQcGI')]
@@ -134,6 +135,28 @@ class EuropeCompat(unittest.TestCase):
         self.assertEqual(text[:5], ['lea rsp,[rsp-80h]', 'pushfq', 'push rax', 'push rcx', 'push rdx'])
         self.assertIn('pinsrq xmm9,rax,0', text)
         self.assertEqual(text[-1], 'jmp 0000000000001006h')
+
+    def test_mount2_bridge_builds_mount1_and_calls_the_slot(self):
+        from iced_x86 import Decoder, Formatter, FormatterSyntax
+        code, names = edition_compat.guest_code(0x11000, 0x10000)
+        start = names['savedata_mount2'] - 0x11000
+        text = [Formatter(FormatterSyntax.INTEL).format(i)
+                for i in Decoder(64, bytes(code[start:names['zero'] - 0x11000]), ip=names['savedata_mount2'])]
+        self.assertEqual([text[0], text[2], text[3]], ['test rdi,rdi', 'sub rsp,58h', 'mov rax,rdi'])
+        self.assertTrue(text[1].startswith('je '))
+        self.assertIn('mov qword ptr [rsp+8],0', text)            # Mount1.title = NULL
+        self.assertIn('mov rcx,[rax+8]', text)                     # Mount2.dir
+        self.assertIn('mov [rsp+10h],rcx', text)                   # -> Mount1.dir
+        self.assertIn('mov ecx,[rax+18h]', text)                   # Mount2.mode
+        self.assertIn('call qword ptr [10300h]', text)             # data page slot
+        self.assertEqual(text[-2:], ['mov eax,809F0000h', 'ret'])
+        je_target = int(text[1].split()[-1].rstrip('h'), 16)        # 'je short 0000...h'
+        self.assertEqual(je_target, names['zero'] - 6)              # jz lands on the parameter error
+
+    def test_europe_aliases_and_slots(self):
+        compat = edition_compat.EUROPE
+        self.assertEqual(compat.aliases[('libSceSaveData', 'TywrFKCoLGY')], 'ZkZhskCPXFw#libSceSaveData')
+        self.assertNotIn(('libSceSaveData', 'TywrFKCoLGY'), compat.stub_names())
 
     def test_europe_lists_are_explicit(self):
         names = edition_compat.EUROPE.stub_names()
