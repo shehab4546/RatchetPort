@@ -16,6 +16,17 @@ BLUR_OFF_WRITES = [
         'replacement_hex': '39 F6 90 90',
     },
 ]
+# European edition (CUSA01073 01.00): the same state builder; RenderSettingsUser is at 0x4bfccd0
+# (lea rdx just before), so `cmp edx,edx` gives the disabled flags without changing a register.
+# The sete/or/test/je and the +0x200A4 strength clear that follow are unchanged.
+BLUR_OFF_WRITES_EUROPE = [
+    {
+        'signature': '80 7A 01 00 0F 94 C2 44 08 FA F6 C2 01 74 0B 41 C7 85 A4 00 02 00 00 00 00 00 81 F9 FF FF FF 00',
+        'offset': 0, 'elf_vaddr': 0x1735604,
+        'original_hex': '80 7A 01 00',
+        'replacement_hex': '39 D2 90 90',
+    },
+]
 
 
 def normalize(value):

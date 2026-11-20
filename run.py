@@ -55,6 +55,57 @@ def no_console():
     return 0 if ctypes.windll.kernel32.GetConsoleWindow() else subprocess.CREATE_NO_WINDOW
 
 
+def ini_keys(path):
+    """Keys set in ratchet.ini (comments ignored); empty when the file is missing."""
+    try:
+        lines = Path(path).read_text(encoding='utf-8').splitlines()
+    except OSError:
+        return set()
+    return {line.split('=', 1)[0].strip() for line in lines if '=' in line and not line.lstrip().startswith('#')}
+
+
+def performance_core_mask():
+    """Affinity mask of the highest-efficiency-class cores on hybrid Windows CPUs, else None.
+
+    The game's render thread is bound to one core; on an efficiency core (Intel E-core) it runs
+    far slower. RATCHET_ALL_CORES=1 keeps every core.
+    """
+    if not WINDOWS or os.environ.get('RATCHET_ALL_CORES') == '1':
+        return None
+    kernel32 = ctypes.windll.kernel32
+    size = ctypes.c_ulong(0)
+    kernel32.GetLogicalProcessorInformationEx(0, None, ctypes.byref(size))  # RelationProcessorCore
+    buffer = ctypes.create_string_buffer(size.value)
+    if not size.value or not kernel32.GetLogicalProcessorInformationEx(0, buffer, ctypes.byref(size)):
+        return None
+    cores, offset = [], 0
+    while offset < size.value:   # SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX / PROCESSOR_RELATIONSHIP
+        length = int.from_bytes(buffer.raw[offset + 4:offset + 8], 'little')
+        efficiency = buffer.raw[offset + 9]
+        mask = int.from_bytes(buffer.raw[offset + 32:offset + 40], 'little')
+        group = int.from_bytes(buffer.raw[offset + 40:offset + 42], 'little')
+        cores.append((efficiency, group, mask))
+        offset += length
+    best = max((c[0] for c in cores), default=0)
+    if not cores or all(c[0] == best for c in cores) or any(c[1] for c in cores):
+        return None   # not hybrid, or several processor groups
+    return sum(c[2] for c in cores if c[0] == best) or None
+
+
+def pin_to_performance_cores(pid):
+    """Hybrid CPUs: keep the game on performance cores, slightly above normal priority."""
+    cores = performance_core_mask()
+    if cores is None:
+        return
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.OpenProcess(0x0200 | 0x0400, False, pid)  # PROCESS_SET_INFORMATION | QUERY_INFORMATION
+    if handle:
+        kernel32.SetProcessAffinityMask(ctypes.c_void_p(handle), ctypes.c_size_t(cores))
+        kernel32.SetPriorityClass(ctypes.c_void_p(handle), 0x8000)    # ABOVE_NORMAL_PRIORITY_CLASS
+        kernel32.CloseHandle(ctypes.c_void_p(handle))
+        print(f'CPU: game limited to performance cores (mask {cores:#x})', flush=True)
+
+
 def parse_cpu_features(output):
     """Instruction sets `ratchet-probe --cpu-features` reports missing ([] when complete)."""
     for line in output.splitlines():
@@ -152,7 +203,9 @@ def main():
     import internal_resolution
     import language_split
     import voice_archive
-    game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
+    import editions
+    # Without RATCHET_GAME_DIR: a CUSA01047 or CUSA01073 folder next to the port (portable copies).
+    game = Path(env.get('RATCHET_GAME_DIR') or editions.default_game_dir(PORT.parent))
     if out.resolve().is_relative_to(game.resolve()):
         fail('Data output must be outside the original game directory.')
     ratchet_patches.reset(out)
@@ -181,7 +234,7 @@ def main():
         sys.exit(20)
     missing = parse_cpu_features(features.stdout)
 
-    game = Path(env.get('RATCHET_GAME_DIR', PORT.parent / 'CUSA01047'))
+    game = Path(env.get('RATCHET_GAME_DIR') or editions.default_game_dir(PORT.parent))
     if not (game / 'eboot.bin').is_file():
         fail(f'No eboot.bin in {game} (set RATCHET_GAME_DIR).')
     from ratchet_game import validate_game
@@ -190,7 +243,7 @@ def main():
     except (OSError, ValueError) as error:
         fail(str(error))
     if env.get('RATCHET_PATCH_DIR'):
-        fail('Separate game updates are not supported: use CUSA01047 USA v1.00.')
+        fail('Separate game updates are not supported: use version 1.00 (CUSA01047 USA or CUSA01073 Europe).')
     original_game = game.resolve()
     game = Path(run_script('mods.py', game, '--out', out,
                            '--mods-dir', env.get('RATCHET_MODS_DIR', data / 'mods'),
@@ -216,18 +269,20 @@ def main():
         requested = motion_blur.requested_groups(graphics['motion_blur'], requested)
         requested = shadow_resolution.requested_groups(graphics['shadow_resolution'], requested)
         requested = internal_resolution.requested_groups(graphics['internal_resolution'], requested)
+        title_id = editions.title_of(original_game)
+        print(f"Edition: {title_id} {(editions.edition(title_id) or {}).get('name', 'unknown')}", flush=True)
         text_language = env.get('RATCHET_TEXT_LANGUAGE', env.get('RATCHET_LANGUAGE', '1'))
         voice_language = env.get('RATCHET_VOICE_LANGUAGE', text_language)
-        requested = language_split.requested_groups(text_language, voice_language, requested)
+        requested = language_split.requested_groups(text_language, voice_language, requested, title_id)
         patch_report = ratchet_patches.prepare(game, out, requested, isa_args[1] if isa_args else None)
-        languages = language_split.launch_environment(text_language, voice_language, patch_report)
+        languages = language_split.launch_environment(text_language, voice_language, patch_report, title_id)
         env.update(languages)
         print(f"Languages: text={text_language}, requested voice={voice_language}, "
               f"launch voice={languages['RATCHET_LANGUAGE']}, split={languages['RATCHET_LANGUAGE_SPLIT']}; "
               "loader confirmation required", flush=True)
-        text_locale = voice_archive.LANGUAGES[language_split.normalize(text_language)][1]
+        text_locale = editions.languages(title_id)[language_split.normalize(text_language, title_id)][1]
         voice_id = languages['RATCHET_LANGUAGE']
-        report = voice_archive.inspect(original_game, voice_id)
+        report = voice_archive.inspect(original_game, voice_id, title_id)
         print(f"[Language]\nText language: {text_locale}\nVoice language: {report['locale']}", flush=True)
         print(voice_archive.describe(report), flush=True)
         if report['integrity'] in ('FAILED', 'WARNING'):
@@ -263,11 +318,15 @@ def main():
             env.setdefault('RATCHET_WINDOW_ICON', str(out / 'window_icon.bmp'))
         except (ImportError, OSError):
             pass
-        env.setdefault('RATCHET_UPSCALER', 'none')
+        # The runtime lets these variables override ratchet.ini: only default them when the
+        # settings file does not choose a value, so the launcher's VSync/output options apply.
+        configured = ini_keys(env['RATCHET_CONFIG'])
+        for name, key, value in (('RATCHET_UPSCALER', 'upscaler', 'none'), ('RATCHET_VSYNC', 'vsync', '1'),
+                                 ('RATCHET_OUTPUT_RES', 'output_res', '1280x720')):
+            if key not in configured:
+                env.setdefault(name, value)
         env.setdefault('RATCHET_READBACK_LINEAR', '1')
         env.setdefault('RATCHET_ZERO_CLEAR', '0')
-        env.setdefault('RATCHET_VSYNC', '1')
-        env.setdefault('RATCHET_OUTPUT_RES', '1280x720')
         env['RATCHET_DERIVED'] = ','.join(derived)
         mount_args = []
         import game_glyphs
@@ -316,6 +375,7 @@ def main():
                    '--timeout', env.get('RATCHET_TIMEOUT', '0'), *isa_args, *mount_args, *args]
         # No stdin: an inherited pipe (shells such as Git Bash) cost the game its console output.
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, creationflags=no_console())
+        pin_to_performance_cores(process.pid)
         presence = None
         try:
             try:

@@ -47,6 +47,7 @@ sys.path.insert(0, str(PORT_DIR / 'scripts'))
 from release_info import VERSION, CODENAME, APP_TITLE  # noqa: E402
 import graphics_presets
 import voice_archive
+import editions
 import graphics_options  # noqa: E402  (scripts/)
 
 import save_backup  # noqa: E402  (scripts/)
@@ -422,7 +423,7 @@ SHADOW_RESOLUTION = [('original', ('Original',)),
 PAGES = ('home', 'graphics', 'performance', 'game', 'controls', 'mods', 'advanced')
 PAGE_REFRESH = {'home': ('refresh_status',), 'game': ('refresh_game_patches',), 'mods': ('refresh_lists',)}
 UI_SCALES = [('auto', ('Auto',)), ('1', ('1x',)), ('2', ('2x',))]
-APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('RATCHET_GAME_DIR', str(PORT_DIR.parent / 'CUSA01047') if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
+APP_DEFAULTS = {'ui_language': 'en', 'ui_scale': 'auto', 'game_dir': os.environ.get('RATCHET_GAME_DIR', str(editions.default_game_dir(PORT_DIR.parent)) if WINDOWS else ''), 'update_dir': '', 'experimental_upscaler': False,
                 'video_backend': 'auto', 'gamemode': False, 'mangohud': False, 'desktop_integration': True, 'user_dir': '',
                 'mods_dir': '', 'mods_enabled': True, 'patches_dir': '', 'language': '1', 'voice_language': 'same',
                 'hdr': False, 'draw_pipe': '', 'readbacks': '', 'no_msaa': '', 'stream_memory': 'cached',
@@ -665,20 +666,47 @@ LANGUAGES = [('1', ('English', 'Английский')), ('2', ('French', 'Фр�
              ('7', ('Portuguese (Portugal)',)),
              ('17', ('Portuguese (Brazil)', 'Португальский (Бразилия)')),
              ('20', ('Spanish (Latin America)',))]
+LANGUAGES_USA = LANGUAGES
+# CUSA01073 v1.00 Europe: the system language IDs of scripts/editions.py EUROPE_LANGUAGES, in
+# display order. Voices follow the text in this edition.
+LANGUAGES_EUROPE = [('3', ('Spanish (Spain)', 'Испанский (Испания)')), ('1', ('English', 'Английский')),
+                    ('18', ('English (UK)',)), ('2', ('French', 'Французский')), ('4', ('German', 'Немецкий')),
+                    ('5', ('Italian', 'Итальянский')), ('6', ('Dutch',)), ('7', ('Portuguese (Portugal)',)),
+                    ('8', ('Russian', 'Русский')), ('16', ('Polish',)), ('12', ('Finnish',)), ('13', ('Swedish',)),
+                    ('14', ('Danish',)), ('15', ('Norwegian',)), ('19', ('Turkish',)), ('21', ('Arabic',))]
+EDITION_LANGUAGES = {editions.USA: LANGUAGES_USA, editions.EUROPE: LANGUAGES_EUROPE}
 
 
-def game_language_id(current):
+def game_edition(folder):
+    """TITLE_ID of a supported edition in a game folder (CUSA01047 / CUSA01073), else None."""
+    try:
+        title = game_sfo(folder).get('TITLE_ID') if folder else None
+    except Exception:
+        return None
+    return title if title in editions.EDITIONS else None
+
+
+def edition_languages(folder):
+    return EDITION_LANGUAGES.get(game_edition(folder), LANGUAGES_USA)
+
+
+def game_language_id(current, languages=None):
+    languages = languages or LANGUAGES_USA
     value = str(current)
-    return value if value in dict(LANGUAGES) or value == '22' else '1'
+    usa_alias = languages is LANGUAGES_USA and value == '22'
+    return value if value in dict(languages) or usa_alias else '1'
 
 
-def game_language_options(current):
+def game_language_options(current, languages=None):
+    languages = languages or LANGUAGES_USA
     value = str(current)
-    if value in dict(LANGUAGES):
-        return LANGUAGES
+    if value in dict(languages):
+        return languages
     # Preserve old preferences visibly instead of silently replacing settings.json on save.
-    label = 'French (saved system ID 22)' if value == '22' else f'Unavailable in USA: {value} (English fallback)'
-    return LANGUAGES + [(value, (label,))]
+    edition = 'Europe' if languages is LANGUAGES_EUROPE else 'USA'
+    label = ('French (saved system ID 22)' if value == '22' and edition == 'USA'
+             else f'Unavailable in {edition}: {value} (English fallback)')
+    return languages + [(value, (label,))]
 
 DRAW_PIPE = [('', ('Auto (8+ threads)', 'Авто (8+ потоков)')), ('1', ('On', 'Включён')),
              ('0', ('Off (more stable)', 'Выключен (стабильнее)'))]
@@ -1168,9 +1196,10 @@ def game_environment(s):
     env['RATCHET_MODS_ENABLED'] = '1' if s['mods_enabled'] else '0'
     env['RATCHET_PATCHES_DIR'] = s['patches_dir'] or str(DATA_DIR / 'patches')
     env['RATCHET_PATCHES_CONFIG'] = str(DATA_DIR / 'patches.json')
-    text_language = game_language_id(s.get('language', '1'))
+    languages = edition_languages(s['game_dir'])
+    text_language = game_language_id(s.get('language', '1'), languages)
     voice_language = s.get('voice_language', 'same')
-    voice_language = text_language if voice_language == 'same' else game_language_id(voice_language)
+    voice_language = text_language if voice_language == 'same' else game_language_id(voice_language, languages)
     env['RATCHET_TEXT_LANGUAGE'] = text_language
     env['RATCHET_VOICE_LANGUAGE'] = voice_language
     env['RATCHET_LANGUAGE'] = voice_language
@@ -1732,7 +1761,7 @@ class Launcher:
 
     def build_home(self):
         f = self.scrolled_page('home', f'RatchetPort V{VERSION}',
-                               f'{CODENAME} · CUSA01047 USA · Game v1.00')
+                               f'{CODENAME} · CUSA01047 USA / CUSA01073 Europe · Game v1.00')
         self.note(f, 'Choose the frame rate, motion blur and shadow-map resolution, then restart the game. '
                      'Experimental options need gameplay testing. Original restores the game settings.')
         self.note(f, 'Use your own legally obtained dump. No game files are included. Intel UHD 730 may encounter VK_ERROR_DEVICE_LOST.')
@@ -1892,17 +1921,18 @@ class Launcher:
         card.trace_add('write', relabel)
 
     def build_game(self):
-        f = self.scrolled_page('game', 'Game and saves', 'CUSA01047 USA version 1.00 only.')
+        f = self.scrolled_page('game', 'Game and saves', 'CUSA01047 USA or CUSA01073 Europe, version 1.00.')
         self.folder(f, 'game_dir', 'Game folder', 'Select your game folder',
                     'eboot.bin, sce_sys/param.sfo and sce_module', on_change=self.game_changed)
         self.folder(f, 'user_dir', 'Saves folder', 'Choose the saves folder',
                     'Empty uses the portable user folder.', on_change=self.refresh_status)
+        game_languages = lambda: edition_languages(self.var('game_dir', 'app').get())
         self.row(f, 'Text and subtitles language', self.choice(f, 'language', 'app',
-                 lambda: game_language_options(self.var('language', 'app').get())),
-                 hint=_('Applies after restarting. USA text and voice: English, French, Portuguese (Portugal/Brazil), and Latin American Spanish with Mexican Spanish voice.'))
+                 lambda: game_language_options(self.var('language', 'app').get(), game_languages())),
+                 hint=_('Applies after restarting. The list follows the game folder. USA: English, French, Portuguese (Portugal/Brazil) and Latin American Spanish. Europe: Spanish (Spain), English, French, German, Italian, Portuguese, Russian, Polish and more.'))
         self.row(f, 'Voice language', self.choice(f, 'voice_language', 'app',
-                 [('same', ('Same as text',))] + LANGUAGES),
-                 'Experimental separation for USA v1.00. Save and restart. Unsupported patches fall back to matching text and voice.', restart=True)
+                 lambda: [('same', ('Same as text',))] + game_languages()),
+                 'Experimental separation for USA v1.00 only; in the European edition voices follow the text. Save and restart.', restart=True)
         archive_status = self.tk.StringVar(value='Choose a game folder to check voice data.')
         label = self.tk.Label(f, textvariable=archive_status, bg=PANEL, fg=MUTED,
                               justify='left', anchor='w', wraplength=self.px(480))
@@ -2479,7 +2509,9 @@ class Launcher:
                                                                      'Сначала выберите папку игры.'), fg=MUTED)
 
     def summary(self):
-        return (f'V{VERSION} · {CODENAME} · CUSA01047 USA v1.00 · '
+        title = game_edition(self.var('game_dir', 'app').get())
+        title = f"{title} {editions.EDITIONS[title]['name']}" if title else 'CUSA01047/CUSA01073'
+        return (f'V{VERSION} · {CODENAME} · {title} v1.00 · '
                 f"requested {self.var('game_fps', 'ini').get()} FPS (applied state in launch log)")
 
     def refresh_lists(self):
@@ -2885,8 +2917,8 @@ class Launcher:
         if not self.offer_system_files():
             return
         if not game_info(self.app['game_dir']):
-            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01047).',
-                                                  'Выберите папку игры с eboot.bin (CUSA01047).'))
+            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01047 or CUSA01073).',
+                                                  'Выберите папку игры с eboot.bin (CUSA01047 или CUSA01073).'))
             self.show('game')
             return
         from ratchet_game import validate_game
@@ -3163,8 +3195,8 @@ class Launcher:
             return
         game = self.var('game_dir', 'app').get()
         if not game_info(game):
-            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01047).',
-                                                  'Выберите папку игры с eboot.bin (CUSA01047).'))
+            self.messagebox.showerror(APP_NAME, _('Choose the game folder with eboot.bin (CUSA01047 or CUSA01073).',
+                                                  'Выберите папку игры с eboot.bin (CUSA01047 или CUSA01073).'))
             return
         self.root.configure(cursor='watch')
         self.root.update_idletasks()

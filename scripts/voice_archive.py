@@ -1,26 +1,25 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-"""Bounded, advisory checks for CUSA01047 gameplay voice archives.
+"""Bounded, advisory checks for gameplay voice archives (CUSA01047 USA, CUSA01073 Europe).
 
 A sample is not a full WEM/layout verification. Never repairs files or blocks play.
 """
 from pathlib import Path
 import hashlib
 
-# PS4 system language -> display name, text suffix, gameplay voice archive.
-LANGUAGES = {
-    '1': ('English US', 'us', 'a00s003.us'),
-    '2': ('French', 'fr', 'a00s007.fr'),
-    '7': ('Portuguese Portugal', 'pt', 'a00s013.pt'),
-    '20': ('Spanish LATAM', 'la', 'a00s017.mx'),
-    '17': ('Portuguese Brazil', 'br', 'a00s018.br'),
-}
+import editions
+
+# PS4 system language -> display name, text suffix, gameplay voice archive (USA edition).
+LANGUAGES = editions.USA_LANGUAGES
 BLOCK = 1024 * 1024
 SAMPLES = 8
 
 
-def inspect(game, language):
-    language = '2' if str(language) == '22' else str(language)
-    name, text, filename = LANGUAGES.get(language, LANGUAGES['1'])
+def inspect(game, language, title_id=None):
+    """Sample the voice archive of `language` in the game folder's edition (from its param.sfo
+    unless `title_id` is given; the USA table for unknown dumps)."""
+    title_id = title_id or editions.title_of(game)
+    language = editions.normalize_language(language, title_id)
+    name, text, filename = editions.languages(title_id)[language]
     relative = 'asset_archive/' + filename
     result = dict(language=name, locale=filename.rsplit('.', 1)[1], archive=relative,
                   exists=False, size=0, integrity='UNKNOWN', reason='', sampled_blocks=0)

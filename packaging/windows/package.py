@@ -92,7 +92,8 @@ def main():
               'voice_archive', 'language_split', 'graphics_presets', 'frame_timing', 'motion_blur', 'shadow_resolution', 'internal_resolution', 'argparse', 'base64', 'collections', 'hashlib', 'json', 're', 'shutil', 'socket', 'struct',
               'tempfile', 'threading', 'uuid', 'xml.etree.ElementTree', 'urllib.request', 'ctypes.wintypes',
               'iced_x86', 'PIL.Image', 'PIL.ImageTk', 'release_info', 'ratchet_game', 'ratchet_patches', 'ratchet_binary_audit', 'prepare', 'patches', 'mods',
-              'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence']
+              'content_profile', 'link_libc', 'link_modules', 'isa_rewrite', 'guest_memory', 'discord_presence',
+              'editions', 'edition_compat']
     version_file = work / 'version-info.txt'
     version_file.write_text(f"""VSVersionInfo(
       ffi=FixedFileInfo(filevers={FILE_VERSION!r}, prodvers={FILE_VERSION!r},
